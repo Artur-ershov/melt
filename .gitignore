@@ -9,3 +9,8 @@ Thumbs.db
 .vscode/
 *.swp
 *.swo
+
+# Экспорты таблиц (конфиденциальные данные — не коммитить)
+table/
+data/Лист1.html
+data/resources/
