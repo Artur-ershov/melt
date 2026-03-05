@@ -1,0 +1,663 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8" />
+  <title>Ice Sandbox: Standalone Masterpiece</title>
+  <style>
+    body { margin: 0; overflow: hidden; background: #000; font-family: 'Segoe UI', system-ui, sans-serif; }
+    canvas { width: 100vw; height: 100vh; display: block; cursor: none; }
+    
+    /* UI PANEL */
+    #ui-container {
+      position: fixed; top: 0; right: 0; bottom: 0; width: 380px;
+      background: rgba(7, 10, 15, 0.95);
+      backdrop-filter: blur(10px);
+      border-left: 1px solid rgba(255, 255, 255, 0.1);
+      box-shadow: -15px 0 60px rgba(0,0,0,1);
+      overflow-y: auto; z-index: 100;
+      transform: translateX(0); transition: transform 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+      display: flex; flex-direction: column;
+    }
+    #ui-container.hidden { transform: translateX(100%); }
+
+    .header { padding: 25px; border-bottom: 1px solid rgba(255,255,255,0.08); background: #05070a; flex-shrink: 0; }
+    h1 { margin: 0; font-size: 14px; color: #fff; text-transform: uppercase; letter-spacing: 4px; font-weight: 900; }
+    .subtitle { font-size: 9px; color: #4facfe; margin-top: 6px; opacity: 0.8; letter-spacing: 1.5px; font-family: monospace; }
+
+    .controls-area { flex: 1; padding: 20px; scrollbar-width: thin; scrollbar-color: #334455 #070a0f; }
+    
+    .section { margin-bottom: 28px; border-left: 2px solid rgba(79, 172, 254, 0.2); padding-left: 15px; }
+    .section-title { font-size: 10px; font-weight: 800; color: #4facfe; text-transform: uppercase; margin-bottom: 15px; letter-spacing: 1px; }
+    
+    .control-row { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; font-size: 11px; color: #9daab6; }
+    .control-row label { flex: 1; padding-right: 15px; cursor: default; }
+    .control-row:hover label { color: #fff; }
+    
+    input[type=range] { width: 130px; height: 3px; -webkit-appearance: none; background: #1c2530; border-radius: 2px; outline: none; }
+    input[type=range]::-webkit-slider-thumb {
+        -webkit-appearance: none; width: 10px; height: 10px; border-radius: 50%;
+        background: #e0e0e0; cursor: pointer; border: 1px solid #000; transition: 0.2s;
+    }
+    input[type=range]::-webkit-slider-thumb:hover { transform: scale(1.4); background: #fff; box-shadow: 0 0 10px #4facfe; }
+    
+    .val-display { width: 35px; text-align: right; color: #4facfe; font-family: monospace; font-size: 10px; font-weight: bold; }
+
+    select { width: 100%; padding: 8px; background: #11161d; color: #fff; border: 1px solid #2a3540; border-radius: 4px; font-size: 11px; outline: none; cursor: pointer; margin-bottom: 12px; transition: 0.2s; }
+    select:hover { border-color: #4facfe; }
+
+    .toggle-container { display: flex; background: #11161d; border-radius: 4px; padding: 3px; margin-bottom: 12px; border: 1px solid #2a3540; }
+    .toggle-btn { flex: 1; text-align: center; padding: 7px; font-size: 10px; cursor: pointer; color: #667; transition: 0.2s; font-weight: 800; text-transform: uppercase; }
+    .toggle-btn.active { background: #4facfe; color: #05080c; border-radius: 2px; box-shadow: 0 2px 10px rgba(79, 172, 254, 0.3); }
+
+    .checkbox-row { display: flex; align-items: center; margin-bottom: 10px; cursor: pointer; font-size: 11px; color: #ccc; }
+    .checkbox-row input { margin-right: 12px; width: 14px; height: 14px; accent-color: #4facfe; }
+
+    .lbl-r { color: #ff6b6b; } .lbl-g { color: #51cf66; } .lbl-b { color: #339af0; }
+
+    /* Кнопки JSON & Upload */
+    .action-group { display: flex; flex-direction: column; gap: 10px; margin-bottom: 15px; }
+    .action-row { display: flex; gap: 10px; }
+    .action-btn { 
+      flex: 1; padding: 8px; background: #11161d; color: #4facfe; 
+      border: 1px solid #2a3540; border-radius: 4px; font-size: 10px; 
+      font-weight: bold; text-transform: uppercase; cursor: pointer; transition: 0.2s; text-align: center;
+    }
+    .action-btn:hover { background: #4facfe; color: #000; box-shadow: 0 2px 10px rgba(79, 172, 254, 0.3); }
+    #custom-img-upload { display: none; }
+
+    #hint { position: fixed; bottom: 25px; left: 25px; color: rgba(255,255,255,0.4); font-size: 11px; letter-spacing: 2px; pointer-events: none; transition: opacity 0.5s; text-transform: uppercase; z-index: 10; font-weight: bold; text-shadow: 0 2px 4px rgba(0,0,0,0.8); }
+    
+    #loader {
+      position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+      background: #000; z-index: 200; display: flex; flex-direction: column;
+      align-items: center; justify-content: center; color: #4facfe;
+      font-family: monospace; letter-spacing: 3px; transition: opacity 0.6s;
+    }
+    #loader-text { margin-top: 15px; font-size: 11px; color: #445; }
+  </style>
+</head>
+<body>
+
+<div id="loader">
+  <div>MAXIMUMUS ENGINE BOOT...</div>
+  <div id="loader-text">Loading textures & generating mipmaps...</div>
+</div>
+
+<div id="hint">Press [H] or [P] to toggle Settings</div>
+
+<div id="ui-container">
+  <div class="header">
+    <h1>Master Console</h1>
+    <div class="subtitle">STANDALONE EDITION</div>
+  </div>
+  
+  <div class="controls-area">
+
+    <div class="section">
+      <div class="section-title">Configuration & Assets</div>
+      <div class="action-group">
+        <label for="custom-img-upload" class="action-btn" style="display:block; padding:10px; border-color:#51cf66; color:#51cf66;">
+          + Upload Custom Image
+        </label>
+        <input type="file" id="custom-img-upload" accept="image/*">
+        
+        <div class="action-row">
+          <button id="btn-export" class="action-btn">Copy JSON</button>
+          <button id="btn-import" class="action-btn">Paste JSON</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="section">
+      <div class="section-title">Environment Presets</div>
+      <select id="preset-selector">
+        <option value="0">Set 1: Industrial City (Cold)</option>
+        <option value="1">Set 2: Golden Nature (Warm)</option>
+        <option value="2">Set 3: Custom Asset (C)</option>
+      </select>
+      <div class="control-row"><label>Parallax Power</label><input id="p-parallax" type="range" min="0" max="0.1" step="0.001" value="0.019"><span class="val-display">0.019</span></div>
+      <div class="control-row"><label>Window Glow</label><input id="p-emissive" type="range" min="0" max="5" step="0.1" value="0"><span class="val-display">0.00</span></div>
+    </div>
+
+    <div class="section">
+      <div class="section-title">Engine Features</div>
+      <div class="checkbox-row"><label><input type="checkbox" id="c-aces" checked> ACES Filmic Tone Mapping</label></div>
+      <div class="checkbox-row"><label><input type="checkbox" id="c-dither" checked> Blue Noise Dithering</label></div>
+      <div class="control-row"><label>Target Gamma</label><input id="p-gamma" type="range" min="1.0" max="3.0" step="0.1" value="2.3"><span class="val-display">2.30</span></div>
+    </div>
+
+    <div class="section">
+      <div class="section-title">Lighting System</div>
+      <div class="toggle-container" id="light-mode-toggle">
+        <div class="toggle-btn active" data-val="0">Flashlight</div>
+        <div class="toggle-btn" data-val="1">Static Sun</div>
+      </div>
+      <div class="control-row"><label>Light Intensity</label><input id="p-lightInt" type="range" min="0" max="5" step="0.1" value="1.8"><span class="val-display">1.80</span></div>
+      <div class="control-row"><label>Color Temp</label><input id="p-lightWarmth" type="range" min="0" max="1" step="0.05" value="0.5"><span class="val-display">0.50</span></div>
+      
+      <div class="mode-0">
+        <div class="control-row"><label>Spot Radius</label><input id="p-lightRad" type="range" min="0.1" max="1.5" step="0.01" value="0.45"><span class="val-display">0.45</span></div>
+        <div class="control-row"><label>Light Falloff</label><input id="p-lightFalloff" type="range" min="0.01" max="1.0" step="0.01" value="0.1"><span class="val-display">0.10</span></div>
+      </div>
+      <div class="mode-1" style="display:none">
+        <div class="control-row"><label>Sun Azimuth (X)</label><input id="p-sunX" type="range" min="-1" max="1" step="0.01" value="0.2"><span class="val-display">0.20</span></div>
+        <div class="control-row"><label>Sun Altitude (Y)</label><input id="p-sunY" type="range" min="-1" max="1" step="0.01" value="0.5"><span class="val-display">0.50</span></div>
+      </div>
+    </div>
+
+    <div class="section">
+      <div class="section-title">Ice Properties</div>
+      <div class="control-row"><label>Texture Scale</label><input id="p-texScale" type="range" min="0.5" max="4.0" step="0.1" value="1"><span class="val-display">1.00</span></div>
+      <div class="control-row"><label>Frost Density</label><input id="p-frostOpacity" type="range" min="0" max="1" step="0.01" value="1"><span class="val-display">1.00</span></div>
+      <div class="control-row"><label>Frost Tint</label><input id="p-frostTint" type="range" min="0" max="1" step="0.01" value="0.02"><span class="val-display">0.02</span></div>
+      <div class="control-row"><label>Normal Depth</label><input id="p-iceNormal" type="range" min="0" max="4" step="0.1" value="2.2"><span class="val-display">2.20</span></div>
+      <div class="control-row"><label>Refraction Power</label><input id="p-refract" type="range" min="0" max="0.15" step="0.001" value="0.077"><span class="val-display">0.077</span></div>
+      <div class="control-row"><label>Chromatic Ab.</label><input id="p-chroma" type="range" min="0" max="0.1" step="0.001" value="0.039"><span class="val-display">0.039</span></div>
+      <div class="control-row"><label>Ambient Shadow</label><input id="p-shadowStr" type="range" min="0" max="1" step="0.01" value="1"><span class="val-display">1.00</span></div>
+    </div>
+
+    <div class="section">
+      <div class="section-title">Thermodynamics</div>
+      <div class="control-row"><label>Brush Radius</label><input id="p-meltRadius" type="range" min="0.1" max="1.0" step="0.01" value="0.39"><span class="val-display">0.39</span></div>
+      <div class="control-row"><label>Melt Speed</label><input id="p-meltSpeed" type="range" min="0.01" max="0.4" step="0.005" value="0.06"><span class="val-display">0.06</span></div>
+      <div class="control-row"><label>Brush Hardness</label><input id="p-brushHardness" type="range" min="0" max="1" step="0.01" value="0.35"><span class="val-display">0.35</span></div>
+    </div>
+
+    <div class="section">
+      <div class="section-title">Liquid Properties</div>
+      <div class="control-row"><label>Surface Tension</label><input id="p-edgeDistort" type="range" min="0" max="4" step="0.05" value="2.8"><span class="val-display">2.80</span></div>
+      <div class="control-row"><label>Water Gloss</label><input id="p-waterShiny" type="range" min="10" max="500" step="10" value="200"><span class="val-display">200</span></div>
+      <div class="control-row"><label>Specular Power</label><input id="p-specular" type="range" min="0" max="10" step="0.1" value="5"><span class="val-display">5.00</span></div>
+      <div class="control-row"><label>Water Turpidity</label><input id="p-waterOpacity" type="range" min="0" max="1" step="0.01" value="0.06"><span class="val-display">0.06</span></div>
+    </div>
+
+    <div class="section">
+      <div class="section-title">Color Grading</div>
+      <div class="control-row"><label>Exposure</label><input id="p-exposure" type="range" min="0.1" max="3" step="0.05" value="1"><span class="val-display">1.00</span></div>
+      <div class="control-row"><label>Contrast</label><input id="p-contrast" type="range" min="0.5" max="1.5" step="0.05" value="1.1"><span class="val-display">1.10</span></div>
+      <div class="control-row"><label>Saturation</label><input id="p-saturation" type="range" min="0" max="2" step="0.05" value="1.1"><span class="val-display">1.10</span></div>
+      <div class="control-row"><label class="lbl-r">Red Channel</label><input id="p-tintR" type="range" min="0.5" max="1.5" step="0.01" value="1"><span class="val-display">1.00</span></div>
+      <div class="control-row"><label class="lbl-g">Green Channel</label><input id="p-tintG" type="range" min="0.5" max="1.5" step="0.01" value="1"><span class="val-display">1.00</span></div>
+      <div class="control-row"><label class="lbl-b">Blue Channel</label><input id="p-tintB" type="range" min="0.5" max="1.5" step="0.01" value="1"><span class="val-display">1.00</span></div>
+      <div class="control-row"><label>Bg Blur (DoF)</label><input id="p-blurStr" type="range" min="0" max="1" step="0.01" value="0.14"><span class="val-display">0.14</span></div>
+      <div class="control-row"><label>Film Grain</label><input id="p-grain" type="range" min="0" max="0.3" step="0.01" value="0"><span class="val-display">0.00</span></div>
+      <div class="control-row"><label>Vignette</label><input id="p-vignette" type="range" min="0" max="1" step="0.01" value="0"><span class="val-display">0.00</span></div>
+      <div class="control-row"><label>Ambient Light</label><input id="p-ambient" type="range" min="0" max="1" step="0.01" value="0.38"><span class="val-display">0.38</span></div>
+    </div>
+  </div>
+</div>
+
+<canvas id="gl-canvas"></canvas>
+
+<script>
+(function(){
+  const canvas = document.getElementById('gl-canvas');
+  const gl = canvas.getContext('webgl', { alpha: false, depth: false, antialias: true, premultipliedAlpha: false }) || canvas.getContext('experimental-webgl');
+  if (!gl) return;
+
+  const PARAMS = {
+    aces: 1.0, dither: 1.0,
+    lightMode: 0.0, lightInt: 1.8, lightWarmth: 0.5, lightRad: 0.45, lightFalloff: 0.1, sunX: 0.2, sunY: 0.5,
+    texScale: 1.0, frostOpacity: 1.0, frostTint: 0.02, iceNormal: 2.2, refract: 0.077, chroma: 0.039, specular: 5.0, shadowStr: 1.0, sss: 0.0,
+    meltRadius: 0.39, meltSpeed: 0.06, edgeDistort: 2.8, brushNoise: 0.79, brushHardness: 0.35, cleanCutoff: 0.69,
+    waterShiny: 200.0, waterOpacity: 0.06,
+    blurStr: 0.14, grain: 0.0, ambient: 0.38, emissive: 0.0, vignette: 0.0, parallax: 0.019,
+    exposure: 1.0, gamma: 2.3, contrast: 1.1, saturation: 1.1,
+    tintR: 1.0, tintG: 1.0, tintB: 1.0,
+    customBg: 0.0
+  };
+
+  const PRESETS = [
+    { bgTex: 'nature.jpg',  bgNorm: 'n1.png',  bgLight: 'n2.png',  bgDepth: 'n3.png'  },
+    { bgTex: 'nature2.jpg', bgNorm: 'nn1.png', bgLight: 'nn2.png', bgDepth: 'nn3.png' },
+    { bgTex: 'c.jpg',       bgNorm: 'c1.png',  bgLight: 'c2.png',  bgDepth: 'c3.png'  }
+  ];
+
+  let currentIceSet = 'mini';
+  let currentIceExt = 'png';
+  let customBgTextureUrl = null; // Для хранения URL загруженной картинки
+
+  function getIceAssets() {
+    const suffix = currentIceSet === 'mini' ? '-mini' : '';
+    const ext = currentIceExt === 'jpg' ? 'jpg' : 'png';
+    return {
+      iceNorm: `prompt1${suffix}.${ext}`,
+      iceFrost: `prompt2${suffix}.${ext}`,
+      iceOpacity: `prompt3${suffix}.${ext}`,
+      iceRough: `prompt4${suffix}.${ext}`
+    };
+  }
+
+  function resize(){
+    const dpr = Math.min(window.devicePixelRatio || 1, 2);
+    canvas.width = window.innerWidth * dpr;
+    canvas.height = window.innerHeight * dpr;
+    gl.viewport(0, 0, canvas.width, canvas.height);
+  }
+  window.addEventListener('resize', resize); resize();
+
+  const VS = "attribute vec2 a_pos; varying vec2 v_uv; void main(){ v_uv = a_pos * 0.5 + 0.5; gl_Position = vec4(a_pos,0.0,1.0); }";
+  
+  const FS = `
+precision highp float;
+varying vec2 v_uv;
+
+uniform sampler2D u_bgTex, u_bgNorm, u_bgLight, u_bgDepth;
+uniform sampler2D u_iceNorm, u_iceFrost, u_iceOpacity, u_iceRough;
+uniform sampler2D u_meltMap;
+
+uniform vec2 u_mouse;
+uniform float u_ratio, u_time;
+
+uniform float u_aces, u_dither;
+
+uniform float u_lightMode, u_lightInt, u_lightWarmth, u_lightRad, u_lightFalloff, u_sunX, u_sunY;
+uniform float u_texScale, u_frostOpacity, u_frostTint, u_iceNormal, u_refract, u_chroma, u_specular, u_shadowStr, u_sss;
+uniform float u_edgeDistort, u_waterShiny, u_waterOpacity;
+uniform float u_blurStr, u_grain, u_ambient, u_exposure, u_gamma, u_parallax, u_emissive, u_vignette;
+uniform float u_contrast, u_saturation, u_tintR, u_tintG, u_tintB;
+uniform float u_customBg;
+
+float hash(vec2 p) { return fract(sin(dot(p, vec2(12.9898, 78.233))) * 43758.5453); }
+
+vec3 aces(vec3 x) {
+  return clamp((x*(2.51*x+0.03))/(x*(2.43*x+0.59)+0.14), 0.0, 1.0);
+}
+
+void main() {
+  float melt = texture2D(u_meltMap, v_uv).r;
+  
+  float bgDepth = mix(texture2D(u_bgDepth, v_uv).r, 1.0, u_customBg);
+  vec2 iceUV = v_uv * u_texScale;
+
+  vec3 iceN = normalize(texture2D(u_iceNorm, iceUV).rgb * 2.0 - 1.0);
+  float edge = smoothstep(0.0, 0.2, melt) * (1.0 - smoothstep(0.8, 1.0, melt));
+  vec3 finalN = mix(iceN * u_iceNormal, vec3(0,0,1), melt); 
+  finalN.xy += iceN.xy * edge * u_edgeDistort;
+  finalN = normalize(finalN);
+
+  vec2 parallax = (u_mouse - 0.5) * (1.0 - bgDepth) * u_parallax;
+  vec2 baseUV = clamp(v_uv + parallax, 0.001, 0.999);
+
+  float refr = u_refract * (1.0 - melt * 0.9);
+  vec2 uvR = baseUV + finalN.xy * refr * (1.0 - u_chroma) + vec2(0.002) * u_shadowStr * (1.0-melt);
+  vec2 uvG = baseUV + finalN.xy * refr;
+  vec2 uvB = baseUV + finalN.xy * refr * (1.0 + u_chroma);
+
+  vec3 bgCol = texture2D(u_bgTex, uvG).rgb;
+  if (u_blurStr > 0.0) {
+      float b = u_blurStr * (1.0 - melt) * 0.004;
+      vec3 blurCol = bgCol;
+      blurCol += texture2D(u_bgTex, uvG + vec2(b, 0.0)).rgb;
+      blurCol += texture2D(u_bgTex, uvG + vec2(-b, 0.0)).rgb;
+      blurCol += texture2D(u_bgTex, uvG + vec2(0.0, b)).rgb;
+      blurCol += texture2D(u_bgTex, uvG + vec2(0.0, -b)).rgb;
+      blurCol += texture2D(u_bgTex, uvG + vec2(b*0.7, b*0.7)).rgb;
+      blurCol += texture2D(u_bgTex, uvG + vec2(-b*0.7, b*0.7)).rgb;
+      blurCol += texture2D(u_bgTex, uvG + vec2(b*0.7, -b*0.7)).rgb;
+      blurCol += texture2D(u_bgTex, uvG + vec2(-b*0.7, -b*0.7)).rgb;
+      bgCol = blurCol / 9.0;
+  }
+
+  float iceMask = texture2D(u_iceOpacity, iceUV).r;
+  float opacity = iceMask * (1.0 - melt); 
+  
+  float shadow = 1.0 - opacity * u_shadowStr * 0.5;
+  bgCol *= shadow;
+
+  vec3 bgNormTex = texture2D(u_bgNorm, uvG).rgb;
+  vec3 bgEmisTex = texture2D(u_bgLight, uvG).rgb;
+  vec3 bgNorm = normalize(mix(bgNormTex * 2.0 - 1.0, vec3(0.0, 0.0, 1.0), u_customBg));
+  vec3 bgEmissive = mix(bgEmisTex, vec3(0.0), u_customBg);
+
+  vec3 lightDir;
+  float atten = 1.0;
+  if (u_lightMode < 0.5) {
+      vec3 lPos = vec3(u_mouse.x * u_ratio, u_mouse.y, 0.3);
+      vec3 pPos = vec3(v_uv.x * u_ratio, v_uv.y, 0.0);
+      float d = distance(lPos, pPos);
+      atten = smoothstep(u_lightRad, u_lightRad * u_lightFalloff, d);
+      lightDir = normalize(lPos - pPos);
+  } else {
+      lightDir = normalize(vec3(u_sunX, u_sunY, 0.5));
+  }
+
+  vec3 lightColor = mix(vec3(0.8,0.9,1.0), vec3(1.0,0.9,0.55), u_lightWarmth);
+  float diff = max(dot(bgNorm, lightDir), 0.0) * u_lightInt * atten;
+  vec3 scene = bgCol * (u_ambient + diff * lightColor) + bgEmissive * u_emissive;
+
+  vec3 frostTex = texture2D(u_iceFrost, iceUV).rgb;
+  frostTex = mix(frostTex, vec3(0.75,0.88,1.0), u_frostTint);
+  vec3 frostLit = frostTex * (scene + u_sss) * (1.0 + diff * 0.3);
+  vec3 comp = mix(scene, frostLit, opacity * u_frostOpacity);
+
+  vec3 waterColor = vec3(0.8, 0.85, 0.9) * 0.4;
+  float waterVis = u_waterOpacity * melt * (1.0 - melt);
+  comp = mix(comp, waterColor, waterVis);
+
+  vec3 halfDir = normalize(lightDir + vec3(0,0,1));
+  float rough = texture2D(u_iceRough, iceUV).r;
+  float shine = mix(mix(15.0, 5.0, rough), u_waterShiny, melt);
+  float specBase = pow(max(dot(finalN, halfDir), 0.0), shine);
+  float wetBoost = 1.0 + edge * 5.0; 
+  comp += specBase * u_specular * atten * lightColor * wetBoost;
+
+  float n = (hash(gl_FragCoord.xy + u_time) - 0.5) * u_grain;
+  comp += n;
+
+  float d = distance(v_uv, vec2(0.5));
+  comp *= smoothstep(0.8, 0.8 - u_vignette, d * (1.0 + u_vignette));
+
+  if (u_dither > 0.5) {
+    comp += (hash(gl_FragCoord.xy * 0.123 + u_time) - 0.5) / 255.0;
+  }
+
+  comp *= vec3(u_tintR, u_tintG, u_tintB);
+  float gray = dot(comp, vec3(0.299,0.587,0.114));
+  comp = mix(vec3(gray), comp, u_saturation);
+  comp = (comp - 0.5) * u_contrast + 0.5;
+  comp *= u_exposure;
+  
+  if (u_aces > 0.5) comp = aces(comp);
+  comp = pow(max(comp, vec3(0.0)), vec3(1.0 / max(u_gamma, 0.1)));
+
+  gl_FragColor = vec4(clamp(comp, 0.0, 1.0), 1.0);
+}
+`;
+
+  const prog = gl.createProgram();
+  const sh = (t, s) => { const i=gl.createShader(t); gl.shaderSource(i,s); gl.compileShader(i); if(!gl.getShaderParameter(i, gl.COMPILE_STATUS)) console.error(gl.getShaderInfoLog(i)); return i; };
+  gl.attachShader(prog, sh(gl.VERTEX_SHADER, VS));
+  gl.attachShader(prog, sh(gl.FRAGMENT_SHADER, FS));
+  gl.linkProgram(prog); if (!gl.getProgramParameter(prog, gl.LINK_STATUS)) { console.error(gl.getProgramInfoLog(prog)); return; }
+  gl.useProgram(prog);
+
+  gl.bindBuffer(gl.ARRAY_BUFFER, gl.createBuffer());
+  gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([-1,-1, 1,-1, -1,1, -1,1, 1,-1, 1,1]), gl.STATIC_DRAW);
+  const aPos = gl.getAttribLocation(prog, 'a_pos');
+  gl.enableVertexAttribArray(aPos);
+  gl.vertexAttribPointer(aPos, 2, gl.FLOAT, false, 0, 0);
+
+  const U = {};
+  const names = [
+    'bgTex','bgNorm','bgLight','bgDepth','iceNorm','iceFrost','iceOpacity','iceRough','meltMap',
+    'mouse','ratio','time','aces','dither',
+    'lightMode','lightInt','lightWarmth','lightRad','lightFalloff','sunX','sunY',
+    'texScale','frostOpacity','frostTint','iceNormal','refract','chroma','specular','shadowStr','sss',
+    'edgeDistort','waterShiny','waterOpacity',
+    'blurStr','grain','ambient','exposure','parallax','emissive','vignette',
+    'gamma','contrast','saturation','tintR','tintG','tintB','customBg'
+  ];
+  names.forEach(n => U[n] = gl.getUniformLocation(prog, 'u_' + n));
+
+  const meltSize = 1024;
+  const meltCanvas = document.createElement('canvas');
+  meltCanvas.width = meltCanvas.height = meltSize;
+  const meltCtx = meltCanvas.getContext('2d');
+  meltCtx.fillStyle = '#000'; meltCtx.fillRect(0,0,meltSize,meltSize);
+  
+  const meltTex = gl.createTexture();
+  gl.activeTexture(gl.TEXTURE8);
+  gl.bindTexture(gl.TEXTURE_2D, meltTex);
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+
+  let mouse = { x: -1, y: -1 };
+  let lastMouse = { x: -1, y: -1 };
+  let running = false;
+  let currentPresetIndex = 0;
+
+  canvas.addEventListener('mousemove', e => {
+    mouse.x = e.clientX / window.innerWidth;
+    mouse.y = 1.0 - (e.clientY / window.innerHeight);
+  });
+
+  const textureObjs = {};
+  let loadedCount = 0;
+
+  // --- ЛОГИКА ЗАГРУЗКИ КАСТОМНОГО ФОТО ---
+  document.getElementById('custom-img-upload').addEventListener('change', function(e) {
+    const file = e.target.files[0];
+    if (!file) return;
+    
+    // Если уже была загружена картинка, очищаем память от старого URL
+    if (customBgTextureUrl) {
+      URL.revokeObjectURL(customBgTextureUrl);
+    }
+    
+    customBgTextureUrl = URL.createObjectURL(file);
+    // Перезапускаем загрузку пресета, он подхватит новый кастомный URL
+    loadPreset(currentPresetIndex);
+    
+    // Сбрасываем селектор (чтобы можно было загрузить ту же фотку дважды, если нужно)
+    e.target.value = '';
+  });
+
+  function syncUIWithParams() {
+    document.querySelectorAll('#ui-container input').forEach(inp => {
+      const id = inp.id.replace('p-','').replace('c-', '');
+      if(PARAMS[id] !== undefined) {
+        if(inp.type === 'checkbox') {
+          inp.checked = PARAMS[id] > 0.5;
+        } else {
+          inp.value = PARAMS[id];
+          if(inp.nextElementSibling && inp.nextElementSibling.classList.contains('val-display')) {
+            inp.nextElementSibling.innerText = PARAMS[id].toFixed((id==='refract'||id==='parallax')?3:2);
+          }
+        }
+      }
+    });
+    
+    document.querySelectorAll('.toggle-btn').forEach(btn => {
+      if(parseFloat(btn.dataset.val) === PARAMS.lightMode) {
+        btn.classList.add('active');
+      } else {
+        btn.classList.remove('active');
+      }
+    });
+    document.querySelector('.mode-0').style.display = PARAMS.lightMode===0?'block':'none';
+    document.querySelector('.mode-1').style.display = PARAMS.lightMode===1?'block':'none';
+  }
+
+  document.getElementById('btn-export').addEventListener('click', e => {
+    const exportData = { "l1": PARAMS };
+    const jsonStr = JSON.stringify(exportData, null, 2);
+    
+    navigator.clipboard.writeText(jsonStr).then(() => {
+      const btn = e.target;
+      const originalText = btn.innerText;
+      btn.innerText = "COPIED!";
+      btn.style.color = "#fff";
+      setTimeout(() => {
+        btn.innerText = originalText;
+        btn.style.color = "";
+      }, 1500);
+    }).catch(err => alert('Failed to copy!'));
+  });
+
+  document.getElementById('btn-import').addEventListener('click', () => {
+    const input = prompt("Paste your JSON configuration here:");
+    if (!input) return;
+    try {
+      const newConfig = JSON.parse(input);
+      const targetParams = newConfig.l1 ? newConfig.l1 : newConfig;
+      Object.assign(PARAMS, targetParams);
+      syncUIWithParams();
+    } catch (e) {
+      alert("Invalid JSON format! Make sure you copied it correctly.");
+    }
+  });
+
+  document.querySelectorAll('#ui-container input').forEach(inp => {
+    inp.addEventListener('input', e => {
+      const id = e.target.id.replace('p-','').replace('c-', '');
+      if(e.target.type === 'checkbox') {
+        PARAMS[id] = e.target.checked ? 1.0 : 0.0;
+      } else {
+        PARAMS[id] = parseFloat(e.target.value);
+        if(e.target.nextElementSibling && e.target.nextElementSibling.classList.contains('val-display')) {
+          e.target.nextElementSibling.innerText = PARAMS[id].toFixed((id==='refract'||id==='parallax')?3:2);
+        }
+      }
+    });
+  });
+
+  const toggleBtns = document.querySelectorAll('.toggle-btn');
+  toggleBtns.forEach(btn => {
+    btn.addEventListener('click', () => {
+      toggleBtns.forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      PARAMS.lightMode = parseFloat(btn.dataset.val);
+      document.querySelector('.mode-0').style.display = PARAMS.lightMode===0?'block':'none';
+      document.querySelector('.mode-1').style.display = PARAMS.lightMode===1?'block':'none';
+    });
+  });
+
+  document.getElementById('preset-selector').addEventListener('change', e => {
+    currentPresetIndex = parseInt(e.target.value);
+    customBgTextureUrl = null; // Сбрасываем кастомное фото, если выбрали пресет из списка
+    loadPreset(currentPresetIndex);
+  });
+
+  window.addEventListener('keydown', e => {
+    const k = e.key.toLowerCase();
+    if(k === 'h' || k === 'p') {
+      const ui = document.getElementById('ui-container');
+      const hint = document.getElementById('hint');
+      ui.classList.toggle('hidden');
+      hint.style.opacity = ui.classList.contains('hidden') ? '0.6' : '0';
+    }
+  });
+
+  function nextPowerOf2(n) { return Math.pow(2, Math.ceil(Math.log2(n))); }
+
+  function loadPreset(idx) {
+    const preset = PRESETS[idx] || PRESETS[0];
+    const queue = { ...preset, ...getIceAssets() };
+    
+    // Если у нас есть загруженная юзером картинка, подменяем ею базовый фон `bgTex`
+    if (customBgTextureUrl) {
+      queue.bgTex = customBgTextureUrl;
+    }
+    PARAMS.customBg = customBgTextureUrl ? 1.0 : 0.0;
+    
+    loadedCount = 0;
+    const loader = document.getElementById('loader');
+    loader.style.opacity = 1;
+    loader.style.display = 'flex';
+    Object.keys(queue).forEach((key, i) => {
+      const img = new Image();
+      img.crossOrigin = "anonymous";
+      img.onload = () => finalizeTex(img, key, i, true);
+      img.onerror = () => finalizeTex(null, key, i, false);
+      img.src = queue[key];
+    });
+  }
+
+  function finalizeTex(img, key, unit, ok) {
+    const t = gl.createTexture();
+    gl.activeTexture(gl.TEXTURE0 + unit);
+    gl.bindTexture(gl.TEXTURE_2D, t);
+    
+    if (ok) {
+      gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, key.startsWith('bg') ? 1 : 0);
+      
+      const potCanvas = document.createElement('canvas');
+      potCanvas.width = nextPowerOf2(img.width);
+      potCanvas.height = nextPowerOf2(img.height);
+      const potCtx = potCanvas.getContext('2d');
+      potCtx.drawImage(img, 0, 0, potCanvas.width, potCanvas.height);
+      
+      gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, potCanvas);
+      gl.generateMipmap(gl.TEXTURE_2D);
+      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR_MIPMAP_LINEAR);
+      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
+      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+      
+    } else {
+      const c = (unit+1)*35;
+      gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, 1, 1, 0, gl.RGBA, gl.UNSIGNED_BYTE, new Uint8Array([c,c,200,255]));
+      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
+      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+    }
+    
+    textureObjs[key] = t;
+    loadedCount++;
+    if (loadedCount === 8) {
+      const loader = document.getElementById('loader');
+      loader.style.opacity = 0;
+      setTimeout(()=> loader.style.display='none', 500);
+      if (!running) startLoop();
+    }
+  }
+
+  function startLoop() {
+    running = true;
+    const startTime = performance.now();
+
+    function frame() {
+      if (mouse.x >= 0) {
+        if (lastMouse.x < 0) { lastMouse.x = mouse.x; lastMouse.y = mouse.y; }
+
+        const dx = mouse.x - lastMouse.x;
+        const dy = mouse.y - lastMouse.y;
+        const distNorm = Math.sqrt(dx*dx + dy*dy);
+        
+        const r = PARAMS.meltRadius * 150;
+        const steps = Math.max(1, Math.ceil(distNorm / (PARAMS.meltRadius * 0.02)));
+
+        meltCtx.globalCompositeOperation = 'lighter';
+
+        for(let i=1; i<=steps; i++) {
+            const t = i / steps;
+            const nx = lastMouse.x + dx * t;
+            const ny = lastMouse.y + dy * t;
+            
+            const cx = nx * meltSize;
+            const cy = (1.0 - ny) * meltSize;
+            
+            const g = meltCtx.createRadialGradient(cx, cy, 0, cx, cy, r);
+            const baseAlpha = 0.18 * PARAMS.meltSpeed * 10.0; 
+            const midAlpha = 0.08 * PARAMS.meltSpeed * 10.0;
+            
+            g.addColorStop(0.0, `rgba(255,255,255,${baseAlpha})`);
+            g.addColorStop(0.35, `rgba(255,255,255,${midAlpha})`);
+            g.addColorStop(1.0, 'rgba(255,255,255,0)');
+            
+            meltCtx.fillStyle = g;
+            meltCtx.beginPath(); meltCtx.arc(cx, cy, r, 0, Math.PI*2); meltCtx.fill();
+        }
+        lastMouse.x = mouse.x;
+        lastMouse.y = mouse.y;
+      }
+
+      gl.activeTexture(gl.TEXTURE8);
+      gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, true);
+      gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, meltCanvas);
+      gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, false);
+
+      gl.clear(gl.COLOR_BUFFER_BIT);
+      for (let i = 0; i < 9; i++) gl.uniform1i(U[names[i]], i);
+      gl.uniform2f(U.mouse, mouse.x, mouse.y);
+      gl.uniform1f(U.ratio, canvas.width / canvas.height);
+      gl.uniform1f(U.time, (performance.now() - startTime) * 0.001);
+
+      for (const k in PARAMS) {
+        if (U[k]) gl.uniform1f(U[k], PARAMS[k]);
+      }
+
+      gl.drawArrays(gl.TRIANGLES, 0, 6);
+      requestAnimationFrame(frame);
+    }
+    frame();
+  }
+
+  loadPreset(0);
+})();
+</script>
+</body>
+</html>

@@ -1,0 +1,305 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8" />
+  <title>Админка — призы и лог выигрышей</title>
+  <style>
+    * { box-sizing: border-box; }
+    body { margin: 0; min-height: 100vh; background: #0a0c10; font-family: 'Segoe UI', system-ui, sans-serif; color: #e5e7eb; }
+    .header-bar { padding: 12px 20px; background: #05070b; border-bottom: 1px solid rgba(255,255,255,0.12); display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 8px; }
+    .header-bar a { color: #4facfe; text-decoration: none; font-size: 12px; letter-spacing: 1px; }
+    .header-bar a:hover { text-decoration: underline; }
+    .header-bar .subtitle { font-size: 11px; color: #6b7280; letter-spacing: 1px; }
+    #app { max-width: 900px; margin: 0 auto; padding: 20px; }
+    .section { margin-bottom: 28px; }
+    .section-title { font-size: 10px; font-weight: 700; color: #4facfe; text-transform: uppercase; letter-spacing: 1.5px; margin-bottom: 12px; display: flex; align-items: center; gap: 10px; }
+    .section-title::before { content:''; width:6px; height:6px; background:#4facfe; border-radius:50%; box-shadow: 0 0 8px #4facfe; }
+    .login-box { max-width: 320px; margin: 40px auto; padding: 24px; background: #11161d; border: 1px solid #2a3540; border-radius: 8px; }
+    .login-box h2 { margin: 0 0 16px; font-size: 14px; color: #fff; }
+    .login-box input { width: 100%; padding: 10px 12px; margin-bottom: 12px; background: #0a0c10; border: 1px solid #2a3540; border-radius: 4px; color: #fff; font-size: 13px; outline: none; }
+    .login-box input:focus { border-color: #4facfe; }
+    .login-box button { width: 100%; padding: 10px; background: #4facfe; color: #05080c; border: none; border-radius: 4px; font-weight: 700; cursor: pointer; font-size: 12px; text-transform: uppercase; letter-spacing: 1px; }
+    .login-box button:hover { background: #6bbdff; }
+    .login-error { color: #ef4444; font-size: 12px; margin-top: 8px; }
+    table { width: 100%; border-collapse: collapse; font-size: 12px; }
+    th, td { padding: 8px 10px; text-align: left; border-bottom: 1px solid #1f2937; }
+    th { color: #6b7280; font-weight: 600; font-size: 10px; text-transform: uppercase; letter-spacing: 0.5px; }
+    tr:hover td { background: rgba(255,255,255,0.03); }
+    .table-wrap { overflow-x: auto; border: 1px solid #2a3540; border-radius: 6px; }
+    .btn { padding: 6px 12px; font-size: 11px; border-radius: 4px; border: none; cursor: pointer; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; }
+    .btn-primary { background: #4facfe; color: #05080c; }
+    .btn-primary:hover { background: #6bbdff; }
+    .btn-ghost { background: #1f2937; color: #e5e7eb; border: 1px solid #374151; }
+    .btn-ghost:hover { background: #374151; }
+    .btn-danger { background: #7f1d1d; color: #fecaca; }
+    .btn-danger:hover { background: #991b1b; }
+    .toolbar { margin-bottom: 12px; display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+    .prize-row input { width: 100%; padding: 6px 8px; background: #0a0c10; border: 1px solid #2a3540; border-radius: 4px; color: #e5e7eb; font-size: 12px; outline: none; }
+    .prize-row input:focus { border-color: #4facfe; }
+    .prize-row input.key { font-family: monospace; }
+    .empty-msg { color: #6b7280; font-size: 12px; padding: 20px; text-align: center; }
+    .status { font-size: 11px; color: #6b7280; }
+    .status.ok { color: #22c55e; }
+    .status.err { color: #ef4444; }
+  </style>
+</head>
+<body>
+<div class="header-bar">
+  <span class="subtitle">ICE // Админка призов</span>
+  <div>
+    <a href="index.html">Игра</a>
+    <span style="margin: 0 8px; color: #374151;">|</span>
+    <a href="ice-guide.html">Гайд</a>
+  </div>
+</div>
+
+<div id="app">
+  <div id="login-screen" class="login-box" style="display: none;">
+    <h2>Вход в админку</h2>
+    <input type="password" id="login-password" placeholder="Пароль (задаётся ADMIN_PASSWORD на сервере)" autocomplete="current-password" />
+    <button type="button" id="login-btn">Войти</button>
+    <div id="login-error" class="login-error"></div>
+  </div>
+
+  <div id="main-screen" style="display: none;">
+    <div class="section">
+      <div class="section-title">Лог выигрышей <span id="wins-status" class="status"></span></div>
+      <div class="toolbar">
+        <button type="button" id="wins-refresh" class="btn btn-ghost">Обновить</button>
+        <span class="status">Последние 100 записей</span>
+      </div>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Время</th><th>Email</th><th>Приз</th><th>Редкость</th><th>Номинал</th></tr></thead>
+          <tbody id="wins-tbody"></tbody>
+        </table>
+      </div>
+      <div id="wins-empty" class="empty-msg" style="display: none;">Пока нет записей</div>
+    </div>
+
+    <div class="section">
+      <div class="section-title">Каталог призов (PrizeID) <span id="prizes-status" class="status"></span></div>
+      <p style="font-size: 11px; color: #6b7280; margin: 0 0 12px;">Ключ — это <b>PrizeID</b> (например <code style="background:#1f2937; padding:2px 6px; border-radius:4px;">BEBRI_10</code>). Для рандома сервер использует <code style="background:#1f2937; padding:2px 6px; border-radius:4px;">maxCount</code>, <code style="background:#1f2937; padding:2px 6px; border-radius:4px;">active</code>, <code style="background:#1f2937; padding:2px 6px; border-radius:4px;">bobry</code>.</p>
+      <div class="toolbar">
+        <button type="button" id="prize-add" class="btn btn-primary">Добавить строку</button>
+        <button type="button" id="prize-save" class="btn btn-primary">Сохранить призы</button>
+      </div>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>PrizeID (ключ)</th><th>Название</th><th>Редкость</th><th>Номинал ₽</th><th>Описание</th><th></th></tr></thead>
+          <tbody id="prizes-tbody"></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+(function () {
+  const TOKEN_KEY = 'ice_admin_token';
+  const API = ''; // тот же origin
+
+  function getToken() { return sessionStorage.getItem(TOKEN_KEY); }
+  function setToken(t) { if (t) sessionStorage.setItem(TOKEN_KEY, t); else sessionStorage.removeItem(TOKEN_KEY); }
+
+  function authHeaders() {
+    const t = getToken();
+    return t ? { 'Authorization': 'Bearer ' + t, 'Content-Type': 'application/json' } : { 'Content-Type': 'application/json' };
+  }
+
+  const loginScreen = document.getElementById('login-screen');
+  const mainScreen = document.getElementById('main-screen');
+  const loginPassword = document.getElementById('login-password');
+  const loginBtn = document.getElementById('login-btn');
+  const loginError = document.getElementById('login-error');
+
+  function showLogin(show) {
+    loginScreen.style.display = show ? 'block' : 'none';
+    mainScreen.style.display = show ? 'none' : 'block';
+    if (show) loginError.textContent = '';
+  }
+
+  function checkAuth() {
+    const token = getToken();
+    fetch(API + '/api/admin/wins?limit=1', { headers: authHeaders() })
+      .then(r => {
+        if (r.ok) {
+          showLogin(false);
+          loadWins();
+          loadPrizes();
+        } else {
+          setToken(null);
+          showLogin(true);
+        }
+      })
+      .catch(() => {
+        setToken(null);
+        showLogin(true);
+      });
+  }
+
+  loginBtn.addEventListener('click', function () {
+    const password = loginPassword.value.trim();
+    loginError.textContent = '';
+    fetch(API + '/api/admin/login', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ password })
+    })
+      .then(r => r.json())
+      .then(data => {
+        if (data.token) {
+          setToken(data.token);
+          showLogin(false);
+          loadWins();
+          loadPrizes();
+        } else {
+          loginError.textContent = data.error || 'Ошибка входа';
+        }
+      })
+      .catch(() => { loginError.textContent = 'Сеть недоступна'; });
+  });
+
+  // Wins
+  const winsTbody = document.getElementById('wins-tbody');
+  const winsEmpty = document.getElementById('wins-empty');
+  const winsStatus = document.getElementById('wins-status');
+  const winsRefresh = document.getElementById('wins-refresh');
+
+  function loadWins() {
+    winsStatus.textContent = '…';
+    fetch(API + '/api/admin/wins?limit=100', { headers: authHeaders() })
+      .then(r => r.json())
+      .then(data => {
+        winsStatus.textContent = '';
+        winsStatus.className = 'status ok';
+        const wins = data.wins || [];
+        if (wins.length === 0) {
+          winsTbody.innerHTML = '';
+          winsEmpty.style.display = 'block';
+          return;
+        }
+        winsEmpty.style.display = 'none';
+        winsTbody.innerHTML = wins.map(w => {
+          const p = w.prize || {};
+          const time = w.time ? new Date(w.time).toLocaleString('ru') : '—';
+          return '<tr><td>' + time + '</td><td>' + escapeHtml(w.email || '') + '</td><td>' + escapeHtml(p.title || '') + '</td><td>' + escapeHtml(p.rarity || '') + '</td><td>' + (p.nominalRub != null ? p.nominalRub + ' ₽' : '') + '</td></tr>';
+        }).join('');
+      })
+      .catch(() => { winsStatus.textContent = 'Ошибка загрузки'; winsStatus.className = 'status err'; });
+  }
+
+  winsRefresh.addEventListener('click', loadWins);
+
+  // Prizes
+  const prizesTbody = document.getElementById('prizes-tbody');
+  const prizesStatus = document.getElementById('prizes-status');
+  const prizeAdd = document.getElementById('prize-add');
+  const prizeSave = document.getElementById('prize-save');
+  let prizesData = {};
+
+  function escapeHtml(s) {
+    const div = document.createElement('div');
+    div.textContent = s;
+    return div.innerHTML;
+  }
+
+  function renderPrizes() {
+    const entries = Object.entries(prizesData);
+    if (entries.length === 0) {
+      prizesTbody.innerHTML = '<tr><td colspan="6" class="empty-msg">Нет призов. Нажмите «Добавить строку».</td></tr>';
+      return;
+    }
+    prizesTbody.innerHTML = entries.map(([key, p]) => {
+      const title = (p && p.title) || '';
+      const rarity = (p && p.rarity) || '';
+      const nominal = (p && p.nominalRub) != null ? p.nominalRub : '';
+      const desc = (p && p.description) || '';
+      return '<tr class="prize-row" data-key="' + escapeHtml(key) + '">' +
+        '<td><input type="text" class="key" value="' + escapeHtml(key) + '" placeholder="PrizeID"></td>' +
+        '<td><input type="text" class="title" value="' + escapeHtml(title) + '" placeholder="Название"></td>' +
+        '<td><input type="text" class="rarity" value="' + escapeHtml(rarity) + '" placeholder="Редкость"></td>' +
+        '<td><input type="number" class="nominal" value="' + escapeHtml(String(nominal)) + '" placeholder="0"></td>' +
+        '<td><input type="text" class="desc" value="' + escapeHtml(desc) + '" placeholder="Описание"></td>' +
+        '<td><button type="button" class="btn btn-danger prize-del">✕</button></td></tr>';
+    }).join('');
+    prizesTbody.querySelectorAll('.prize-del').forEach(btn => {
+      btn.addEventListener('click', function () {
+        const row = btn.closest('tr');
+        const key = row.dataset.key;
+        delete prizesData[key];
+        renderPrizes();
+      });
+    });
+  }
+
+  function collectPrizesFromTable() {
+    const out = {};
+    prizesTbody.querySelectorAll('tr.prize-row').forEach(tr => {
+      const key = (tr.querySelector('input.key') || {}).value.trim() || '';
+      const title = (tr.querySelector('input.title') || {}).value.trim();
+      const rarity = (tr.querySelector('input.rarity') || {}).value.trim();
+      const nominalEl = tr.querySelector('input.nominal');
+      const nominalRub = nominalEl && nominalEl.value.trim() !== '' ? parseInt(nominalEl.value, 10) : null;
+      const description = (tr.querySelector('input.desc') || {}).value.trim();
+      if (!key) return;
+      const prev = prizesData[key] && typeof prizesData[key] === 'object' ? prizesData[key] : {};
+      out[key] = {
+        title: title || 'Без названия',
+        rarity: rarity || '',
+        nominalRub,
+        description,
+        maxCount: prev.maxCount,
+        bobry: prev.bobry,
+        active: prev.active
+      };
+    });
+    return out;
+  }
+
+  function loadPrizes() {
+    prizesStatus.textContent = '…';
+    fetch(API + '/api/admin/prizes', { headers: authHeaders() })
+      .then(r => r.json())
+      .then(data => {
+        prizesStatus.textContent = '';
+        prizesData = typeof data === 'object' && data !== null ? data : {};
+        renderPrizes();
+      })
+      .catch(() => { prizesStatus.textContent = 'Ошибка загрузки'; prizesStatus.className = 'status err'; });
+  }
+
+  prizeAdd.addEventListener('click', function () {
+    const key = 'NEW_PRIZE_ID';
+    prizesData[key] = { title: '', rarity: '', nominalRub: null, description: '', maxCount: 1, bobry: 0, active: true };
+    renderPrizes();
+  });
+
+  prizeSave.addEventListener('click', function () {
+    const payload = collectPrizesFromTable();
+    prizesStatus.textContent = '…';
+    fetch(API + '/api/admin/prizes', {
+      method: 'PUT',
+      headers: authHeaders(),
+      body: JSON.stringify(payload)
+    })
+      .then(r => {
+        if (r.ok) {
+          prizesData = payload;
+          prizesStatus.textContent = 'Сохранено';
+          prizesStatus.className = 'status ok';
+          setTimeout(() => { prizesStatus.textContent = ''; }, 2000);
+        } else {
+          prizesStatus.textContent = 'Ошибка ' + r.status;
+          prizesStatus.className = 'status err';
+        }
+      })
+      .catch(() => { prizesStatus.textContent = 'Ошибка сети'; prizesStatus.className = 'status err'; });
+  });
+
+  // Проверяем доступ: если пароль не задан на сервере — сразу показываем админку
+  checkAuth();
+})();
+</script>
+</body>
+</html>

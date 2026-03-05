@@ -1,0 +1,454 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8" />
+  <title>Ice Overlay — Normal Map</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    html, body { width: 100%; height: 100%; overflow: hidden; background: #000; }
+
+    #gl-canvas {
+      position: fixed; inset: 0;
+      width: 100%; height: 100%;
+      display: block;
+      cursor: crosshair;
+    }
+
+    #controls {
+      position: fixed; top: 18px; right: 18px; z-index: 20;
+      max-height: 90vh;
+      overflow-y: auto;
+      background: rgba(8, 16, 36, 0.82);
+      backdrop-filter: blur(12px);
+      border: 1px solid rgba(120, 180, 255, 0.15);
+      border-radius: 14px;
+      padding: 14px 16px;
+      color: #c8deff;
+      font-family: system-ui, sans-serif;
+      font-size: 11px;
+      min-width: 200px;
+    }
+
+    #controls h2 {
+      margin: 0 0 10px;
+      font-size: 10px;
+      letter-spacing: 0.15em;
+      text-transform: uppercase;
+      color: rgba(160, 200, 255, 0.7);
+    }
+
+    .row { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; }
+    .row:last-child { margin-bottom: 0; }
+    .row label { flex: 0 0 90px; }
+    .row input[type=range] { flex: 1; }
+    .val { min-width: 36px; text-align: right; color: #6ab4ff; }
+  </style>
+</head>
+<body>
+
+<canvas id="gl-canvas"></canvas>
+
+<div id="controls">
+  <h2>❄ Normal Map Ice</h2>
+  <div class="row">
+    <label>Преломление</label>
+    <input id="s-refract" type="range" min="0" max="0.1" step="0.002" value="0.02">
+    <span class="val" id="v-refract">0.02</span>
+  </div>
+  <div class="row">
+    <label>Иней</label>
+    <input id="s-frost" type="range" min="0" max="1" step="0.01" value="0.6">
+    <span class="val" id="v-frost">0.6</span>
+  </div>
+  <div class="row">
+    <label>Блики</label>
+    <input id="s-spec" type="range" min="0" max="1" step="0.01" value="0.4">
+    <span class="val" id="v-spec">0.4</span>
+  </div>
+  <div class="row">
+    <label>Радиус таяния</label>
+    <input id="s-melt" type="range" min="0.04" max="0.3" step="0.01" value="0.12">
+    <span class="val" id="v-melt">0.12</span>
+  </div>
+  <div class="row">
+    <label>Скорость таяния</label>
+    <input id="s-meltspeed" type="range" min="0.02" max="0.15" step="0.01" value="0.06">
+    <span class="val" id="v-meltspeed">0.06</span>
+  </div>
+  <div class="row">
+    <label>Френель (грани)</label>
+    <input id="s-fresnel" type="range" min="0" max="1" step="0.05" value="0.3">
+    <span class="val" id="v-fresnel">0.30</span>
+  </div>
+  <div class="row">
+    <label>Искры</label>
+    <input id="s-sparkles" type="range" min="0" max="2" step="0.05" value="0.8">
+    <span class="val" id="v-sparkles">0.80</span>
+  </div>
+  <div class="row">
+    <label>Смесь инея</label>
+    <input id="s-frostmix" type="range" min="0" max="1" step="0.05" value="0.5">
+    <span class="val" id="v-frostmix">0.50</span>
+  </div>
+  <div class="row">
+    <label>Зернистость</label>
+    <input id="s-grain" type="range" min="0" max="1" step="0.05" value="0.2">
+    <span class="val" id="v-grain">0.20</span>
+  </div>
+  <div class="row">
+    <label>Резкость бликов</label>
+    <input id="s-specpow" type="range" min="4" max="32" step="1" value="16">
+    <span class="val" id="v-specpow">16</span>
+  </div>
+</div>
+
+<script>
+(function(){
+  const canvas = document.getElementById('gl-canvas');
+  const gl = canvas.getContext('webgl', { premultipliedAlpha: false })
+        || canvas.getContext('experimental-webgl');
+  if (!gl) {
+    document.body.innerHTML = '<p style="color:#fff;padding:2em">WebGL не поддерживается в этом браузере.</p>';
+    return;
+  }
+
+  function resize(){
+    const dpr = Math.min(window.devicePixelRatio || 1, 2);
+    canvas.width  = window.innerWidth  * dpr;
+    canvas.height = window.innerHeight * dpr;
+    canvas.style.width  = window.innerWidth  + 'px';
+    canvas.style.height = window.innerHeight + 'px';
+    gl.viewport(0, 0, canvas.width, canvas.height);
+  }
+  resize();
+  window.addEventListener('resize', resize);
+  gl.clearColor(0.08, 0.1, 0.15, 1.0);
+
+  const VS = `
+attribute vec2 a_pos;
+varying   vec2 v_uv;
+void main() {
+  v_uv = a_pos * 0.5 + 0.5;
+  gl_Position = vec4(a_pos, 0.0, 1.0);
+}
+`;
+
+  const FS = `
+precision highp float;
+varying vec2 v_uv;
+
+uniform sampler2D u_sceneTex;
+uniform sampler2D u_normalMap;
+uniform sampler2D u_meltMap;
+uniform float u_refract_strength;
+uniform float u_frostMul;
+uniform float u_specMul;
+uniform float u_time;
+uniform float u_fresnel;
+uniform float u_sparkles;
+uniform float u_frostMix;
+uniform float u_grain;
+uniform float u_specPow;
+
+float hash(vec2 p) {
+  p = fract(p * vec2(123.34, 456.21));
+  p += dot(p, p + 45.32);
+  return fract(p.x * p.y);
+}
+
+void main() {
+  vec3 normalTex = texture2D(u_normalMap, v_uv).rgb;
+  vec3 normal = normalize(normalTex * 2.0 - 1.0);
+  float melt = texture2D(u_meltMap, v_uv).r;
+
+  float shift = u_refract_strength * (1.0 - melt);
+  vec2 uvR = v_uv + normal.xy * shift;
+  vec2 uvG = v_uv + normal.xy * shift * 1.05;
+  vec2 uvB = v_uv + normal.xy * shift * 1.1;
+
+  float r = texture2D(u_sceneTex, clamp(uvR, 0.0, 1.0)).r;
+  float g = texture2D(u_sceneTex, clamp(uvG, 0.0, 1.0)).g;
+  float b = texture2D(u_sceneTex, clamp(uvB, 0.0, 1.0)).b;
+  vec3 scene = vec3(r, g, b);
+
+  float fresnel = pow(1.0 - max(0.0, normal.z), 3.0);
+
+  float grain = hash(v_uv * 1000.0);
+  float frostBase = (1.0 - normal.z) * 0.7 + 0.3;
+  float frost = smoothstep(0.2, 0.5, frostBase * (0.8 + grain * u_grain));
+  frost *= u_frostMul * (1.0 - melt);
+
+  float sparkles = pow(hash(v_uv * 400.0 + sin(u_time * 0.5)), 100.0);
+  sparkles *= step(0.6, normalTex.g) * u_specMul;
+
+  float spec = pow(max(0.0, normal.z), u_specPow) * u_specMul;
+
+  vec3 iceTint = vec3(0.88, 0.94, 1.0);
+
+  vec3 color = mix(scene, iceTint, frost * u_frostMix);
+  color += iceTint * fresnel * u_fresnel * (1.0 - melt);
+  color += (spec * 0.4 + sparkles * u_sparkles) * (1.0 - melt);
+
+  gl_FragColor = vec4(clamp(color, 0.0, 1.0), 1.0);
+}
+`;
+
+  function compile(type, src){
+    const s = gl.createShader(type);
+    gl.shaderSource(s, src);
+    gl.compileShader(s);
+    if (!gl.getShaderParameter(s, gl.COMPILE_STATUS)) {
+      console.error(gl.getShaderInfoLog(s));
+      return null;
+    }
+    return s;
+  }
+
+  const prog = gl.createProgram();
+  const vsh = compile(gl.VERTEX_SHADER, VS);
+  const fsh = compile(gl.FRAGMENT_SHADER, FS);
+  if (!vsh || !fsh) {
+    document.body.innerHTML = '<p style="color:#f88;padding:2em;font-family:monospace">Ошибка компиляции шейдера. См. консоль.</p>';
+    return;
+  }
+  gl.attachShader(prog, vsh);
+  gl.attachShader(prog, fsh);
+  gl.linkProgram(prog);
+  if (!gl.getProgramParameter(prog, gl.LINK_STATUS)) {
+    document.body.innerHTML = '<p style="color:#f88;padding:2em;font-family:monospace">Ошибка линковки: ' + gl.getProgramInfoLog(prog) + '</p>';
+    return;
+  }
+  gl.useProgram(prog);
+
+  const buf = gl.createBuffer();
+  gl.bindBuffer(gl.ARRAY_BUFFER, buf);
+  gl.bufferData(gl.ARRAY_BUFFER,
+    new Float32Array([-1,-1, 1,-1, -1,1, -1,1, 1,-1, 1,1]), gl.STATIC_DRAW);
+  const aPos = gl.getAttribLocation(prog, 'a_pos');
+  gl.enableVertexAttribArray(aPos);
+  gl.vertexAttribPointer(aPos, 2, gl.FLOAT, false, 0, 0);
+
+  const U = {
+    sceneTex:   gl.getUniformLocation(prog, 'u_sceneTex'),
+    normalMap:  gl.getUniformLocation(prog, 'u_normalMap'),
+    meltMap:    gl.getUniformLocation(prog, 'u_meltMap'),
+    refract_strength: gl.getUniformLocation(prog, 'u_refract_strength'),
+    frostMul:   gl.getUniformLocation(prog, 'u_frostMul'),
+    specMul:    gl.getUniformLocation(prog, 'u_specMul'),
+    time:       gl.getUniformLocation(prog, 'u_time'),
+    fresnel:    gl.getUniformLocation(prog, 'u_fresnel'),
+    sparkles:   gl.getUniformLocation(prog, 'u_sparkles'),
+    frostMix:   gl.getUniformLocation(prog, 'u_frostMix'),
+    grain:      gl.getUniformLocation(prog, 'u_grain'),
+    specPow:    gl.getUniformLocation(prog, 'u_specPow'),
+  };
+
+  const params = {
+    refract: 0.02, frostMul: 0.6, specMul: 0.4,
+    meltRadius: 0.12, meltSpeed: 0.06,
+    fresnel: 0.3, sparkles: 0.8, frostMix: 0.5, grain: 0.2, specPow: 16
+  };
+  const mouseUV = { x: -10.0, y: -10.0 };
+
+  const MELT_SIZE = 512;
+  const meltCanvas = document.createElement('canvas');
+  meltCanvas.width = MELT_SIZE;
+  meltCanvas.height = MELT_SIZE;
+  const meltCtx = meltCanvas.getContext('2d');
+  meltCtx.fillStyle = '#000';
+  meltCtx.fillRect(0, 0, MELT_SIZE, MELT_SIZE);
+
+  let texMelt = null;
+
+  document.getElementById('s-refract').addEventListener('input', function(){
+    params.refract = parseFloat(this.value);
+    document.getElementById('v-refract').textContent = params.refract.toFixed(3);
+  });
+  document.getElementById('s-frost').addEventListener('input', function(){
+    params.frostMul = parseFloat(this.value);
+    document.getElementById('v-frost').textContent = params.frostMul.toFixed(2);
+  });
+  document.getElementById('s-spec').addEventListener('input', function(){
+    params.specMul = parseFloat(this.value);
+    document.getElementById('v-spec').textContent = params.specMul.toFixed(2);
+  });
+  document.getElementById('s-melt').addEventListener('input', function(){
+    params.meltRadius = parseFloat(this.value);
+    document.getElementById('v-melt').textContent = params.meltRadius.toFixed(2);
+  });
+  document.getElementById('s-meltspeed').addEventListener('input', function(){
+    params.meltSpeed = parseFloat(this.value);
+    document.getElementById('v-meltspeed').textContent = params.meltSpeed.toFixed(2);
+  });
+  document.getElementById('s-fresnel').addEventListener('input', function(){
+    params.fresnel = parseFloat(this.value);
+    document.getElementById('v-fresnel').textContent = params.fresnel.toFixed(2);
+  });
+  document.getElementById('s-sparkles').addEventListener('input', function(){
+    params.sparkles = parseFloat(this.value);
+    document.getElementById('v-sparkles').textContent = params.sparkles.toFixed(2);
+  });
+  document.getElementById('s-frostmix').addEventListener('input', function(){
+    params.frostMix = parseFloat(this.value);
+    document.getElementById('v-frostmix').textContent = params.frostMix.toFixed(2);
+  });
+  document.getElementById('s-grain').addEventListener('input', function(){
+    params.grain = parseFloat(this.value);
+    document.getElementById('v-grain').textContent = params.grain.toFixed(2);
+  });
+  document.getElementById('s-specpow').addEventListener('input', function(){
+    params.specPow = parseFloat(this.value);
+    document.getElementById('v-specpow').textContent = params.specPow;
+  });
+
+  let texScene = null;
+  let texNormal = null;
+  let ready = 0;
+
+  function getMouseUV(e) {
+    const rect = canvas.getBoundingClientRect();
+    let x, y;
+    if (e.touches && e.touches.length > 0) {
+      x = e.touches[0].clientX;
+      y = e.touches[0].clientY;
+    } else {
+      x = e.clientX;
+      y = e.clientY;
+    }
+    mouseUV.x = (x - rect.left) / rect.width;
+    mouseUV.y = 1.0 - (y - rect.top) / rect.height;
+  }
+
+  function maybeStart(){
+    if (ready !== 2) return;
+    gl.disable(gl.BLEND);
+
+    texMelt = gl.createTexture();
+    gl.bindTexture(gl.TEXTURE_2D, texMelt);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
+    gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, meltCanvas);
+
+    canvas.addEventListener('mousemove', getMouseUV);
+    canvas.addEventListener('touchmove', function(e) { getMouseUV(e); e.preventDefault(); }, { passive: false });
+
+    const t0 = performance.now();
+
+    function frame(){
+      if (mouseUV.x >= 0 && mouseUV.x <= 1 && mouseUV.y >= 0 && mouseUV.y <= 1) {
+        const cx = mouseUV.x * MELT_SIZE;
+        const cy = (1.0 - mouseUV.y) * MELT_SIZE;
+        const r = params.meltRadius * MELT_SIZE;
+        meltCtx.globalCompositeOperation = 'lighter';
+        const g = meltCtx.createRadialGradient(cx, cy, 0, cx, cy, r);
+        g.addColorStop(0, 'rgba(255,255,255,' + params.meltSpeed + ')');
+        g.addColorStop(0.2, 'rgba(255,255,255,' + params.meltSpeed * 0.7 + ')');
+        g.addColorStop(0.5, 'rgba(255,255,255,' + params.meltSpeed * 0.25 + ')');
+        g.addColorStop(0.8, 'rgba(255,255,255,' + params.meltSpeed * 0.05 + ')');
+        g.addColorStop(1, 'rgba(255,255,255,0)');
+        meltCtx.fillStyle = g;
+        meltCtx.beginPath();
+        meltCtx.arc(cx, cy, r, 0, Math.PI * 2);
+        meltCtx.fill();
+        meltCtx.globalCompositeOperation = 'source-over';
+      }
+      gl.bindTexture(gl.TEXTURE_2D, texMelt);
+      gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, true);
+      gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, meltCanvas);
+      gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, false);
+
+      gl.viewport(0, 0, canvas.width, canvas.height);
+      gl.clear(gl.COLOR_BUFFER_BIT);
+      gl.useProgram(prog);
+      gl.activeTexture(gl.TEXTURE0);
+      gl.bindTexture(gl.TEXTURE_2D, texScene);
+      gl.activeTexture(gl.TEXTURE1);
+      gl.bindTexture(gl.TEXTURE_2D, texNormal);
+      gl.activeTexture(gl.TEXTURE2);
+      gl.bindTexture(gl.TEXTURE_2D, texMelt);
+      gl.uniform1i(U.sceneTex, 0);
+      gl.uniform1i(U.normalMap, 1);
+      gl.uniform1i(U.meltMap, 2);
+      gl.uniform1f(U.refract_strength, params.refract);
+      gl.uniform1f(U.frostMul, params.frostMul);
+      gl.uniform1f(U.specMul, params.specMul);
+      gl.uniform1f(U.time, (performance.now() - t0) / 1000.0);
+      gl.uniform1f(U.fresnel, params.fresnel);
+      gl.uniform1f(U.sparkles, params.sparkles);
+      gl.uniform1f(U.frostMix, params.frostMix);
+      gl.uniform1f(U.grain, params.grain);
+      gl.uniform1f(U.specPow, params.specPow);
+      gl.drawArrays(gl.TRIANGLES, 0, 6);
+      requestAnimationFrame(frame);
+    }
+    requestAnimationFrame(frame);
+  }
+
+  function uploadTex(unit, source, flipY){
+    gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, flipY ? 1 : 0);
+    const tex = gl.createTexture();
+    gl.bindTexture(gl.TEXTURE_2D, tex);
+    gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, source);
+    // NPOT-текстуры (nature.jpg, карта нормалей): только CLAMP_TO_EDGE, без REPEAT
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
+    return tex;
+  }
+
+  const imgScene = new Image();
+  imgScene.onload = function(){
+    texScene = uploadTex(0, imgScene, true);
+    ready++;
+    maybeStart();
+  };
+  imgScene.onerror = function(){
+    console.warn('nature.jpg не загружен');
+    const c = document.createElement('canvas');
+    c.width = 512; c.height = 512;
+    const ctx = c.getContext('2d');
+    const g = ctx.createLinearGradient(0,0,0,512);
+    g.addColorStop(0,'#1a3a6e'); g.addColorStop(1,'#8ab0cc');
+    ctx.fillStyle = g; ctx.fillRect(0,0,512,512);
+    texScene = uploadTex(0, c, false);
+    ready++;
+    maybeStart();
+  };
+  imgScene.src = 'nature.jpg';
+
+  const imgNormal = new Image();
+  imgNormal.onload = function(){
+    texNormal = uploadTex(1, imgNormal, false);
+    ready++;
+    maybeStart();
+  };
+  var normalUrls = [
+    'assets/e__Cpde_led_Gemini_Generated_Image_mlq9armlq9armlq9.png',
+    'Gemini_Generated_Image_mlq9armlq9armlq9.png',
+    'ice-normal.png'
+  ];
+  var normalTry = 0;
+  imgNormal.onerror = function(){
+    normalTry++;
+    if (normalTry < normalUrls.length) {
+      imgNormal.src = normalUrls[normalTry];
+    } else {
+      console.warn('Карта нормалей не найдена — используется заглушка.');
+      const c = document.createElement('canvas');
+      c.width = 256; c.height = 256;
+      const ctx = c.getContext('2d');
+      ctx.fillStyle = '#8080ff';
+      ctx.fillRect(0,0,256,256);
+      texNormal = uploadTex(1, c, false);
+      ready++;
+      maybeStart();
+    }
+  };
+  imgNormal.src = normalUrls[0];
+})();
+</script>
+</body>
+</html>

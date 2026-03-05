@@ -1,0 +1,330 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8" />
+  <title>2.5D Living City — Pro Controls</title>
+  <style>
+    body { margin: 0; overflow: hidden; background: #000; font-family: 'Segoe UI', system-ui, sans-serif; }
+    canvas { width: 100vw; height: 100vh; display: block; cursor: crosshair; }
+    
+    #ui-container {
+      position: fixed; top: 10px; right: 10px; bottom: 10px;
+      width: 300px;
+      background: rgba(10, 15, 30, 0.85);
+      backdrop-filter: blur(12px);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      border-radius: 12px;
+      padding: 15px;
+      overflow-y: auto;
+      color: #eee;
+      scrollbar-width: thin;
+      scrollbar-color: #444 #1a1a1a;
+      box-shadow: -5px 0 20px rgba(0,0,0,0.5);
+    }
+    h2 { font-size: 12px; text-transform: uppercase; letter-spacing: 1px; color: #6ab4ff; margin: 15px 0 8px 0; border-bottom: 1px solid rgba(255,255,255,0.1); padding-bottom: 4px; }
+    h2:first-child { margin-top: 0; }
+    
+    .control-group { margin-bottom: 5px; }
+    .row { display: flex; align-items: center; justify-content: space-between; margin-bottom: 6px; font-size: 11px; }
+    .row label { flex: 1; opacity: 0.8; }
+    .row span { width: 35px; text-align: right; font-family: monospace; color: #8ac2ff; }
+    
+    input[type=range] {
+      -webkit-appearance: none; width: 50%; height: 4px; background: #333; border-radius: 2px; outline: none;
+    }
+    #ui-container select { background: #222; color: #eee; border: 1px solid #444; border-radius: 6px; padding: 4px 8px; font-size: 11px; margin-left: auto; }
+  input[type=range]::-webkit-slider-thumb {
+      -webkit-appearance: none; width: 12px; height: 12px; border-radius: 50%; background: #007aff; cursor: pointer; border: 2px solid #fff;
+    }
+    
+    .checkbox-row { display: flex; align-items: center; cursor: pointer; margin-bottom: 8px; font-size: 11px; }
+    .checkbox-row input { margin-right: 8px; }
+    
+    #debug-info {
+      position: fixed; top: 15px; left: 15px;
+      color: rgba(255,255,255,0.5); font-size: 12px; pointer-events: none;
+    }
+  </style>
+</head>
+<body>
+
+<div id="debug-info">Нажми 1, 2, 3 для просмотра карт. 0 — сброс.</div>
+
+<div id="ui-container">
+  <h2>Город</h2>
+  <div class="row"><label>Набор фона</label><select id="city-set"><option value="0">nature + n1,n2,n3</option><option value="1">nature2 + nn1,nn2,nn3</option></select></div>
+  <h2>Освещение</h2>
+  <div class="checkbox-row">
+    <input type="checkbox" id="c-flashlight" checked>
+    <label for="c-flashlight">Режим «Фонарик» (Spotlight)</label>
+  </div>
+  <div class="row"><label>Высота света (Z)</label><input id="s-lightZ" type="range" min="0.05" max="1.0" step="0.01" value="0.15"><span>0.15</span></div>
+  <div class="row"><label>Сила блика (Spec)</label><input id="s-specular" type="range" min="0" max="3" step="0.05" value="1.5"><span>1.50</span></div>
+  <div class="row"><label>Глянец (Shininess)</label><input id="s-shine" type="range" min="10" max="100" step="1" value="32"><span>32</span></div>
+
+  <h2>Атмосфера</h2>
+  <div class="row"><label>Фон (Ambient)</label><input id="s-ambient" type="range" min="0" max="1" step="0.01" value="0.4"><span>0.40</span></div>
+  <div class="row"><label>Диффуз (Diffuse)</label><input id="s-diffuse" type="range" min="0" max="2" step="0.01" value="1.0"><span>1.00</span></div>
+  
+  <h2>Огни города (N2)</h2>
+  <div class="row"><label>Яркость окон</label><input id="s-emissive" type="range" min="0" max="2" step="0.01" value="0.8"><span>0.80</span></div>
+  <div class="row"><label>Скорость мерцания</label><input id="s-twinkleSpeed" type="range" min="0" max="5" step="0.1" value="1.5"><span>1.50</span></div>
+  
+  <h2>Параллакс (N3)</h2>
+  <div class="row"><label>Сила сдвига</label><input id="s-parallax" type="range" min="0" max="0.1" step="0.001" value="0.03"><span>0.030</span></div>
+  <div class="row"><label>Точка фокуса</label><input id="s-focus" type="range" min="0" max="1" step="0.01" value="1.0"><span>1.00</span></div>
+  <div class="row" style="opacity:0.6; font-size:10px;"><i>0=Даль стоит, 1=Близь стоит</i></div>
+</div>
+
+<canvas id="gl-canvas"></canvas>
+
+<script>
+(function(){
+  const canvas = document.getElementById('gl-canvas');
+  const gl = canvas.getContext('webgl', { premultipliedAlpha: false }) || canvas.getContext('experimental-webgl');
+  if (!gl) return;
+
+  function resize(){
+    const dpr = Math.min(window.devicePixelRatio || 1, 2);
+    canvas.width = window.innerWidth * dpr;
+    canvas.height = window.innerHeight * dpr;
+    gl.viewport(0, 0, canvas.width, canvas.height);
+  }
+  window.addEventListener('resize', resize);
+  resize();
+  gl.clearColor(0.0, 0.0, 0.0, 1.0);
+
+  const VS = `attribute vec2 a_pos; varying vec2 v_uv; void main() { v_uv = a_pos * 0.5 + 0.5; gl_Position = vec4(a_pos, 0.0, 1.0); }`;
+
+  const FS = `
+precision highp float;
+varying vec2 v_uv;
+
+uniform sampler2D u_tex, u_norm, u_light, u_depth;
+uniform vec2 u_mouse;
+uniform float u_ratio;
+uniform float u_time;
+uniform int u_debug;
+
+uniform float u_parallax;
+uniform float u_focus;
+uniform float u_lightZ;
+uniform float u_specular;
+uniform float u_shine;
+uniform float u_ambient;
+uniform float u_diffuse;
+uniform float u_emissive;
+uniform float u_twinkleSpeed;
+uniform bool u_flashlight;
+
+void main() {
+  float depthVal = texture2D(u_depth, v_uv).r;
+  vec2 parallaxOffset = (u_mouse - 0.5) * (depthVal - u_focus) * u_parallax;
+  vec2 uv = v_uv + parallaxOffset;
+  uv = clamp(uv, 0.001, 0.999);
+
+  if (u_debug == 1) { gl_FragColor = vec4(texture2D(u_norm, uv).rgb, 1.0); return; }
+  if (u_debug == 2) { float d = texture2D(u_depth, uv).r; gl_FragColor = vec4(d,d,d, 1.0); return; }
+  if (u_debug == 3) { gl_FragColor = vec4(texture2D(u_light, uv).rgb, 1.0); return; }
+
+  vec3 baseColor = texture2D(u_tex, uv).rgb;
+  vec3 normalMap = texture2D(u_norm, uv).rgb;
+  vec3 normal = normalize(normalMap * 2.0 - 1.0);
+  float lightsMap = texture2D(u_light, uv).r;
+
+  vec3 lightDir;
+  float attenuation = 1.0;
+
+  if (u_flashlight) {
+    vec2 pixelPos = v_uv;
+    vec2 mousePos = u_mouse;
+    pixelPos.x *= u_ratio;
+    mousePos.x *= u_ratio;
+    vec3 lightPos = vec3(mousePos, u_lightZ);
+    vec3 surfacePos = vec3(pixelPos, 0.0);
+    vec3 L = lightPos - surfacePos;
+    float dist = length(L);
+    lightDir = normalize(L);
+    attenuation = 1.0 / (1.0 + dist * 2.0 + dist * dist * 8.0);
+  } else {
+    lightDir = normalize(vec3(u_mouse - 0.5, u_lightZ));
+  }
+
+  float diff = max(dot(normal, lightDir), 0.0);
+  vec3 viewDir = vec3(0.0, 0.0, 1.0);
+  vec3 reflectDir = reflect(-lightDir, normal);
+  float spec = pow(max(dot(viewDir, reflectDir), 0.0), u_shine);
+
+  float twinkle = 0.8 + 0.4 * (0.5 + 0.5 * sin(u_time * u_twinkleSpeed + uv.x * 10.0));
+  vec3 emission = vec3(1.0, 0.8, 0.6) * lightsMap * u_emissive * twinkle;
+
+  vec3 ambient = baseColor * u_ambient;
+  vec3 diffuseLight = baseColor * diff * u_diffuse * attenuation;
+  vec3 specularLight = vec3(1.0) * spec * u_specular * attenuation;
+
+  vec3 finalColor = ambient + diffuseLight + specularLight + emission;
+
+  gl_FragColor = vec4(finalColor, 1.0);
+}
+`;
+
+  const prog = gl.createProgram();
+  function compile(t, s){
+    const sh = gl.createShader(t);
+    gl.shaderSource(sh, s);
+    gl.compileShader(sh);
+    if (!gl.getShaderParameter(sh, gl.COMPILE_STATUS)) console.error(gl.getShaderInfoLog(sh));
+    return sh;
+  }
+  gl.attachShader(prog, compile(gl.VERTEX_SHADER, VS));
+  gl.attachShader(prog, compile(gl.FRAGMENT_SHADER, FS));
+  gl.linkProgram(prog);
+  if (!gl.getProgramParameter(prog, gl.LINK_STATUS)) {
+    console.error(gl.getProgramInfoLog(prog));
+    return;
+  }
+  gl.useProgram(prog);
+
+  const vertices = new Float32Array([-1,-1, 1,-1, -1,1, -1,1, 1,-1, 1,1]);
+  gl.bindBuffer(gl.ARRAY_BUFFER, gl.createBuffer());
+  gl.bufferData(gl.ARRAY_BUFFER, vertices, gl.STATIC_DRAW);
+  const aPos = gl.getAttribLocation(prog, 'a_pos');
+  gl.enableVertexAttribArray(aPos);
+  gl.vertexAttribPointer(aPos, 2, gl.FLOAT, false, 0, 0);
+
+  const U = {
+    mouse: gl.getUniformLocation(prog, 'u_mouse'),
+    ratio: gl.getUniformLocation(prog, 'u_ratio'),
+    time: gl.getUniformLocation(prog, 'u_time'),
+    debug: gl.getUniformLocation(prog, 'u_debug'),
+    tex: gl.getUniformLocation(prog, 'u_tex'),
+    norm: gl.getUniformLocation(prog, 'u_norm'),
+    light: gl.getUniformLocation(prog, 'u_light'),
+    depth: gl.getUniformLocation(prog, 'u_depth'),
+    parallax: gl.getUniformLocation(prog, 'u_parallax'),
+    focus: gl.getUniformLocation(prog, 'u_focus'),
+    lightZ: gl.getUniformLocation(prog, 'u_lightZ'),
+    specular: gl.getUniformLocation(prog, 'u_specular'),
+    shine: gl.getUniformLocation(prog, 'u_shine'),
+    ambient: gl.getUniformLocation(prog, 'u_ambient'),
+    diffuse: gl.getUniformLocation(prog, 'u_diffuse'),
+    emissive: gl.getUniformLocation(prog, 'u_emissive'),
+    twinkleSpeed: gl.getUniformLocation(prog, 'u_twinkleSpeed'),
+    flashlight: gl.getUniformLocation(prog, 'u_flashlight'),
+  };
+
+  let textures = {}, ready = 0, mouse = { x: 0.5, y: 0.5 }, debug = 0;
+  const CITY_SETS = [
+    { tex: 'nature.jpg', norm: 'n1.png', light: 'n2.png', depth: 'n3.png' },
+    { tex: 'nature2.jpg', norm: 'nn1.png', light: 'nn2.png', depth: 'nn3.png' }
+  ];
+  const fileKeys = ['tex', 'norm', 'light', 'depth'];
+
+  function loadCitySet(setIndex) {
+    const set = CITY_SETS[setIndex] || CITY_SETS[0];
+    fileKeys.forEach((key, i) => {
+      const img = new Image();
+      img.onload = () => {
+        const t = gl.createTexture();
+        gl.activeTexture(gl.TEXTURE0 + i);
+        gl.bindTexture(gl.TEXTURE_2D, t);
+        gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, 1);
+        gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, img);
+        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
+        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
+        if (textures[key]) gl.deleteTexture(textures[key]);
+        textures[key] = t;
+      };
+      img.onerror = () => console.warn('Не удалось загрузить:', set[key]);
+      img.src = set[key];
+    });
+  }
+
+  const files = CITY_SETS[0];
+  Object.keys(files).forEach((key, i) => {
+    const img = new Image();
+    img.onload = () => {
+      const t = gl.createTexture();
+      gl.activeTexture(gl.TEXTURE0 + i);
+      gl.bindTexture(gl.TEXTURE_2D, t);
+      gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, 1);
+      gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, img);
+      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
+      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
+      textures[key] = t;
+      ready++;
+      if (ready === 4) render();
+    };
+    img.onerror = () => console.warn('Не удалось загрузить:', files[key]);
+    img.src = files[key];
+  });
+
+  document.getElementById('city-set').addEventListener('change', function() {
+    loadCitySet(parseInt(this.value, 10));
+  });
+
+  window.addEventListener('mousemove', e => {
+    mouse.x = e.clientX / window.innerWidth;
+    mouse.y = 1.0 - (e.clientY / window.innerHeight);
+  });
+  
+  window.addEventListener('keydown', e => {
+    if (e.key >= '0' && e.key <= '3') debug = parseInt(e.key);
+  });
+
+  const params = {};
+  function updateParam(id, isBool = false) {
+    const el = document.getElementById(id);
+    if (!el) return;
+    const val = isBool ? el.checked : parseFloat(el.value);
+    const key = id.replace('s-', '').replace('c-', '');
+    params[key] = val;
+    if (!isBool) {
+      const span = el.closest('.row') && el.nextElementSibling;
+      if (span && span.tagName === 'SPAN') {
+        span.innerText = key === 'shine' ? Math.round(val) : (key === 'parallax' ? val.toFixed(3) : val.toFixed(2));
+      }
+    }
+  }
+
+  document.querySelectorAll('#ui-container input').forEach(i => {
+    i.addEventListener('input', () => updateParam(i.id, i.type === 'checkbox'));
+    updateParam(i.id, i.type === 'checkbox');
+  });
+
+  function render() {
+    const time = performance.now() * 0.001;
+    gl.clear(gl.COLOR_BUFFER_BIT);
+    
+    gl.uniform1i(U.tex, 0);
+    gl.uniform1i(U.norm, 1);
+    gl.uniform1i(U.light, 2);
+    gl.uniform1i(U.depth, 3);
+    
+    gl.uniform2f(U.mouse, mouse.x, mouse.y);
+    gl.uniform1f(U.ratio, canvas.width / canvas.height);
+    gl.uniform1f(U.time, time);
+    gl.uniform1i(U.debug, debug);
+    
+    gl.uniform1f(U.parallax, params.parallax ?? 0.03);
+    gl.uniform1f(U.focus, params.focus ?? 1.0);
+    gl.uniform1f(U.lightZ, params.lightZ ?? 0.15);
+    gl.uniform1f(U.specular, params.specular ?? 1.5);
+    gl.uniform1f(U.shine, params.shine ?? 32);
+    gl.uniform1f(U.ambient, params.ambient ?? 0.4);
+    gl.uniform1f(U.diffuse, params.diffuse ?? 1.0);
+    gl.uniform1f(U.emissive, params.emissive ?? 0.8);
+    gl.uniform1f(U.twinkleSpeed, params.twinkleSpeed ?? 1.5);
+    gl.uniform1i(U.flashlight, (params.flashlight !== false) ? 1 : 0);
+
+    gl.drawArrays(gl.TRIANGLES, 0, 6);
+    requestAnimationFrame(render);
+  }
+})();
+</script>
+</body>
+</html>

@@ -1,0 +1,423 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8" />
+  <title>Ice Sandbox: Ultimate Edition</title>
+  <style>
+    body { margin: 0; overflow: hidden; background: #050505; font-family: 'Segoe UI', system-ui, sans-serif; }
+    canvas { width: 100vw; height: 100vh; display: block; cursor: none; }
+    
+    #ui-container {
+      position: fixed; top: 0; right: 0; bottom: 0;
+      width: 320px;
+      background: rgba(12, 18, 28, 0.95);
+      backdrop-filter: blur(15px);
+      border-left: 1px solid rgba(255, 255, 255, 0.1);
+      box-shadow: -10px 0 30px rgba(0,0,0,0.5);
+      overflow-y: auto;
+      transform: translateX(0);
+      transition: transform 0.3s cubic-bezier(0.25, 0.8, 0.25, 1);
+      z-index: 100;
+      display: flex; flex-direction: column;
+    }
+    
+    #ui-container.hidden { transform: translateX(100%); }
+
+    .header {
+      padding: 20px;
+      background: rgba(255,255,255,0.03);
+      border-bottom: 1px solid rgba(255,255,255,0.1);
+      flex-shrink: 0;
+    }
+    h1 { margin: 0; font-size: 16px; color: #fff; text-transform: uppercase; letter-spacing: 2px; }
+    .subtitle { font-size: 11px; color: #6ab4ff; margin-top: 5px; opacity: 0.8; }
+    
+    .controls-area {
+      flex: 1; padding: 20px;
+      scrollbar-width: thin; scrollbar-color: #334455 #0c121c;
+    }
+    
+    .section { margin-bottom: 25px; }
+    .section-title {
+      font-size: 10px; font-weight: 700; color: #6ab4ff; 
+      text-transform: uppercase; letter-spacing: 1px;
+      margin-bottom: 12px; padding-bottom: 5px;
+      border-bottom: 1px solid rgba(106, 180, 255, 0.2);
+    }
+    
+    .control-row {
+      display: flex; align-items: center; justify-content: space-between;
+      margin-bottom: 10px; font-size: 11px; color: #ccc;
+    }
+    .control-row label { flex: 1; padding-right: 10px; cursor: default; }
+    .control-row input[type="range"] {
+      width: 120px; height: 4px; 
+      -webkit-appearance: none; background: #2a3b4c; border-radius: 2px; outline: none;
+    }
+    .control-row input[type="range"]::-webkit-slider-thumb {
+      -webkit-appearance: none; width: 12px; height: 12px; border-radius: 50%;
+      background: #6ab4ff; cursor: pointer; border: 2px solid #fff;
+      transition: transform 0.1s;
+    }
+    .control-row input[type="range"]::-webkit-slider-thumb:hover { transform: scale(1.2); }
+    .val-display { 
+      width: 35px; text-align: right; font-family: 'JetBrains Mono', monospace; 
+      font-size: 10px; color: #6ab4ff; 
+    }
+
+    select {
+      width: 100%; padding: 6px; background: #1a2633; color: #fff; border: 1px solid #334455;
+      border-radius: 4px; font-size: 11px; outline: none; cursor: pointer;
+    }
+    select:hover { border-color: #6ab4ff; }
+
+    #hint {
+      position: fixed; bottom: 20px; left: 20px;
+      color: rgba(255,255,255,0.3); font-size: 11px;
+      pointer-events: none; transition: opacity 0.5s;
+    }
+
+    #loader {
+      position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+      background: #000; z-index: 200;
+      display: flex; align-items: center; justify-content: center;
+      color: #6ab4ff; font-family: monospace; letter-spacing: 2px;
+      transition: opacity 0.5s; pointer-events: none;
+    }
+  </style>
+</head>
+<body>
+
+<div id="loader">LOADING ASSETS...</div>
+<div id="hint">Press [H] to toggle UI</div>
+
+<div id="ui-container">
+  <div class="header">
+    <h1>Ice Sandbox</h1>
+    <div class="subtitle">Ultimate Parameter Control</div>
+  </div>
+  
+  <div class="controls-area">
+    <div class="section">
+      <div class="section-title">Scene & Background</div>
+      <div class="control-row">
+        <select id="preset-selector">
+          <option value="0">City (Day)</option>
+          <option value="1">City (Warm)</option>
+        </select>
+      </div>
+      <div class="control-row"><label>Parallax Depth</label><input id="p-parallax" type="range" min="0" max="0.08" step="0.001" value="0.03"><span class="val-display">0.03</span></div>
+      <div class="control-row"><label>Ambient Light</label><input id="p-ambient" type="range" min="0" max="1" step="0.01" value="0.3"><span class="val-display">0.30</span></div>
+      <div class="control-row"><label>Window Glow (N2)</label><input id="p-emissive" type="range" min="0" max="3" step="0.05" value="1.2"><span class="val-display">1.20</span></div>
+    </div>
+
+    <div class="section">
+      <div class="section-title">Ice Material</div>
+      <div class="control-row"><label>Frost Opacity</label><input id="p-frostOpacity" type="range" min="0" max="1" step="0.01" value="0.75"><span class="val-display">0.75</span></div>
+      <div class="control-row"><label>Normal Strength</label><input id="p-iceNormal" type="range" min="0" max="2" step="0.1" value="1.0"><span class="val-display">1.0</span></div>
+      <div class="control-row"><label>Refraction</label><input id="p-refract" type="range" min="0" max="0.1" step="0.001" value="0.04"><span class="val-display">0.040</span></div>
+      <div class="control-row"><label>Aberration (RGB)</label><input id="p-chroma" type="range" min="0" max="0.05" step="0.001" value="0.015"><span class="val-display">0.015</span></div>
+      <div class="control-row"><label>Specular Power</label><input id="p-specular" type="range" min="0" max="2" step="0.05" value="1.0"><span class="val-display">1.00</span></div>
+    </div>
+
+    <div class="section">
+      <div class="section-title">Melting Brush</div>
+      <div class="control-row"><label>Radius</label><input id="p-meltRadius" type="range" min="0.1" max="1.0" step="0.01" value="0.4"><span class="val-display">0.40</span></div>
+      <div class="control-row"><label>Speed</label><input id="p-meltSpeed" type="range" min="0.01" max="0.2" step="0.005" value="0.05"><span class="val-display">0.050</span></div>
+      <div class="control-row"><label>Wet Edge</label><input id="p-wetness" type="range" min="0" max="1" step="0.01" value="0.5"><span class="val-display">0.50</span></div>
+    </div>
+
+    <div class="section">
+      <div class="section-title">Flashlight</div>
+      <div class="control-row"><label>Intensity</label><input id="p-lightInt" type="range" min="0" max="3" step="0.1" value="1.5"><span class="val-display">1.5</span></div>
+      <div class="control-row"><label>Radius</label><input id="p-lightRad" type="range" min="0.1" max="1.0" step="0.01" value="0.45"><span class="val-display">0.45</span></div>
+      <div class="control-row"><label>Warmth</label><input id="p-lightWarmth" type="range" min="0" max="1" step="0.05" value="0.6"><span class="val-display">0.60</span></div>
+    </div>
+
+    <div class="section">
+      <div class="section-title">Post-Processing</div>
+      <div class="control-row"><label>Exposure</label><input id="p-exposure" type="range" min="0.1" max="2" step="0.05" value="1.0"><span class="val-display">1.0</span></div>
+      <div class="control-row"><label>Contrast</label><input id="p-contrast" type="range" min="0.5" max="1.5" step="0.05" value="1.1"><span class="val-display">1.1</span></div>
+      <div class="control-row"><label>Saturation</label><input id="p-saturation" type="range" min="0" max="2" step="0.05" value="1.2"><span class="val-display">1.2</span></div>
+    </div>
+  </div>
+</div>
+
+<canvas id="gl-canvas"></canvas>
+
+<script>
+(function(){
+  const canvas = document.getElementById('gl-canvas');
+  const gl = canvas.getContext('webgl', { alpha: false, depth: false, premultipliedAlpha: false }) || canvas.getContext('experimental-webgl');
+  if (!gl) return;
+
+  const PARAMS = {
+    parallax: 0.03,
+    ambient: 0.3,
+    emissive: 1.2,
+    frostOpacity: 0.75,
+    iceNormal: 1.0,
+    refract: 0.04,
+    chroma: 0.015,
+    specular: 1.0,
+    meltRadius: 0.4,
+    meltSpeed: 0.05,
+    wetness: 0.5,
+    lightInt: 1.5,
+    lightRad: 0.45,
+    lightWarmth: 0.6,
+    exposure: 1.0,
+    contrast: 1.1,
+    saturation: 1.2
+  };
+  const meltSize = 512;
+  
+  const PRESETS = [
+    { bgTex: 'nature.jpg', bgNorm: 'n1.png', bgLight: 'n2.png', bgDepth: 'n3.png' },
+    { bgTex: 'nature2.jpg', bgNorm: 'nn1.png', bgLight: 'nn2.png', bgDepth: 'nn3.png' }
+  ];
+  const ICE_ASSETS = { iceNorm: 'prompt1.png', iceFrost: 'prompt2.png', iceOpacity: 'prompt3.png', iceRough: 'prompt4.png' };
+
+  function resize(){
+    const dpr = Math.min(window.devicePixelRatio || 1, 2);
+    canvas.width = window.innerWidth * dpr;
+    canvas.height = window.innerHeight * dpr;
+    gl.viewport(0, 0, canvas.width, canvas.height);
+  }
+  window.addEventListener('resize', resize);
+  resize();
+
+  const VS = "attribute vec2 a_pos; varying vec2 v_uv; void main(){ v_uv = a_pos * 0.5 + 0.5; gl_Position = vec4(a_pos,0.0,1.0); }";
+  const FS = `precision highp float;
+varying vec2 v_uv;
+uniform sampler2D u_bgTex, u_bgNorm, u_bgLight, u_bgDepth;
+uniform sampler2D u_iceNorm, u_iceFrost, u_iceOpacity, u_iceRough;
+uniform sampler2D u_meltMap;
+uniform vec2 u_mouse;
+uniform float u_ratio;
+uniform float u_time;
+uniform float u_parallax, u_ambient, u_emissive, u_frostOpacity, u_iceNormal, u_refract, u_chroma, u_specular;
+uniform float u_wetness, u_lightInt, u_lightRad, u_lightWarmth, u_exposure, u_contrast, u_saturation;
+
+vec3 sat(vec3 c, float s) {
+  float g = dot(c, vec3(0.299, 0.587, 0.114));
+  return mix(vec3(g), c, s);
+}
+vec3 con(vec3 c, float k) { return 0.5 + k * (c - 0.5); }
+
+void main() {
+  float melt = texture2D(u_meltMap, v_uv).r;
+  float bgDepth = texture2D(u_bgDepth, v_uv).r;
+  
+  vec3 iceN = normalize(texture2D(u_iceNorm, v_uv).rgb * 2.0 - 1.0);
+  vec3 finalN = normalize(mix(iceN * u_iceNormal, vec3(0,0,1), melt));
+  
+  vec2 parallaxOffset = (u_mouse - 0.5) * (1.0 - bgDepth) * u_parallax;
+  vec2 baseUV = v_uv + parallaxOffset;
+  baseUV = clamp(baseUV, 0.001, 0.999);
+  
+  float refrStr = u_refract * (1.0 - melt * 0.9);
+  vec2 uvR = baseUV + finalN.xy * refrStr * (1.0 - u_chroma);
+  vec2 uvG = baseUV + finalN.xy * refrStr;
+  vec2 uvB = baseUV + finalN.xy * refrStr * (1.0 + u_chroma);
+  
+  vec3 bgCol;
+  bgCol.r = texture2D(u_bgTex, uvR).r;
+  bgCol.g = texture2D(u_bgTex, uvG).g;
+  bgCol.b = texture2D(u_bgTex, uvB).b;
+  
+  vec3 bgNorm = normalize(texture2D(u_bgNorm, uvG).rgb * 2.0 - 1.0);
+  vec3 bgLightMask = texture2D(u_bgLight, uvG).rgb;
+
+  vec3 lightPos = vec3(u_mouse.x * u_ratio, u_mouse.y, 0.3);
+  vec3 pixelPos = vec3(v_uv.x * u_ratio, v_uv.y, 0.0);
+  float dist = distance(lightPos, pixelPos);
+  float spot = smoothstep(u_lightRad, u_lightRad * 0.1, dist);
+  
+  vec3 lightColor = mix(vec3(0.9, 0.95, 1.0), vec3(1.0, 0.9, 0.6), u_lightWarmth);
+  vec3 lightDir = normalize(lightPos - pixelPos);
+  
+  float bgDiff = max(dot(bgNorm, lightDir), 0.0) * spot * u_lightInt;
+  vec3 sceneLit = bgCol * (u_ambient + bgDiff * lightColor) + bgLightMask * u_emissive;
+
+  float iceMask = texture2D(u_iceOpacity, v_uv).r;
+  vec3 frostTex = texture2D(u_iceFrost, v_uv).rgb;
+  vec3 frostLit = frostTex * (sceneLit + 0.1) * (1.0 + bgDiff * 0.4);
+  float alpha = iceMask * u_frostOpacity * (1.0 - melt);
+  vec3 composite = mix(sceneLit, frostLit, alpha);
+
+  vec3 viewDir = vec3(0,0,1);
+  vec3 halfDir = normalize(lightDir + viewDir);
+  float rough = texture2D(u_iceRough, v_uv).r;
+  float shininess = mix(mix(15.0, 5.0, rough), 100.0, melt);
+  float specBase = pow(max(dot(finalN, halfDir), 0.0), shininess);
+  float wetBoost = 1.0 + u_wetness * smoothstep(0.0, 0.2, melt) * (1.0 - smoothstep(0.8, 1.0, melt)) * 4.0;
+  composite += specBase * u_specular * spot * lightColor * wetBoost;
+
+  composite = con(composite, u_contrast);
+  composite = sat(composite, u_saturation);
+  composite *= u_exposure;
+
+  gl_FragColor = vec4(clamp(composite, 0.0, 1.0), 1.0);
+}
+`;
+
+  const prog = gl.createProgram();
+  function compile(type, src){
+    const s = gl.createShader(type);
+    gl.shaderSource(s, src);
+    gl.compileShader(s);
+    if (!gl.getShaderParameter(s, gl.COMPILE_STATUS)) console.error(gl.getShaderInfoLog(s));
+    return s;
+  }
+  gl.attachShader(prog, compile(gl.VERTEX_SHADER, VS));
+  gl.attachShader(prog, compile(gl.FRAGMENT_SHADER, FS));
+  gl.linkProgram(prog);
+  if (!gl.getProgramParameter(prog, gl.LINK_STATUS)) { console.error(gl.getProgramInfoLog(prog)); return; }
+  gl.useProgram(prog);
+
+  gl.bindBuffer(gl.ARRAY_BUFFER, gl.createBuffer());
+  gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([-1,-1, 1,-1, -1,1, -1,1, 1,-1, 1,1]), gl.STATIC_DRAW);
+  const aPos = gl.getAttribLocation(prog, 'a_pos');
+  gl.enableVertexAttribArray(aPos);
+  gl.vertexAttribPointer(aPos, 2, gl.FLOAT, false, 0, 0);
+
+  const U = {};
+  const N = [
+    'bgTex','bgNorm','bgLight','bgDepth','iceNorm','iceFrost','iceOpacity','iceRough','meltMap',
+    'mouse','ratio','time',
+    'parallax','ambient','emissive','frostOpacity','iceNormal','refract','chroma','specular',
+    'wetness','lightInt','lightRad','lightWarmth','exposure','contrast','saturation'
+  ];
+  N.forEach(n => U[n] = gl.getUniformLocation(prog, 'u_' + n));
+
+  const meltCanvas = document.createElement('canvas');
+  meltCanvas.width = meltCanvas.height = meltSize;
+  const meltCtx = meltCanvas.getContext('2d');
+  meltCtx.fillStyle = '#000';
+  meltCtx.fillRect(0,0,meltSize,meltSize);
+
+  const meltTex = gl.createTexture();
+  gl.activeTexture(gl.TEXTURE8);
+  gl.bindTexture(gl.TEXTURE_2D, meltTex);
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+  gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, true);
+  gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, meltCanvas);
+  gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, false);
+
+  let mouse = { x: 0.5, y: 0.5 };
+  let running = false;
+
+  document.querySelectorAll('input[type="range"]').forEach(inp => {
+    inp.addEventListener('input', (e) => {
+      const id = e.target.id.replace('p-', '');
+      PARAMS[id] = parseFloat(e.target.value);
+      e.target.nextElementSibling.innerText = PARAMS[id].toFixed( (id==='parallax' || id==='refract'||id==='meltSpeed') ? 3 : 2 );
+    });
+  });
+  
+  document.getElementById('preset-selector').addEventListener('change', e => {
+    loadPreset(parseInt(e.target.value, 10));
+  });
+
+  canvas.addEventListener('mousemove', e => {
+    mouse.x = e.clientX / window.innerWidth;
+    mouse.y = 1.0 - (e.clientY / window.innerHeight);
+  });
+  
+  window.addEventListener('keydown', e => {
+    if (e.key.toLowerCase() === 'h') {
+      const ui = document.getElementById('ui-container');
+      ui.classList.toggle('hidden');
+      document.getElementById('hint').style.opacity = ui.classList.contains('hidden') ? '0.5' : '0';
+    }
+  });
+
+  function loadPreset(idx) {
+    const preset = PRESETS[idx] || PRESETS[0];
+    const queue = { ...preset, ...ICE_ASSETS };
+    let loaded = 0;
+    const total = 8;
+    document.getElementById('loader').style.opacity = 1;
+
+    Object.keys(queue).forEach((key, i) => {
+      const img = new Image();
+      img.onload = () => {
+        const t = gl.createTexture();
+        gl.activeTexture(gl.TEXTURE0 + i);
+        gl.bindTexture(gl.TEXTURE_2D, t);
+        gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, key.startsWith('bg') ? 1 : 0);
+        gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, img);
+        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
+        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+        loaded++;
+        if (loaded === total) {
+          document.getElementById('loader').style.opacity = 0;
+          if (!running) startLoop();
+        }
+      };
+      img.onerror = () => console.warn('Miss:', queue[key]);
+      img.src = queue[key];
+    });
+  }
+
+  loadPreset(0);
+
+  function startLoop() {
+    running = true;
+    const startTime = performance.now();
+
+    function frame() {
+      if (mouse.x >= 0) {
+        const cx = mouse.x * meltSize;
+        const cy = (1.0 - mouse.y) * meltSize;
+        const r = PARAMS.meltRadius * 100.0;
+        meltCtx.globalCompositeOperation = 'lighter';
+        const g = meltCtx.createRadialGradient(cx, cy, 0, cx, cy, r);
+        g.addColorStop(0, 'rgba(255,255,255,' + PARAMS.meltSpeed + ')');
+        g.addColorStop(1, 'rgba(255,255,255,0)');
+        meltCtx.fillStyle = g;
+        meltCtx.beginPath(); meltCtx.arc(cx, cy, r, 0, Math.PI*2.0); meltCtx.fill();
+        meltCtx.globalCompositeOperation = 'source-over';
+      }
+
+      gl.activeTexture(gl.TEXTURE8);
+      gl.bindTexture(gl.TEXTURE_2D, meltTex);
+      gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, true);
+      gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, meltCanvas);
+      gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, false);
+
+      gl.clearColor(0.02, 0.02, 0.05, 1.0);
+      gl.clear(gl.COLOR_BUFFER_BIT);
+
+      gl.uniform1i(U.bgTex, 0);
+      gl.uniform1i(U.bgNorm, 1);
+      gl.uniform1i(U.bgLight, 2);
+      gl.uniform1i(U.bgDepth, 3);
+      gl.uniform1i(U.iceNorm, 4);
+      gl.uniform1i(U.iceFrost, 5);
+      gl.uniform1i(U.iceOpacity, 6);
+      gl.uniform1i(U.iceRough, 7);
+      gl.uniform1i(U.meltMap, 8);
+
+      gl.uniform2f(U.mouse, mouse.x, mouse.y);
+      gl.uniform1f(U.ratio, canvas.width / canvas.height);
+      gl.uniform1f(U.time, (performance.now() - startTime) * 0.001);
+
+      for (const k in PARAMS) {
+        if (U[k]) gl.uniform1f(U[k], PARAMS[k]);
+      }
+
+      gl.drawArrays(gl.TRIANGLES, 0, 6);
+      requestAnimationFrame(frame);
+    }
+    frame();
+  }
+})();
+</script>
+</body>
+</html>
+

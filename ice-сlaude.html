@@ -1,0 +1,595 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8" />
+  <title>Realistic Ice Overlay</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    html, body { width: 100%; height: 100%; overflow: hidden; background: #000; }
+
+    #gl-canvas {
+      position: fixed; inset: 0;
+      width: 100%; height: 100%;
+      display: block;
+    }
+
+    #controls {
+      position: fixed; top: 18px; right: 18px; z-index: 20;
+      background: rgba(8, 16, 36, 0.82);
+      backdrop-filter: blur(12px);
+      border: 1px solid rgba(120, 180, 255, 0.15);
+      border-radius: 14px;
+      padding: 14px 16px;
+      color: #c8deff;
+      font-family: 'SF Mono', 'Fira Code', monospace;
+      font-size: 11px;
+      min-width: 200px;
+      box-shadow: 0 8px 40px rgba(0,0,40,0.6), inset 0 1px 0 rgba(255,255,255,0.05);
+    }
+
+    #controls h2 {
+      margin: 0 0 10px;
+      font-size: 10px;
+      letter-spacing: 0.15em;
+      text-transform: uppercase;
+      color: rgba(160, 200, 255, 0.7);
+      font-weight: 400;
+    }
+
+    .row {
+      display: flex; align-items: center; gap: 8px; margin-bottom: 8px;
+    }
+    .row:last-child { margin-bottom: 0; }
+    .row label { flex: 0 0 80px; color: rgba(200, 220, 255, 0.8); }
+    .row input[type=range] {
+      flex: 1; appearance: none; height: 3px;
+      background: rgba(80,140,255,0.25);
+      border-radius: 2px; outline: none; cursor: pointer;
+    }
+    .row input[type=range]::-webkit-slider-thumb {
+      appearance: none; width: 13px; height: 13px;
+      border-radius: 50%; background: #6ab4ff;
+      box-shadow: 0 0 6px rgba(100,180,255,0.8);
+    }
+    .val { min-width: 28px; text-align: right; color: #6ab4ff; }
+  </style>
+</head>
+<body>
+
+<canvas id="gl-canvas"></canvas>
+
+<div id="controls">
+  <h2>❄ ICE CRYSTAL</h2>
+  <div class="row">
+    <label>Мороз</label>
+    <input id="s-frost"   type="range" min="0" max="1" step="0.01" value="0.85">
+    <span class="val" id="v-frost">0.85</span>
+  </div>
+  <div class="row">
+    <label>Кристаллы</label>
+    <input id="s-crystal" type="range" min="1" max="5" step="0.1"  value="3.0">
+    <span class="val" id="v-crystal">3.0</span>
+  </div>
+  <div class="row">
+    <label>Преломление</label>
+    <input id="s-refract" type="range" min="0" max="1" step="0.01" value="0.55">
+    <span class="val" id="v-refract">0.55</span>
+  </div>
+  <div class="row">
+    <label>Блеск</label>
+    <input id="s-spec"    type="range" min="0" max="1" step="0.01" value="0.7">
+    <span class="val" id="v-spec">0.7</span>
+  </div>
+  <div class="row">
+    <label>Мутность</label>
+    <input id="s-desat"   type="range" min="0" max="1" step="0.01" value="0.6">
+    <span class="val" id="v-desat">0.6</span>
+  </div>
+</div>
+
+<script>
+(function(){
+  const canvas = document.getElementById('gl-canvas');
+  const gl = canvas.getContext('webgl', { premultipliedAlpha: false, antialias: true })
+           || canvas.getContext('experimental-webgl');
+  if (!gl) { document.body.innerHTML = '<p style="color:#fff;padding:2em">WebGL не поддерживается</p>'; return; }
+
+  function resize(){
+    const dpr = Math.min(window.devicePixelRatio||1, 2);
+    canvas.width  = window.innerWidth  * dpr;
+    canvas.height = window.innerHeight * dpr;
+    canvas.style.width  = window.innerWidth  + 'px';
+    canvas.style.height = window.innerHeight + 'px';
+    gl.viewport(0, 0, canvas.width, canvas.height);
+  }
+  resize();
+  window.addEventListener('resize', resize);
+
+  // ─────────────────────────────────────────────────────────────
+  // VERTEX SHADER
+  // ─────────────────────────────────────────────────────────────
+  const VS = `
+attribute vec2 a_pos;
+varying   vec2 v_uv;
+void main(){
+  v_uv = a_pos * 0.5 + 0.5;
+  gl_Position = vec4(a_pos, 0.0, 1.0);
+}`;
+
+  // ─────────────────────────────────────────────────────────────
+  // FRAGMENT SHADER  (the whole magic)
+  // ─────────────────────────────────────────────────────────────
+  const FS = `
+precision highp float;
+varying vec2 v_uv;
+
+uniform float u_time;
+uniform float u_frost;
+uniform float u_crystal;
+uniform float u_refract;
+uniform float u_spec;
+uniform float u_desat;
+uniform vec2  u_res;
+uniform sampler2D u_scene;
+
+// ══════════════════════════════════
+//  MATH UTILITIES
+// ══════════════════════════════════
+float hash1(vec2 p){
+  p = fract(p * vec2(443.897, 441.423));
+  p += dot(p, p + 19.19);
+  return fract(p.x * p.y);
+}
+vec2 hash2(vec2 p){
+  vec2 q = vec2( dot(p, vec2(127.1, 311.7)),
+                 dot(p, vec2(269.5, 183.3)) );
+  return fract(sin(q) * 43758.5453);
+}
+
+float vnoise(vec2 p){
+  vec2 i = floor(p), f = fract(p);
+  vec2 u = f*f*(3.0-2.0*f);
+  return mix(mix(hash1(i),            hash1(i+vec2(1,0)), u.x),
+             mix(hash1(i+vec2(0,1)),  hash1(i+vec2(1,1)), u.x), u.y);
+}
+
+float fbm(vec2 p){
+  float v=0.0, a=0.5;
+  mat2 rot = mat2(0.8, 0.6, -0.6, 0.8);
+  for(int i=0;i<7;i++){
+    v += a * vnoise(p);
+    p  = rot * p * 2.1;
+    a *= 0.5;
+  }
+  return v;
+}
+
+// ══════════════════════════════════
+//  VORONOI — returns (f1, f2-f1, cellId)
+// ══════════════════════════════════
+vec3 voronoi(vec2 p){
+  vec2 n = floor(p), f = fract(p);
+  float f1=8.0, f2=8.0;
+  float cid = 0.0;
+  for(int j=-2;j<=2;j++)
+  for(int i=-2;i<=2;i++){
+    vec2 g = vec2(float(i),float(j));
+    vec2 o = hash2(n+g);         // cell centre offset 0..1
+    vec2 r = g + o - f;
+    float d = dot(r,r);
+    if(d < f1){ f2=f1; f1=d; cid=hash1(n+g); }
+    else if(d < f2){ f2=d; }
+  }
+  return vec3(sqrt(f1), sqrt(f2)-sqrt(f1), cid);
+}
+
+// ══════════════════════════════════
+//  FROST NEEDLE PATTERN
+//  Uses a smooth global angle field  →  no normal-estimation artefacts
+// ══════════════════════════════════
+float frostNeedles(vec2 uv, float scale){
+  // Smooth directional field (changes slowly across screen)
+  float ang  = fbm(uv * 0.8 + vec2(1.2, 4.7)) * 6.28318;
+  float ang2 = ang + 1.0472;   // +60 degrees for cross-needles
+
+  mat2 r1 = mat2(cos(ang),  -sin(ang),  sin(ang),  cos(ang));
+  mat2 r2 = mat2(cos(ang2), -sin(ang2), sin(ang2), cos(ang2));
+
+  vec2 st1 = r1 * uv * scale;
+  vec2 st2 = r2 * uv * scale;
+
+  // Elongated: stretch along one axis → needle shape
+  vec2 str1 = vec2(st1.x * 0.15, st1.y);
+  vec2 str2 = vec2(st2.x * 0.15, st2.y);
+
+  float n1 = vnoise(str1 * 10.0) * 0.60
+           + vnoise(str1 * 22.0) * 0.25
+           + vnoise(str1 * 50.0) * 0.15;
+
+  float n2 = vnoise(str2 * 10.0) * 0.60
+           + vnoise(str2 * 22.0) * 0.25
+           + vnoise(str2 * 50.0) * 0.15;
+
+  // Take the max so we get cross-needles where both directions are strong
+  float needles = max(
+    smoothstep(0.45, 0.92, n1),
+    smoothstep(0.45, 0.92, n2)
+  );
+
+  // Third set at +120° for extra hexagonal feel
+  float ang3 = ang + 2.0944;
+  mat2 r3 = mat2(cos(ang3),-sin(ang3),sin(ang3),cos(ang3));
+  vec2 str3 = vec2((r3*uv*scale).x * 0.15, (r3*uv*scale).y);
+  float n3 = vnoise(str3*10.0)*0.6 + vnoise(str3*24.0)*0.4;
+  needles = max(needles, smoothstep(0.5, 0.92, n3));
+
+  return needles;
+}
+
+// ══════════════════════════════════
+//  ICE HEIGHT FIELD  (0..1)
+// ══════════════════════════════════
+float iceH(vec2 uv, float crystalScale){
+  // Domain warp for organic, non-uniform crystals
+  vec2 warp = vec2(
+    fbm(uv * 1.8 + vec2(0.1, 3.4)),
+    fbm(uv * 1.8 + vec2(5.8, 1.2))
+  ) * 0.18;
+  vec2 wp = uv + warp;
+
+  float scale = crystalScale;
+
+  // ── Large crystal plates ──
+  vec3 v1 = voronoi(wp * scale);
+  // Bright at cell boundaries (the "ridge" of a crystal edge)
+  float edge1  = exp(-v1.y * 22.0);
+  // Interior of large cells — slightly raised plateau
+  float plate1 = 1.0 - smoothstep(0.0, 0.45, v1.x);
+
+  // ── Medium crystals (sub-structure inside large plates) ──
+  vec3 v2 = voronoi(wp * scale * 3.1 + 7.3);
+  float edge2  = exp(-v2.y * 14.0);
+  float plate2 = 1.0 - smoothstep(0.0, 0.35, v2.x);
+
+  // ── Fine crystal micro-structure ──
+  vec3 v3 = voronoi(wp * scale * 8.5 + 13.7);
+  float edge3 = exp(-v3.y * 8.0);
+
+  // ── Frost dendrite needles (multi-scale) ──
+  float needles = frostNeedles(uv, scale * 2.5) * (0.5 + plate1 * 0.5);
+  float needlesFine = frostNeedles(uv + 0.5, scale * 6.0) * plate2 * 0.6;
+
+  // ── Micro-texture (fine grain) ──
+  float micro = fbm(uv * scale * 12.0 + u_time * 0.015) * 0.07;
+
+  // ── Combine ──
+  float h = 0.0;
+  h += plate1  * 0.15;    // large plate body
+  h += edge1   * 0.30;    // large crystal edge ridge
+  h += edge2   * 0.18;    // medium crystal edges
+  h += plate2  * 0.08;    // medium plate body
+  h += edge3   * 0.06;    // fine edges
+  h += needles * 0.35;    // primary dendrites
+  h += needlesFine * 0.12;
+  h += micro;
+
+  return clamp(h, 0.0, 1.0);
+}
+
+// ══════════════════════════════════
+//  CAUSTIC RINGS  (light halos at crystal boundaries)
+// ══════════════════════════════════
+float caustics(vec2 uv, float crystalScale){
+  vec2 warp = vec2(fbm(uv*1.5), fbm(uv*1.5+3.3)) * 0.12;
+  vec3 v = voronoi((uv+warp) * crystalScale);
+  // Bright ring just inside each cell boundary
+  float ring = smoothstep(0.18, 0.10, v.x) * smoothstep(0.0, 0.08, v.x);
+  ring += smoothstep(0.08, 0.04, v.x) * 0.5; // bright center halo
+  return ring;
+}
+
+// ══════════════════════════════════
+//  MAIN
+// ══════════════════════════════════
+void main(){
+  vec2 uv = v_uv;
+
+  // ── Frost coverage mask ──
+  // More ice at corners & edges, clear window in centre
+  vec2 ctr = uv - 0.5;
+  float r   = length(ctr * vec2(1.05, 1.45));
+  float breathe = 1.0 + 0.012 * sin(u_time * 0.4);
+  float coverage = smoothstep(0.22, 0.95, r * breathe);
+  // Corner boost
+  float corner = length(abs(ctr) - 0.42) * 1.3;
+  coverage = max(coverage, smoothstep(0.35, 0.0, corner) * 0.6);
+  coverage = clamp(coverage * u_frost, 0.0, 1.0);
+
+  // ── Refraction ──
+  float rn1 = fbm(uv * 4.0 + u_time * 0.02);
+  float rn2 = fbm(uv * 6.5 + vec2(3.1, 1.7) + u_time * 0.015);
+  vec2 rOff = (vec2(rn1,rn2) - 0.5) * 0.09 * u_refract * coverage;
+  vec3 scene = texture2D(u_scene, clamp(uv + rOff, 0.001, 0.999)).rgb;
+
+  // ── Ice height + normals ──
+  float cs = 2.5 + u_crystal;      // crystal scale [3.5..7.5]
+  float eps = 2.0 / min(u_res.x, u_res.y);
+
+  float  h   = iceH(uv, cs);
+  float  hpx = iceH(uv + vec2( eps, 0.0), cs);
+  float  hmx = iceH(uv + vec2(-eps, 0.0), cs);
+  float  hpy = iceH(uv + vec2(0.0,  eps), cs);
+  float  hmy = iceH(uv + vec2(0.0, -eps), cs);
+
+  // Sobel-like gradient for sharper normals
+  float dhdx = (hpx - hmx) / (2.0 * eps);
+  float dhdy = (hpy - hmy) / (2.0 * eps);
+
+  // Normal in view space (z=1 is towards camera)
+  float bumpStr = 0.25;
+  vec3 N = normalize(vec3(-dhdx * bumpStr, -dhdy * bumpStr, 1.0));
+
+  // ── Lighting ──
+  // Key light: slightly off-centre, front
+  vec3 L1 = normalize(vec3( 0.4,  0.8, 1.8));
+  // Fill light from bottom-left (cold rim)
+  vec3 L2 = normalize(vec3(-0.6, -0.4, 1.0));
+  vec3 V  = vec3(0.0, 0.0, 1.0);       // view dir
+  vec3 H1 = normalize(L1 + V);
+
+  float diff1 = max(dot(N, L1), 0.0);
+  float diff2 = max(dot(N, L2), 0.0) * 0.3;
+
+  float specExp  = 80.0 + u_spec * 220.0; // 80..300
+  float specStr  = u_spec;
+  float spec1    = pow(max(dot(N, H1), 0.0), specExp) * specStr * 3.5;
+  // Secondary smaller highlight
+  vec3  H2   = normalize(normalize(vec3(-0.3, 0.5, 1.5)) + V);
+  float spec2 = pow(max(dot(N, H2), 0.0), specExp * 0.6) * specStr * 1.2;
+
+  // Fresnel (grazing angle glow)
+  float NdotV  = clamp(dot(N, V), 0.0, 1.0);
+  float fresnel = pow(1.0 - NdotV, 3.5);
+
+  // ── Ice colour ──
+  // Deep blue in cracks (low h, high curvature), near-white on flat facets
+  vec3 colCrack  = vec3(0.32, 0.60, 0.92);   // deep crystal blue
+  vec3 colFacet  = vec3(0.88, 0.95, 1.00);   // bright facet white
+  vec3 colEdge   = vec3(0.55, 0.78, 0.98);   // crystal edge teal-blue
+  vec3 colSpec   = vec3(0.96, 0.98, 1.00);   // specular white
+
+  // Map height to colour range
+  vec3 iceCol = mix(colCrack, colEdge,  smoothstep(0.0, 0.4, h));
+       iceCol = mix(iceCol,   colFacet, smoothstep(0.4, 0.85, h));
+
+  // Diffuse shading on ice surface
+  iceCol *= 0.55 + 0.35 * diff1 + 0.10 * diff2;
+
+  // Specular — sharp bright spots on crystal facets
+  iceCol += spec1 * colSpec * 1.8;
+  iceCol += spec2 * colSpec * 0.8;
+
+  // Fresnel (cold blue glow at edges of bumps)
+  iceCol += fresnel * vec3(0.38, 0.62, 0.95) * 0.55;
+
+  // Caustic halos
+  float caust  = caustics(uv, cs * 0.9) * coverage;
+  iceCol += caust * vec3(0.5, 0.75, 1.0) * 0.35;
+
+  // ── Scene treatment under ice ──
+  float luma = dot(scene, vec3(0.299, 0.587, 0.114));
+  // Slight blue tint + desaturate proportional to ice thickness
+  float desatAmt = coverage * h * u_desat;
+  vec3 coldScene = mix(scene, vec3(luma) * vec3(0.83, 0.91, 1.0), desatAmt);
+  // Darken slightly under thick ice (absorption)
+  coldScene *= 1.0 - coverage * h * 0.25;
+
+  // ── Composite ice over scene ──
+  float iceAlpha = h * coverage;
+  iceAlpha = clamp(iceAlpha, 0.0, 0.97);
+
+  vec3 finalCol = mix(coldScene, iceCol, iceAlpha * 0.88);
+
+  // ── Global vignette for immersion ──
+  float vignette = 1.0 - smoothstep(0.55, 1.1, length(ctr * 1.1));
+  finalCol = mix(finalCol * 0.7, finalCol, vignette);
+
+  // ── Subtle animated shimmer (ice isn't static) ──
+  float shimmer = sin(uv.x * 120.0 + u_time * 1.2) * 0.003
+                + sin(uv.y *  90.0 + u_time * 0.9) * 0.003;
+  finalCol += shimmer * coverage * h * vec3(0.5, 0.75, 1.0);
+
+  gl_FragColor = vec4(clamp(finalCol, 0.0, 1.0), 1.0);
+}
+`;
+
+  // ─────────────────────────────────────────────────────────────
+  // COMPILE & LINK
+  // ─────────────────────────────────────────────────────────────
+  function compile(type, src){
+    const s = gl.createShader(type);
+    gl.shaderSource(s, src);
+    gl.compileShader(s);
+    if(!gl.getShaderParameter(s, gl.COMPILE_STATUS)){
+      console.error(gl.getShaderInfoLog(s));
+      return null;
+    }
+    return s;
+  }
+
+  const prog = gl.createProgram();
+  gl.attachShader(prog, compile(gl.VERTEX_SHADER,   VS));
+  gl.attachShader(prog, compile(gl.FRAGMENT_SHADER, FS));
+  gl.linkProgram(prog);
+  if(!gl.getProgramParameter(prog, gl.LINK_STATUS)){
+    console.error(gl.getProgramInfoLog(prog)); return;
+  }
+  gl.useProgram(prog);
+
+  // Fullscreen quad
+  const buf = gl.createBuffer();
+  gl.bindBuffer(gl.ARRAY_BUFFER, buf);
+  gl.bufferData(gl.ARRAY_BUFFER,
+    new Float32Array([-1,-1, 1,-1, -1,1, -1,1, 1,-1, 1,1]), gl.STATIC_DRAW);
+  const aPos = gl.getAttribLocation(prog, 'a_pos');
+  gl.enableVertexAttribArray(aPos);
+  gl.vertexAttribPointer(aPos, 2, gl.FLOAT, false, 0, 0);
+
+  // Uniforms
+  const uLoc = n => gl.getUniformLocation(prog, n);
+  const U = {
+    time:    uLoc('u_time'),
+    frost:   uLoc('u_frost'),
+    crystal: uLoc('u_crystal'),
+    refract: uLoc('u_refract'),
+    spec:    uLoc('u_spec'),
+    desat:   uLoc('u_desat'),
+    res:     uLoc('u_res'),
+    scene:   uLoc('u_scene'),
+  };
+
+  // ─────────────────────────────────────────────────────────────
+  // TEXTURE — try nature.jpg, fallback to procedural gradient
+  // ─────────────────────────────────────────────────────────────
+  let tex = null;
+
+  function makeProceduralTex(){
+    // Create a nice wintery procedural scene in 2D canvas
+    const sz = 512;
+    const c  = document.createElement('canvas');
+    c.width = c.height = sz;
+    const ctx = c.getContext('2d');
+
+    // Sky gradient
+    const sky = ctx.createLinearGradient(0,0,0,sz);
+    sky.addColorStop(0,   '#0a1628');
+    sky.addColorStop(0.4, '#1a3a6e');
+    sky.addColorStop(0.65,'#2d6090');
+    sky.addColorStop(1,   '#8ab0cc');
+    ctx.fillStyle = sky; ctx.fillRect(0,0,sz,sz);
+
+    // Mountains / silhouettes
+    function mountains(yBase, color, count, seed){
+      ctx.beginPath(); ctx.moveTo(0, sz);
+      for(let x=0; x<=sz; x+=4){
+        let h=0;
+        for(let k=1;k<=5;k++){
+          h += Math.sin((x/sz * Math.PI * k * 1.3) + seed + k) * (yBase/k) * 0.4;
+        }
+        ctx.lineTo(x, sz*0.55 + h);
+      }
+      ctx.lineTo(sz,sz); ctx.closePath();
+      ctx.fillStyle = color; ctx.fill();
+    }
+    mountains(80, '#0d2545', 3, 0.0);
+    mountains(50, '#152e55', 4, 1.7);
+    mountains(30, '#1c3a65', 5, 3.2);
+
+    // Snowy tree line
+    ctx.fillStyle = '#0e1f3b';
+    for(let i=0;i<40;i++){
+      const x = (i/40)*sz + Math.sin(i*7.3)*8;
+      const h = 40 + Math.abs(Math.sin(i*3.7))*30;
+      const w = 6 + Math.abs(Math.sin(i*1.3))*4;
+      ctx.beginPath();
+      ctx.moveTo(x, sz*0.72);
+      ctx.lineTo(x-w/2, sz*0.72+h); ctx.lineTo(x+w/2, sz*0.72+h);
+      ctx.closePath(); ctx.fill();
+    }
+
+    // Snow ground
+    const gnd = ctx.createLinearGradient(0, sz*0.72, 0, sz);
+    gnd.addColorStop(0, '#4a7fa0');
+    gnd.addColorStop(0.3, '#a8c8e8');
+    gnd.addColorStop(1,   '#d8eef8');
+    ctx.fillStyle = gnd;
+    ctx.fillRect(0, sz*0.72, sz, sz*0.28);
+
+    // Stars
+    ctx.fillStyle = 'rgba(255,255,255,0.9)';
+    for(let i=0;i<80;i++){
+      const sx = Math.random()*sz, sy = Math.random()*sz*0.5;
+      const sr = 0.3 + Math.random()*0.7;
+      ctx.beginPath(); ctx.arc(sx,sy,sr,0,Math.PI*2); ctx.fill();
+    }
+
+    // Moon
+    const mg = ctx.createRadialGradient(sz*0.75, sz*0.1, 2, sz*0.75, sz*0.1, 40);
+    mg.addColorStop(0,   'rgba(220,235,255,0.95)');
+    mg.addColorStop(0.6, 'rgba(180,210,240,0.5)');
+    mg.addColorStop(1,   'rgba(100,160,220,0)');
+    ctx.fillStyle = mg;
+    ctx.beginPath(); ctx.arc(sz*0.75, sz*0.1, 40, 0, Math.PI*2); ctx.fill();
+
+    return c;
+  }
+
+  function uploadTex(source){
+    gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, true);
+    tex = gl.createTexture();
+    gl.bindTexture(gl.TEXTURE_2D, tex);
+    gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, source);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
+    gl.uniform1i(U.scene, 0);
+    startLoop();
+  }
+
+  const img = new Image();
+  img.onload  = () => uploadTex(img);
+  img.onerror = () => uploadTex(makeProceduralTex());
+  img.src     = 'nature.jpg';
+
+  // ─────────────────────────────────────────────────────────────
+  // UI CONTROLS
+  // ─────────────────────────────────────────────────────────────
+  const params = { frost:0.85, crystal:3.0, refract:0.55, spec:0.7, desat:0.6 };
+
+  function wire(id, key){
+    const el = document.getElementById('s-'+id);
+    const vl = document.getElementById('v-'+id);
+    el.addEventListener('input', ()=>{
+      params[key] = parseFloat(el.value);
+      vl.textContent = params[key].toFixed(2);
+    });
+  }
+  wire('frost',   'frost');
+  wire('crystal', 'crystal');
+  wire('refract', 'refract');
+  wire('spec',    'spec');
+  wire('desat',   'desat');
+
+  // ─────────────────────────────────────────────────────────────
+  // RENDER LOOP
+  // ─────────────────────────────────────────────────────────────
+  const t0 = performance.now();
+  function startLoop(){
+    gl.disable(gl.BLEND);
+
+    function frame(){
+      const t = (performance.now() - t0) / 1000;
+      gl.viewport(0, 0, canvas.width, canvas.height);
+      gl.clear(gl.COLOR_BUFFER_BIT);
+      gl.useProgram(prog);
+
+      gl.activeTexture(gl.TEXTURE0);
+      gl.bindTexture(gl.TEXTURE_2D, tex);
+
+      gl.uniform1f(U.time,    t);
+      gl.uniform1f(U.frost,   params.frost);
+      gl.uniform1f(U.crystal, params.crystal);
+      gl.uniform1f(U.refract, params.refract);
+      gl.uniform1f(U.spec,    params.spec);
+      gl.uniform1f(U.desat,   params.desat);
+      gl.uniform2f(U.res,     canvas.width, canvas.height);
+      gl.drawArrays(gl.TRIANGLES, 0, 6);
+      requestAnimationFrame(frame);
+    }
+    requestAnimationFrame(frame);
+  }
+})();
+</script>
+</body>
+</html>

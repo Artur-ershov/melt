@@ -1,0 +1,779 @@
+<!DOCTYPE html>
+<html lang="ru">
+  <head>
+    <meta charset="UTF-8" />
+    <title>Симуляция розыгрыша призов</title>
+    <style>
+      body {
+        margin: 0;
+        padding: 16px;
+        font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI",
+          sans-serif;
+        background: #0b1020;
+        color: #f5f5f7;
+      }
+
+      h1 {
+        font-size: 20px;
+        margin: 0 0 12px;
+      }
+
+      .controls {
+        display: flex;
+        gap: 16px;
+        align-items: center;
+        margin-bottom: 12px;
+        flex-wrap: wrap;
+      }
+
+      #multiplier-info {
+        font-size: 11px;
+        opacity: 0.75;
+        margin: 4px 0 8px;
+        white-space: pre-wrap;
+      }
+
+      #multiplier-controls {
+        margin-bottom: 8px;
+        padding: 8px;
+        border-radius: 8px;
+        background: #020617;
+        border: 1px solid #1f2937;
+        max-height: 200px;
+        overflow: auto;
+        font-size: 11px;
+      }
+
+      .multiplier-row {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 8px;
+        margin-bottom: 4px;
+      }
+
+      .multiplier-row label {
+        flex: 1;
+        opacity: 0.8;
+      }
+
+      .multiplier-row input[type="number"] {
+        width: 70px;
+      }
+
+      label {
+        font-size: 13px;
+        opacity: 0.8;
+      }
+
+      input[type="number"] {
+        width: 80px;
+        padding: 4px 6px;
+        border-radius: 6px;
+        border: 1px solid #3b3f54;
+        background: #111525;
+        color: #f5f5f7;
+      }
+
+      button {
+        padding: 6px 12px;
+        border-radius: 999px;
+        border: 1px solid #3b82f6;
+        background: #1d4ed8;
+        color: #f9fafb;
+        font-size: 13px;
+        cursor: pointer;
+      }
+
+      button:disabled {
+        opacity: 0.5;
+        cursor: default;
+      }
+
+      .layout {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 16px;
+        margin-top: 12px;
+      }
+
+      .panel {
+        background: #0f172a;
+        border-radius: 12px;
+        padding: 10px;
+        box-shadow: 0 20px 40px rgba(15, 23, 42, 0.6);
+      }
+
+      .panel h2 {
+        font-size: 14px;
+        margin: 0 0 6px;
+      }
+
+      .caption {
+        font-size: 11px;
+        opacity: 0.7;
+        margin-bottom: 6px;
+      }
+
+      canvas {
+        display: block;
+        width: 100%;
+        border-radius: 8px;
+        background: #020617;
+      }
+
+      .legend {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 6px 12px;
+        margin-top: 8px;
+        font-size: 11px;
+        opacity: 0.85;
+      }
+
+      .legend-item {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+      }
+
+      .legend-swatch {
+        width: 10px;
+        height: 10px;
+        border-radius: 50%;
+      }
+
+      .stats {
+        margin-top: 8px;
+        font-size: 11px;
+        opacity: 0.85;
+      }
+
+      .stats table {
+        width: 100%;
+        border-collapse: collapse;
+      }
+
+      .stats th,
+      .stats td {
+        padding: 2px 4px;
+        text-align: right;
+        border-bottom: 1px solid #1f2937;
+      }
+
+      .stats th:first-child,
+      .stats td:first-child {
+        text-align: left;
+      }
+    </style>
+  </head>
+  <body>
+    <h1>Симуляция распределения призов</h1>
+    <div class="controls">
+      <label>
+        Кол-во прогонов:
+        <input id="runs-input" type="number" min="10" value="300" />
+      </label>
+      <button id="run-btn">Запустить симуляции</button>
+      <span id="status" style="font-size: 12px; opacity: 0.7"></span>
+    </div>
+    <div id="multiplier-controls"></div>
+    <div id="multiplier-info"></div>
+    <div id="category-boost-controls" style="margin-top: 8px"></div>
+
+    <div class="layout">
+      <div class="panel">
+        <h2>Вариант 1</h2>
+        <div class="caption">
+          Бусты категорий: x1=1, x2=2, x3=3, x4=4 (лоты x1 по умолчанию).
+        </div>
+        <canvas id="canvas-v0"></canvas>
+        <div class="legend" id="legend-v0"></div>
+        <div class="stats" id="stats-v0"></div>
+      </div>
+
+      <div class="panel">
+        <h2>Вариант 2</h2>
+        <div class="caption">Все категории без доп. бустов (x1=x2=x3=x4=1).</div>
+        <canvas id="canvas-v1"></canvas>
+        <div class="legend" id="legend-v1"></div>
+        <div class="stats" id="stats-v1"></div>
+      </div>
+
+      <div class="panel">
+        <h2>Вариант 3</h2>
+        <div class="caption">Настраиваемые бусты категорий.</div>
+        <canvas id="canvas-v2"></canvas>
+        <div class="legend" id="legend-v2"></div>
+        <div class="stats" id="stats-v2"></div>
+      </div>
+
+      <div class="panel">
+        <h2>Вариант 4</h2>
+        <div class="caption">Настраиваемые бусты категорий.</div>
+        <canvas id="canvas-v3"></canvas>
+        <div class="legend" id="legend-v3"></div>
+        <div class="stats" id="stats-v3"></div>
+      </div>
+    </div>
+
+    <script>
+      // Конфиг призов (упрощённый, как в таблице)
+      // rarity — исходная редкость из таблицы,
+      // bucket — группа для бустов (x1/x2/x3/x4),
+      // multiplier — индивидуальный множитель лота (по умолчанию 1).
+      const basePrizes = [
+        {
+          id: "FLOWERS_1500",
+          rarity: "эксклюзивный",
+          bucket: "x1",
+          maxCount: 10,
+          weight: 0.6666666667,
+          multiplier: 1,
+        },
+        {
+          id: "FLOWERS_3000",
+          rarity: "эксклюзивный",
+          bucket: "x4",
+          maxCount: 4,
+          weight: 0.2666666667,
+          multiplier: 1,
+        },
+        {
+          id: "GARDEN_TICKET",
+          rarity: "эксклюзивный",
+          bucket: "x3",
+          maxCount: 6,
+          weight: 0.4,
+          multiplier: 1,
+        },
+        {
+          id: "MARKET_1000",
+          rarity: "редкий",
+          bucket: "x4",
+          maxCount: 5,
+          weight: 0.3333333333,
+          multiplier: 1,
+        },
+        {
+          id: "MARKET_3000",
+          rarity: "эксклюзивный",
+          bucket: "x4",
+          maxCount: 1,
+          weight: 0.06666666667,
+          multiplier: 1,
+        },
+        {
+          id: "BEBRI_5",
+          rarity: "очень обычный",
+          bucket: "x1",
+          maxCount: 400,
+          weight: 26.66666667,
+          multiplier: 1,
+        },
+        {
+          id: "BEBRI_10",
+          rarity: "очень обычный",
+          bucket: "x1",
+          maxCount: 400,
+          weight: 26.66666667,
+          multiplier: 1,
+        },
+        {
+          id: "BEBRI_1000",
+          rarity: "единичный",
+          bucket: "x1",
+          maxCount: 2,
+          weight: 0.1333333333,
+          multiplier: 1,
+        },
+        {
+          id: "SCARF_FREE",
+          rarity: "единичный",
+          bucket: "x2",
+          maxCount: 2,
+          weight: 0.1333333333,
+          multiplier: 1,
+        },
+        {
+          id: "SCARF_20",
+          rarity: "обычный",
+          bucket: "x2",
+          maxCount: 150,
+          weight: 10,
+          multiplier: 1,
+        },
+        {
+          id: "SCARF_50",
+          rarity: "редкий",
+          bucket: "x2",
+          maxCount: 50,
+          weight: 3.333333333,
+          multiplier: 1,
+        },
+        {
+          id: "SCARF_70",
+          rarity: "эксклюзивный",
+          bucket: "x2",
+          maxCount: 7,
+          weight: 0.4666666667,
+          multiplier: 1,
+        },
+        {
+          id: "CANDLES_SET_FREE",
+          rarity: "единичный",
+          bucket: "x2",
+          maxCount: 2,
+          weight: 0.1333333333,
+          multiplier: 1,
+        },
+        {
+          id: "CANDLES_SET_20",
+          rarity: "обычный",
+          bucket: "x2",
+          maxCount: 150,
+          weight: 10,
+          multiplier: 1,
+        },
+        {
+          id: "CANDLES_SET_50",
+          rarity: "редкий",
+          bucket: "x2",
+          maxCount: 45,
+          weight: 3,
+          multiplier: 1,
+        },
+        {
+          id: "CANDLES_SET_70",
+          rarity: "эксклюзивный",
+          bucket: "x2",
+          maxCount: 7,
+          weight: 0.4666666667,
+          multiplier: 1,
+        },
+        {
+          id: "CANDLES_KIT_FREE",
+          rarity: "единичный",
+          bucket: "x2",
+          maxCount: 2,
+          weight: 0.1333333333,
+          multiplier: 1,
+        },
+        {
+          id: "CANDLES_KIT_20",
+          rarity: "обычный",
+          bucket: "x2",
+          maxCount: 150,
+          weight: 10,
+          multiplier: 1,
+        },
+        {
+          id: "CANDLES_KIT_50",
+          rarity: "редкий",
+          bucket: "x2",
+          maxCount: 50,
+          weight: 3.333333333,
+          multiplier: 1,
+        },
+        {
+          id: "CANDLES_KIT_70",
+          rarity: "эксклюзивный",
+          bucket: "x2",
+          maxCount: 7,
+          weight: 0.4666666667,
+          multiplier: 1,
+        },
+        {
+          id: "SPORT_CHALLENGE_50",
+          rarity: "эксклюзивный",
+          bucket: "x4",
+          maxCount: 4,
+          weight: 0.2666666667,
+          multiplier: 1,
+        },
+        {
+          id: "SPORT_CHALLENGE_FREE",
+          rarity: "единичный",
+          bucket: "x4",
+          maxCount: 1,
+          weight: 0.06666666667,
+          multiplier: 1,
+        },
+        {
+          id: "COFFEE_KROK",
+          rarity: "редкий",
+          bucket: "x1",
+          maxCount: 50,
+          weight: 3.333333333,
+          multiplier: 1,
+        },
+        {
+          id: "KARTING_COMP",
+          rarity: "единичный",
+          bucket: "x3",
+          maxCount: 1,
+          weight: 0.06666666667,
+          multiplier: 1,
+        },
+      ];
+
+      const bucketColors = {
+        x1: "#e5e7eb", // базовый
+        x2: "#22c55e", // повышенный
+        x3: "#a855f7", // высокий
+        x4: "#ef4444", // максимальный
+      };
+
+      const buckets = ["x1", "x2", "x3", "x4"];
+
+      function clonePrizes() {
+        return basePrizes.map((p) => ({
+          id: p.id,
+          rarity: p.rarity,
+          bucket: p.bucket,
+          maxCount: p.maxCount,
+          weight: p.weight,
+          multiplier: p.multiplier ?? 1,
+          remaining: p.maxCount,
+        }));
+      }
+
+      function totalTickets() {
+        return basePrizes.reduce((sum, p) => sum + p.maxCount, 0);
+      }
+
+      function drawLegend(containerId) {
+        const container = document.getElementById(containerId);
+        container.innerHTML = "";
+        const used = {};
+        buckets.forEach((b) => {
+          if (used[b]) return;
+          used[b] = true;
+          const item = document.createElement("div");
+          item.className = "legend-item";
+          const swatch = document.createElement("div");
+          swatch.className = "legend-swatch";
+          swatch.style.background = bucketColors[b] || "#9ca3af";
+          const label = document.createElement("span");
+          label.textContent = b;
+          item.appendChild(swatch);
+          item.appendChild(label);
+          container.appendChild(item);
+        });
+      }
+
+      function renderMultipliers() {
+        const el = document.getElementById("multiplier-info");
+        if (!el) return;
+        const lines = basePrizes.map((p) => {
+          const m = p.multiplier ?? 1;
+          const rounded = Math.round(m * 100) / 100;
+          const percent = Math.round(m * 100);
+          return `${p.id}: x${rounded} (${percent}%)`;
+        });
+        el.textContent = "Множители призов:\n" + lines.join("\n");
+      }
+
+      function renderMultiplierInputs() {
+        const container = document.getElementById("multiplier-controls");
+        if (!container) return;
+        container.innerHTML = "";
+
+        const title = document.createElement("div");
+        title.textContent = "Настройка множителей перед симуляцией";
+        title.style.fontSize = "11px";
+        title.style.marginBottom = "6px";
+        title.style.opacity = "0.9";
+        container.appendChild(title);
+
+        basePrizes.forEach((p) => {
+          const row = document.createElement("div");
+          row.className = "multiplier-row";
+
+          const label = document.createElement("label");
+          label.textContent = `${p.id} (${p.rarity}), % шанса (лот)`;
+
+          const input = document.createElement("input");
+          input.type = "number";
+          input.step = "1";
+          input.min = "0";
+          const currentMultiplier = p.multiplier ?? 1;
+          input.value = Math.round(currentMultiplier * 100);
+
+          input.addEventListener("change", () => {
+            const v = Number(input.value);
+            const safePercent = Number.isFinite(v) && v >= 0 ? v : 100;
+            p.multiplier = safePercent / 100;
+            input.value = safePercent;
+            applyRarityFromMultipliers();
+            drawLegend("legend-left");
+            drawLegend("legend-right");
+            renderMultipliers();
+          });
+
+          row.appendChild(label);
+          row.appendChild(input);
+          container.appendChild(row);
+        });
+      }
+
+      function renderCategoryBoostInputs() {
+        const container = document.getElementById("category-boost-controls");
+        if (!container) return;
+
+        container.innerHTML = "";
+
+        const title = document.createElement("div");
+        title.textContent = "Бусты по категориям (bucket) для вариантов";
+        title.style.fontSize = "11px";
+        title.style.marginBottom = "6px";
+        title.style.opacity = "0.9";
+        container.appendChild(title);
+
+        const table = document.createElement("table");
+        table.style.width = "100%";
+        table.style.borderCollapse = "collapse";
+        const thead = document.createElement("thead");
+        const headRow = document.createElement("tr");
+        const firstTh = document.createElement("th");
+        firstTh.textContent = "bucket";
+        headRow.appendChild(firstTh);
+        ["Вар.1", "Вар.2", "Вар.3", "Вар.4"].forEach((name) => {
+          const th = document.createElement("th");
+          th.textContent = name;
+          headRow.appendChild(th);
+        });
+        thead.appendChild(headRow);
+        table.appendChild(thead);
+
+        const tbody = document.createElement("tbody");
+
+        buckets.forEach((bucket) => {
+          const row = document.createElement("tr");
+          const labelCell = document.createElement("td");
+          labelCell.textContent = bucket;
+          row.appendChild(labelCell);
+
+          variantCategoryBoosts.forEach((boosts, idx) => {
+            const cell = document.createElement("td");
+            const input = document.createElement("input");
+            input.type = "number";
+            input.step = "0.1";
+            input.min = "0";
+            const current = boosts[bucket] ?? 1;
+            input.value = current;
+            input.style.width = "60px";
+
+            input.addEventListener("change", () => {
+              const v = Number(input.value);
+              const safe = Number.isFinite(v) && v >= 0 ? v : 1;
+              boosts[bucket] = safe;
+              input.value = safe;
+            });
+
+            cell.appendChild(input);
+            row.appendChild(cell);
+          });
+
+          tbody.appendChild(row);
+        });
+
+        table.appendChild(tbody);
+        container.appendChild(table);
+      }
+
+      function renderStats(targetId, statsMap, totalSteps) {
+        const container = document.getElementById(targetId);
+        if (!container) return;
+
+        const entries = Object.entries(statsMap);
+        if (!entries.length) {
+          container.textContent = "";
+          return;
+        }
+
+        let html =
+          "<table><thead><tr><th>Категория</th><th>ср. ход</th><th>мед.</th><th>мин–макс</th></tr></thead><tbody>";
+
+        entries
+          .sort(([a], [b]) => a.localeCompare(b))
+          .forEach(([cat, arr]) => {
+            const values = arr.slice().sort((x, y) => x - y);
+            const n = values.length;
+            const sum = values.reduce((s, v) => s + v, 0);
+            const mean = sum / n;
+            const median =
+              n % 2 === 1
+                ? values[(n - 1) / 2]
+                : (values[n / 2 - 1] + values[n / 2]) / 2;
+            const min = values[0];
+            const max = values[n - 1];
+
+            html += `<tr>
+              <td>${cat}</td>
+              <td>${mean.toFixed(1)} (${Math.round(
+              (mean / totalSteps) * 100
+            )}%)</td>
+              <td>${median.toFixed(1)} (${Math.round(
+              (median / totalSteps) * 100
+            )}%)</td>
+              <td>${min}–${max}</td>
+            </tr>`;
+          });
+
+        html += "</tbody></table>";
+        container.innerHTML = html;
+      }
+
+      // Бусты по категориям (bucket) для 4 вариантов симуляции
+      const variantCategoryBoosts = [
+        { x1: 1, x2: 2, x3: 3, x4: 4 }, // вариант 1 — как мы обсуждали раньше
+        { x1: 1, x2: 1, x3: 1, x4: 1 }, // вариант 2 — дефолт
+        { x1: 1, x2: 1, x3: 1, x4: 1 }, // вариант 3 — можно настроить
+        { x1: 1, x2: 1, x3: 1, x4: 1 }, // вариант 4 — можно настроить
+      ];
+
+      function simulateRun(variantIndex) {
+        const prizes = clonePrizes();
+        const draws = [];
+        const total = totalTickets();
+        const categoryRemaining = {};
+        const categoryFinishStep = {};
+
+        prizes.forEach((p) => {
+          const cat = p.bucket;
+          categoryRemaining[cat] = (categoryRemaining[cat] || 0) + p.remaining;
+        });
+
+        for (let step = 0; step < total; step++) {
+          const available = prizes.filter((p) => p.remaining > 0);
+          if (!available.length) break;
+
+          let chosen = null;
+          let totalEff = 0;
+          const boosts = variantCategoryBoosts[variantIndex] || {};
+
+          for (const p of available) {
+            const cat = p.bucket;
+            const catBoost = boosts[cat] ?? 1;
+            const lotBoost = p.multiplier ?? 1;
+            const eff = p.remaining * lotBoost * catBoost;
+            p._eff = eff;
+            totalEff += eff;
+          }
+
+          if (totalEff <= 0) break;
+
+          let rnd = Math.random() * totalEff;
+          for (const p of available) {
+            rnd -= p._eff;
+            if (rnd <= 0) {
+              chosen = p;
+              break;
+            }
+          }
+          if (!chosen) chosen = available[available.length - 1];
+
+          chosen.remaining--;
+
+          const cat = chosen.bucket;
+          if (categoryRemaining[cat] != null) {
+            categoryRemaining[cat]--;
+            if (
+              categoryRemaining[cat] === 0 &&
+              categoryFinishStep[cat] == null
+            ) {
+              categoryFinishStep[cat] = step + 1; // шаги считаем с 1
+            }
+          }
+
+          draws.push(cat);
+        }
+
+        return { draws, categoryFinishStep };
+      }
+
+      function runSimulation() {
+        const runsInput = document.getElementById("runs-input");
+        const status = document.getElementById("status");
+        const runBtn = document.getElementById("run-btn");
+        const canvases = [
+          document.getElementById("canvas-v0"),
+          document.getElementById("canvas-v1"),
+          document.getElementById("canvas-v2"),
+          document.getElementById("canvas-v3"),
+        ];
+
+        let runs = Number(runsInput.value) || 300;
+        runs = Math.max(runs, 10);
+        runsInput.value = runs;
+
+        const width = totalTickets();
+        const maxDisplayHeight = 600; // максимум пикселей по вертикали
+        const height = Math.min(runs, maxDisplayHeight);
+
+        const contexts = canvases.map((c) => {
+          c.width = width;
+          c.height = height;
+          const ctx = c.getContext("2d");
+          ctx.clearRect(0, 0, width, height);
+          return ctx;
+        });
+
+        status.textContent = "Считаем…";
+        runBtn.disabled = true;
+
+        // Небольшой таймаут, чтобы статус успел отрисоваться
+        setTimeout(() => {
+          const statsPerVariant = [
+            {},
+            {},
+            {},
+            {},
+          ];
+
+          for (let row = 0; row < runs; row++) {
+            const results = [0, 1, 2, 3].map((idx) => simulateRun(idx));
+
+            results.forEach((res, idx) => {
+              Object.entries(res.categoryFinishStep).forEach(
+                ([cat, step]) => {
+                  if (!statsPerVariant[idx][cat]) statsPerVariant[idx][cat] = [];
+                  statsPerVariant[idx][cat].push(step);
+                }
+              );
+            });
+
+            const y = Math.floor((row / runs) * height);
+
+            results.forEach((res, idx) => {
+              const ctx = contexts[idx];
+              const draws = res.draws;
+              for (let x = 0; x < draws.length; x++) {
+                const bucket = draws[x];
+                ctx.fillStyle = bucketColors[bucket] || "#9ca3af";
+                ctx.fillRect(x, y, 1, 1);
+              }
+            });
+          }
+
+          [0, 1, 2, 3].forEach((idx) => {
+            renderStats(`stats-v${idx}`, statsPerVariant[idx], totalTickets());
+          });
+
+          status.textContent = `Готово: ${runs} прогонов, по ${totalTickets()} розыгрышей каждый.`;
+          runBtn.disabled = false;
+        }, 10);
+      }
+
+      document.getElementById("run-btn").addEventListener("click", runSimulation);
+      ["legend-v0", "legend-v1", "legend-v2", "legend-v3"].forEach((id) =>
+        drawLegend(id)
+      );
+      renderMultipliers();
+      renderMultiplierInputs();
+      renderCategoryBoostInputs();
+    </script>
+  </body>
+</html>
+

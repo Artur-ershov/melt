@@ -1,0 +1,420 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8" />
+  <title>Maximumus — Admin</title>
+  <style>
+    body { margin: 0; min-height: 100vh; background: #0a0c10; font-family: 'Segoe UI', system-ui, sans-serif; color: #e5e7eb; }
+    .header-bar { padding: 12px 20px; background: #05070b; border-bottom: 1px solid rgba(255,255,255,0.12); display: flex; align-items: center; justify-content: space-between; }
+    .header-bar a { color: #4facfe; text-decoration: none; font-size: 12px; letter-spacing: 1px; }
+    .header-bar a:hover { text-decoration: underline; }
+    .ws-status { font-size: 10px; color: #6b7280; }
+    .ws-status.connected { color: #22c55e; }
+    .ws-status.error { color: #ef4444; }
+    #ui-container { max-width: 420px; margin: 0 auto; padding: 20px; }
+    .section { margin-bottom: 28px; }
+    .section-title { font-size: 9px; font-weight: 700; color: #4facfe; text-transform: uppercase; letter-spacing: 1.5px; margin-bottom: 12px; display: flex; align-items: center; }
+    .section-title::before { content:''; width:6px; height:6px; background:#4facfe; margin-right:8px; border-radius:50%; box-shadow: 0 0 8px #4facfe; }
+    .row { display: flex; align-items: center; justify-content: space-between; margin-bottom: 9px; font-size: 11px; color: #a0aab5; }
+    .row label { flex: 1; padding-right: 10px; cursor: default; }
+    .row:hover label { color: #fff; }
+    input[type="range"] { width: 150px; height: 3px; -webkit-appearance: none; background: #1c2530; border-radius: 2px; outline: none; }
+    input[type="range"]::-webkit-slider-thumb { -webkit-appearance: none; width: 10px; height: 10px; border-radius: 50%; background: #e0e0e0; cursor: pointer; border: 1px solid #000; }
+    .val { width: 38px; text-align: right; font-family: monospace; font-size: 9px; color: #4facfe; }
+    select { width: 100%; padding: 8px; background: #11161d; color: #fff; border: 1px solid #2a3540; border-radius: 4px; font-size: 11px; outline: none; cursor: pointer; margin-bottom: 10px; }
+    .toggle-container { display: flex; background: #11161d; border-radius: 4px; padding: 3px; border: 1px solid #2a3540; width: 100%; margin-bottom: 12px; }
+    .toggle-btn { flex: 1; text-align: center; padding: 6px; font-size: 10px; cursor: pointer; color: #667; transition: all 0.2s; border-radius: 2px; text-transform: uppercase; letter-spacing: 1px; font-weight: 700; }
+    .toggle-btn.active { background: #4facfe; color: #05080c; box-shadow: 0 2px 10px rgba(79, 172, 254, 0.4); }
+    .checkbox-row { display: flex; align-items: center; margin-bottom: 8px; font-size: 11px; color: #cbd5f5; cursor:pointer; }
+    .checkbox-row input { margin-right: 8px; width: 14px; height: 14px; accent-color:#4facfe; }
+    .lbl-r { color:#ff6b6b; } .lbl-g { color:#51cf66; } .lbl-b { color:#339af0; }
+  </style>
+</head>
+<body>
+<div class="header-bar">
+  <span class="subtitle">MAXIMUMUS // Admin</span>
+  <span class="ws-status" id="ws-status">—</span>
+  <a href="ice-sandbox-maximumus.html">→ Смотреть сцену</a>
+</div>
+
+<div id="ui-container">
+  <div class="section">
+    <div class="section-title">Presets (сохранение)</div>
+    <div class="row">
+      <label>Текущий пресет</label>
+      <select id="preset-list" style="margin-right:8px;"><option value="">(unsaved)</option></select>
+    </div>
+    <div class="row">
+      <label>Имя</label>
+      <input id="preset-name" type="text" placeholder="my-look-01" style="flex:1; padding:4px 6px; border-radius:4px; border:1px solid #2a3540; background:#05080c; color:#e5e7eb; font-size:11px; outline:none; margin-right:6px;">
+      <button id="btn-save-preset" style="padding:4px 8px; font-size:10px; text-transform:uppercase; border-radius:4px; border:none; background:#4facfe; color:#05080c; font-weight:700; cursor:pointer;">Save</button>
+    </div>
+    <div class="row">
+      <label>Действия</label>
+      <button id="btn-load-preset" style="padding:3px 8px; font-size:10px; border-radius:4px; border:1px solid #2a3540; background:#11161d; color:#e5e7eb; cursor:pointer; margin-right:6px;">Load</button>
+      <button id="btn-delete-preset" style="padding:3px 8px; font-size:10px; border-radius:4px; border:1px solid #7f1d1d; background:#1f2933; color:#fecaca; cursor:pointer; margin-right:6px;">Delete</button>
+    </div>
+    <div class="row">
+      <label>Файл</label>
+      <button id="btn-export-presets" style="padding:3px 8px; font-size:10px; border-radius:4px; border:1px solid #2a3540; background:#11161d; color:#e5e7eb; cursor:pointer; margin-right:6px;">Export</button>
+      <button id="btn-import-presets" style="padding:3px 8px; font-size:10px; border-radius:4px; border:1px solid #2a3540; background:#11161d; color:#e5e7eb; cursor:pointer;">Import</button>
+      <input id="file-import-presets" type="file" accept="application/json" style="display:none;">
+    </div>
+  </div>
+  <div class="section">
+    <div class="section-title">Environment (синхронизируется в реальном времени)</div>
+    <select id="preset-selector">
+      <option value="0">Set 1: City (Cold)</option>
+      <option value="1">Set 2: Nature (Warm)</option>
+      <option value="2">Set 3: Custom C</option>
+    </select>
+    <div class="row"><label>Parallax Power</label><input id="p-parallax" type="range" min="0" max="0.1" step="0.001" value="0.02"><span class="val">0.02</span></div>
+    <div class="row"><label>Ambient Light</label><input id="p-ambient" type="range" min="0" max="1" step="0.01" value="0.25"><span class="val">0.25</span></div>
+    <div class="row"><label>Window Glow (N2)</label><input id="p-emissive" type="range" min="0" max="5" step="0.1" value="1.0"><span class="val">1.0</span></div>
+    <div class="row"><label>Blur (DoF)</label><input id="p-blurStr" type="range" min="0" max="1" step="0.01" value="0.5"><span class="val">0.50</span></div>
+    <div class="row"><label>Film Grain</label><input id="p-grain" type="range" min="0" max="0.3" step="0.01" value="0.06"><span class="val">0.06</span></div>
+    <div class="row"><label>Vignette</label><input id="p-vignette" type="range" min="0" max="1" step="0.01" value="0.4"><span class="val">0.40</span></div>
+  </div>
+  <div class="section">
+    <div class="section-title">Engine & Tonemapping</div>
+    <div class="checkbox-row"><input id="c-aces" type="checkbox" checked><span>ACES Filmic</span></div>
+    <div class="checkbox-row"><input id="c-dither" type="checkbox" checked><span>Dithering</span></div>
+    <div class="row"><label>Exposure</label><input id="p-exposure" type="range" min="0.1" max="3" step="0.05" value="1.0"><span class="val">1.0</span></div>
+    <div class="row"><label>Contrast</label><input id="p-contrast" type="range" min="0.5" max="1.5" step="0.05" value="1.1"><span class="val">1.1</span></div>
+    <div class="row"><label>Saturation</label><input id="p-saturation" type="range" min="0" max="2" step="0.05" value="1.2"><span class="val">1.2</span></div>
+    <div class="row"><label class="lbl-r">Red</label><input id="p-tintR" type="range" min="0.5" max="1.5" step="0.01" value="1.0"><span class="val">1.0</span></div>
+    <div class="row"><label class="lbl-g">Green</label><input id="p-tintG" type="range" min="0.5" max="1.5" step="0.01" value="1.0"><span class="val">1.0</span></div>
+    <div class="row"><label class="lbl-b">Blue</label><input id="p-tintB" type="range" min="0.5" max="1.5" step="0.01" value="1.0"><span class="val">1.0</span></div>
+    <div class="row"><label>Gamma</label><input id="p-gamma" type="range" min="1.0" max="3.0" step="0.1" value="2.2"><span class="val">2.2</span></div>
+  </div>
+  <div class="section">
+    <div class="section-title">Lighting</div>
+    <div class="toggle-container" id="light-mode-toggle">
+      <div class="toggle-btn active" data-val="0">Flashlight</div>
+      <div class="toggle-btn" data-val="1">Sun</div>
+    </div>
+    <div class="row"><label>Light Intensity</label><input id="p-lightInt" type="range" min="0" max="5" step="0.1" value="1.8"><span class="val">1.8</span></div>
+    <div class="row"><label>Light Warmth</label><input id="p-lightWarmth" type="range" min="0" max="1" step="0.05" value="0.5"><span class="val">0.50</span></div>
+    <div class="row mode-0"><label>Spot Radius</label><input id="p-lightRad" type="range" min="0.1" max="1.5" step="0.01" value="0.45"><span class="val">0.45</span></div>
+    <div class="row mode-0"><label>Falloff</label><input id="p-lightFalloff" type="range" min="0.01" max="1.0" step="0.01" value="0.1"><span class="val">0.10</span></div>
+    <div class="row mode-1" style="display:none"><label>Sun Azimuth</label><input id="p-sunX" type="range" min="-1" max="1" step="0.01" value="0.2"><span class="val">0.20</span></div>
+    <div class="row mode-1" style="display:none"><label>Sun Altitude</label><input id="p-sunY" type="range" min="-1" max="1" step="0.01" value="0.5"><span class="val">0.50</span></div>
+  </div>
+  <div class="section">
+    <div class="section-title">Ice Material</div>
+    <div class="row"><label>Texture Scale</label><input id="p-texScale" type="range" min="0.5" max="4.0" step="0.1" value="1.0"><span class="val">1.0</span></div>
+    <div class="row"><label>Frost Density</label><input id="p-frostOpacity" type="range" min="0" max="1" step="0.01" value="0.9"><span class="val">0.90</span></div>
+    <div class="row"><label>Frost Tint</label><input id="p-frostTint" type="range" min="0" max="1" step="0.01" value="0.1"><span class="val">0.10</span></div>
+    <div class="row"><label>Normal Depth</label><input id="p-iceNormal" type="range" min="0" max="4" step="0.1" value="1.5"><span class="val">1.5</span></div>
+    <div class="row"><label>Refraction</label><input id="p-refract" type="range" min="0" max="0.15" step="0.001" value="0.05"><span class="val">0.050</span></div>
+    <div class="row"><label>Chromatic Ab.</label><input id="p-chroma" type="range" min="0" max="0.1" step="0.001" value="0.02"><span class="val">0.020</span></div>
+    <div class="row"><label>Specular Power</label><input id="p-specular" type="range" min="0" max="5" step="0.1" value="1.8"><span class="val">1.8</span></div>
+    <div class="row"><label>Subsurface Scattering</label><input id="p-sss" type="range" min="0" max="1" step="0.01" value="0.3"><span class="val">0.30</span></div>
+    <div class="row"><label>Ambient Shadow</label><input id="p-shadowStr" type="range" min="0" max="1" step="0.01" value="0.6"><span class="val">0.60</span></div>
+    <div class="row">
+      <label>Ice textures</label>
+      <select id="ice-set" style="margin-right:8px; max-width:150px;">
+        <option value="mini">Mini (лёгкие)</option>
+        <option value="full">Full (оригинал)</option>
+      </select>
+    </div>
+    <div class="row">
+      <label>Ice format</label>
+      <select id="ice-ext" style="max-width:150px;">
+        <option value="png">.png</option>
+        <option value="jpg">.jpg</option>
+      </select>
+    </div>
+  </div>
+  <div class="section">
+    <div class="section-title">Thermodynamics</div>
+    <div class="row"><label>Brush Radius</label><input id="p-meltRadius" type="range" min="0.1" max="1.0" step="0.01" value="0.35"><span class="val">0.35</span></div>
+    <div class="row"><label>Melt Speed</label><input id="p-meltSpeed" type="range" min="0.01" max="0.4" step="0.005" value="0.06"><span class="val">0.06</span></div>
+    <div class="row"><label>Brush Hardness</label><input id="p-brushHardness" type="range" min="0" max="1" step="0.01" value="0.5"><span class="val">0.50</span></div>
+    <div class="row"><label>Fractal Jitter</label><input id="p-brushNoise" type="range" min="0" max="1" step="0.01" value="0.4"><span class="val">0.40</span></div>
+    <div class="row"><label>Clean Threshold</label><input id="p-cleanCutoff" type="range" min="0.5" max="1.0" step="0.01" value="0.95"><span class="val">0.95</span></div>
+  </div>
+  <div class="section">
+    <div class="section-title">Liquid Phase</div>
+    <div class="row"><label>Surface Tension</label><input id="p-edgeDistort" type="range" min="0" max="3" step="0.05" value="1.0"><span class="val">1.00</span></div>
+    <div class="row"><label>Water Gloss</label><input id="p-waterShiny" type="range" min="10" max="500" step="10" value="150"><span class="val">150</span></div>
+    <div class="row"><label>Water Turpidity</label><input id="p-waterOpacity" type="range" min="0" max="1" step="0.01" value="0.1"><span class="val">0.10</span></div>
+  </div>
+</div>
+
+<script>
+(function(){
+  const PARAMS = {
+    aces: 1.0, dither: 1.0,
+    lightMode: 0.0, lightInt: 1.8, lightWarmth: 0.5, lightRad: 0.45, lightFalloff: 0.1, sunX: 0.2, sunY: 0.5,
+    texScale: 1.0, frostOpacity: 0.9, frostTint: 0.1, iceNormal: 1.5, refract: 0.05, chroma: 0.02, specular: 1.8, shadowStr: 0.6, sss: 0.3,
+    meltRadius: 0.35, meltSpeed: 0.06, edgeDistort: 1.0, brushNoise: 0.4, brushHardness: 0.5, cleanCutoff: 0.95,
+    waterShiny: 150.0, waterOpacity: 0.1,
+    blurStr: 0.5, grain: 0.06, ambient: 0.25, emissive: 1.0, vignette: 0.4, parallax: 0.02,
+    exposure: 1.0, gamma: 2.2, contrast: 1.1, saturation: 1.2,
+    tintR: 1.0, tintG: 1.0, tintB: 1.0
+  };
+
+  const STORAGE_KEY = 'iceMaximumusPresets';
+  const PRESET_API = '/api/maximumus-presets';
+  const WS_PATH = '/ws-maximumus';
+
+  function getWsUrl() {
+    const proto = location.protocol === 'https:' ? 'wss:' : 'ws:';
+    return proto + '//' + location.host + WS_PATH;
+  }
+
+  let ws = null;
+  const statusEl = document.getElementById('ws-status');
+
+  function connectWs() {
+    statusEl.textContent = '…';
+    statusEl.className = 'ws-status';
+    try {
+      ws = new WebSocket(getWsUrl());
+      ws.onopen = () => {
+        statusEl.textContent = 'Подключено';
+        statusEl.className = 'ws-status connected';
+      };
+      ws.onmessage = (ev) => {
+        try {
+          const state = JSON.parse(ev.data);
+          if (state && state.params) applyStateToInputs(state.params);
+          if (state && state.presetIndex !== undefined) {
+            const sel = document.getElementById('preset-selector');
+            if (sel) sel.value = String(state.presetIndex);
+          }
+        } catch (e) {}
+      };
+      ws.onclose = () => {
+        statusEl.textContent = 'Отключено';
+        statusEl.className = 'ws-status error';
+        setTimeout(connectWs, 3000);
+      };
+      ws.onerror = () => {
+        statusEl.textContent = 'Ошибка';
+        statusEl.className = 'ws-status error';
+      };
+    } catch (e) {
+      statusEl.textContent = 'Ошибка';
+      statusEl.className = 'ws-status error';
+    }
+  }
+
+  function getParamsFromInputs() {
+    const out = { ...PARAMS };
+    document.querySelectorAll('#ui-container input[type="range"]').forEach(inp => {
+      const id = inp.id.replace('p-','');
+      if (PARAMS[id] !== undefined) out[id] = parseFloat(inp.value);
+    });
+    document.querySelectorAll('.checkbox-row input').forEach(inp => {
+      const id = inp.id.replace('c-','');
+      if (PARAMS[id] !== undefined) out[id] = inp.checked ? 1.0 : 0.0;
+    });
+    const mode = document.querySelector('.toggle-btn.active');
+    if (mode) out.lightMode = parseFloat(mode.dataset.val || 0);
+    const iceSetSel = document.getElementById('ice-set');
+    const iceExtSel = document.getElementById('ice-ext');
+    if (iceSetSel) out.iceSet = iceSetSel.value || 'mini';
+    if (iceExtSel) out.iceExt = iceExtSel.value || 'png';
+    return out;
+  }
+
+  function applyStateToInputs(params) {
+    if (!params) return;
+    Object.assign(PARAMS, params);
+    document.querySelectorAll('#ui-container input[type="range"]').forEach(inp => {
+      const id = inp.id.replace('p-','');
+      if (params[id] !== undefined) {
+        inp.value = params[id];
+        const span = inp.nextElementSibling;
+        if (span) span.innerText = (id === 'refract' || id === 'parallax') ? params[id].toFixed(3) : params[id].toFixed(2);
+      }
+    });
+    document.querySelectorAll('.checkbox-row input').forEach(inp => {
+      const id = inp.id.replace('c-','');
+      if (params[id] !== undefined) inp.checked = params[id] > 0.5;
+    });
+    const mode = params.lightMode !== undefined ? params.lightMode : 0;
+    document.querySelectorAll('.toggle-btn').forEach(btn => {
+      if (parseFloat(btn.dataset.val) === mode) btn.classList.add('active');
+      else btn.classList.remove('active');
+    });
+    document.querySelectorAll('.mode-0').forEach(el => el.style.display = mode === 0 ? 'flex' : 'none');
+    document.querySelectorAll('.mode-1').forEach(el => el.style.display = mode === 1 ? 'flex' : 'none');
+    const iceSetSel = document.getElementById('ice-set');
+    const iceExtSel = document.getElementById('ice-ext');
+    if (iceSetSel && params.iceSet) iceSetSel.value = params.iceSet;
+    if (iceExtSel && params.iceExt) iceExtSel.value = params.iceExt;
+  }
+
+  function sendState() {
+    if (!ws || ws.readyState !== WebSocket.OPEN) return;
+    const presetIndex = parseInt(document.getElementById('preset-selector').value, 10) || 0;
+    ws.send(JSON.stringify({ params: getParamsFromInputs(), presetIndex }));
+  }
+
+  document.querySelectorAll('#ui-container input[type="range"]').forEach(inp => {
+    inp.addEventListener('input', e => {
+      const id = e.target.id.replace('p-','');
+      const v = parseFloat(e.target.value);
+      PARAMS[id] = v;
+      const span = e.target.nextElementSibling;
+      if (span) span.innerText = (id === 'refract' || id === 'parallax') ? v.toFixed(3) : v.toFixed(2);
+      sendState();
+    });
+  });
+
+  document.querySelectorAll('.checkbox-row input').forEach(inp => {
+    inp.addEventListener('change', e => {
+      const id = e.target.id.replace('c-','');
+      PARAMS[id] = e.target.checked ? 1.0 : 0.0;
+      sendState();
+    });
+  });
+
+  document.querySelectorAll('.toggle-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      document.querySelectorAll('.toggle-btn').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      PARAMS.lightMode = parseFloat(btn.dataset.val);
+      document.querySelectorAll('.mode-0').forEach(el => el.style.display = PARAMS.lightMode === 0 ? 'flex' : 'none');
+      document.querySelectorAll('.mode-1').forEach(el => el.style.display = PARAMS.lightMode === 1 ? 'flex' : 'none');
+      sendState();
+    });
+  });
+
+  const iceSetSel = document.getElementById('ice-set');
+  const iceExtSel = document.getElementById('ice-ext');
+  if (iceSetSel) {
+    iceSetSel.addEventListener('change', () => {
+      PARAMS.iceSet = iceSetSel.value || 'mini';
+      sendState();
+    });
+  }
+  if (iceExtSel) {
+    iceExtSel.addEventListener('change', () => {
+      PARAMS.iceExt = iceExtSel.value || 'png';
+      sendState();
+    });
+  }
+
+  document.getElementById('preset-selector').addEventListener('change', () => sendState());
+
+  document.querySelectorAll('.val').forEach(el => {
+    el.setAttribute('contenteditable', 'true');
+    el.addEventListener('keydown', ev => { if (ev.key === 'Enter') { ev.preventDefault(); el.blur(); } });
+    el.addEventListener('blur', () => {
+      const row = el.parentElement;
+      if (!row) return;
+      const slider = row.querySelector('input[type="range"]');
+      if (!slider) return;
+      const id = slider.id.replace('p-','');
+      const v = parseFloat(el.textContent.replace(',', '.').trim());
+      if (!isNaN(v)) {
+        PARAMS[id] = v;
+        slider.value = v;
+        sendState();
+      } else {
+        el.textContent = (id === 'refract' || id === 'parallax') ? PARAMS[id].toFixed(3) : PARAMS[id].toFixed(2);
+      }
+    });
+  });
+
+  function loadPresetListUI() {
+    let list;
+    try { list = JSON.parse(localStorage.getItem(STORAGE_KEY) || '{}'); } catch(e) { list = {}; }
+    const select = document.getElementById('preset-list');
+    if (!select) return;
+    while (select.options.length) select.remove(0);
+    select.add(new Option('(unsaved)', ''));
+    Object.keys(list).forEach(name => select.add(new Option(name, name)));
+  }
+
+  function saveCurrentPreset() {
+    const nameInput = document.getElementById('preset-name');
+    const name = (nameInput && nameInput.value || '').trim();
+    if (!name) return;
+    let list;
+    try { list = JSON.parse(localStorage.getItem(STORAGE_KEY) || '{}'); } catch(e) { list = {}; }
+    list[name] = getParamsFromInputs();
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(list));
+    fetch(PRESET_API, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(list) }).catch(() => {});
+    loadPresetListUI();
+    const sel = document.getElementById('preset-list');
+    if (sel) { sel.value = name; }
+  }
+
+  function applyPreset(name) {
+    let list;
+    try { list = JSON.parse(localStorage.getItem(STORAGE_KEY) || '{}'); } catch(e) { list = {}; }
+    if (!list[name]) return;
+    applyStateToInputs(list[name]);
+    sendState();
+  }
+
+  function deletePreset(name) {
+    let list;
+    try { list = JSON.parse(localStorage.getItem(STORAGE_KEY) || '{}'); } catch(e) { list = {}; }
+    if (!list[name]) return;
+    delete list[name];
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(list));
+    fetch(PRESET_API, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(list) }).catch(() => {});
+    loadPresetListUI();
+  }
+
+  document.getElementById('btn-save-preset').addEventListener('click', () => saveCurrentPreset());
+  document.getElementById('btn-load-preset').addEventListener('click', () => {
+    const name = document.getElementById('preset-list').value;
+    if (name) applyPreset(name);
+  });
+  document.getElementById('btn-delete-preset').addEventListener('click', () => {
+    const name = document.getElementById('preset-list').value;
+    if (name) deletePreset(name);
+  });
+  document.getElementById('btn-export-presets').addEventListener('click', () => {
+    let list;
+    try { list = JSON.parse(localStorage.getItem(STORAGE_KEY) || '{}'); } catch(e) { list = {}; }
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(new Blob([JSON.stringify(list, null, 2)], { type: 'application/json' }));
+    a.download = 'ice-maximumus-presets.json';
+    a.click();
+    URL.revokeObjectURL(a.href);
+  });
+  document.getElementById('btn-import-presets').addEventListener('click', () => document.getElementById('file-import-presets').click());
+  document.getElementById('file-import-presets').addEventListener('change', () => {
+    const file = document.getElementById('file-import-presets').files[0];
+    if (!file) return;
+    const r = new FileReader();
+    r.onload = () => {
+      try {
+        const data = JSON.parse(r.result);
+        let current;
+        try { current = JSON.parse(localStorage.getItem(STORAGE_KEY) || '{}'); } catch(e) { current = {}; }
+        const merged = { ...current, ...data };
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(merged));
+        fetch(PRESET_API, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(merged) }).catch(() => {});
+        loadPresetListUI();
+      } catch(e) {}
+    };
+    r.readAsText(file);
+    document.getElementById('file-import-presets').value = '';
+  });
+
+  async function syncPresetsFromServer() {
+    try {
+      const res = await fetch(PRESET_API, { cache: 'no-store' });
+      if (res.ok) {
+        const data = await res.json();
+        if (data && typeof data === 'object') localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
+      }
+    } catch(e) {}
+    loadPresetListUI();
+  }
+
+  syncPresetsFromServer();
+  connectWs();
+})();
+</script>
+</body>
+</html>

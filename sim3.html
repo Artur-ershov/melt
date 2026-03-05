@@ -1,0 +1,366 @@
+<!DOCTYPE html>
+<html lang="ru">
+  <head>
+    <meta charset="UTF-8" />
+    <title>Симуляция розыгрыша призов</title>
+    <style>
+      body {
+        margin: 0;
+        padding: 16px;
+        font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI",
+          sans-serif;
+        background: #0b1020;
+        color: #f5f5f7;
+      }
+
+      h1 {
+        font-size: 20px;
+        margin: 0 0 12px;
+      }
+
+      .controls {
+        display: flex;
+        gap: 16px;
+        align-items: center;
+        margin-bottom: 12px;
+        flex-wrap: wrap;
+      }
+
+      label {
+        font-size: 13px;
+        opacity: 0.8;
+      }
+
+      input[type="number"] {
+        width: 80px;
+        padding: 4px 6px;
+        border-radius: 6px;
+        border: 1px solid #3b3f54;
+        background: #111525;
+        color: #f5f5f7;
+      }
+
+      button {
+        padding: 6px 12px;
+        border-radius: 999px;
+        border: 1px solid #3b82f6;
+        background: #1d4ed8;
+        color: #f9fafb;
+        font-size: 13px;
+        cursor: pointer;
+      }
+
+      button:disabled {
+        opacity: 0.5;
+        cursor: default;
+      }
+
+      .layout {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 16px;
+        margin-top: 12px;
+      }
+
+      .panel {
+        background: #0f172a;
+        border-radius: 12px;
+        padding: 10px;
+        box-shadow: 0 20px 40px rgba(15, 23, 42, 0.6);
+      }
+
+      .panel h2 {
+        font-size: 14px;
+        margin: 0 0 6px;
+      }
+
+      .caption {
+        font-size: 11px;
+        opacity: 0.7;
+        margin-bottom: 6px;
+        min-height: 26px;
+      }
+
+      canvas {
+        display: block;
+        width: 100%;
+        border-radius: 8px;
+        background: #020617;
+      }
+
+      .legend {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 6px 12px;
+        margin-top: 8px;
+        font-size: 11px;
+        opacity: 0.85;
+      }
+
+      .legend-item {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+      }
+
+      .legend-swatch {
+        width: 10px;
+        height: 10px;
+        border-radius: 50%;
+      }
+    </style>
+  </head>
+  <body>
+    <h1>Симуляция распределения призов (Обе - Стратегия 2)</h1>
+    <div class="controls">
+      <label>
+        Кол-во прогонов:
+        <input id="runs-input" type="number" min="10" value="300" />
+      </label>
+      <button id="run-btn">Запустить симуляцию</button>
+      <span id="status" style="font-size: 12px; opacity: 0.7"></span>
+    </div>
+
+    <div class="layout">
+      <div class="panel">
+        <h2>Оригинал</h2>
+        <div class="caption">
+          Вероятность приза пропорциональна количеству оставшихся копий на всем протяжении.
+        </div>
+        <canvas id="canvas-original"></canvas>
+        <div class="legend" id="legend-left"></div>
+      </div>
+
+      <div class="panel">
+        <h2>Редкие в 1-й половине</h2>
+        <div class="caption">
+          Та же логика, но «эксклюзивный» и «единичный» искусственно заперты в первых 50% розыгрышей.
+        </div>
+        <canvas id="canvas-frontloaded"></canvas>
+        <div class="legend" id="legend-right"></div>
+      </div>
+    </div>
+
+    <script>
+      const basePrizes = [
+        { id: "FLOWERS_1500", rarity: "эксклюзивный", maxCount: 10, weight: 0.6666666667 },
+        { id: "FLOWERS_3000", rarity: "эксклюзивный", maxCount: 4, weight: 0.2666666667 },
+        { id: "GARDEN_TICKET", rarity: "эксклюзивный", maxCount: 6, weight: 0.4 },
+        { id: "MARKET_1000", rarity: "редкий", maxCount: 5, weight: 0.3333333333 },
+        { id: "MARKET_3000", rarity: "эксклюзивный", maxCount: 1, weight: 0.06666666667 },
+        { id: "BEBRI_5", rarity: "очень обычный", maxCount: 400, weight: 26.66666667 },
+        { id: "BEBRI_10", rarity: "очень обычный", maxCount: 400, weight: 26.66666667 },
+        { id: "BEBRI_1000", rarity: "единичный", maxCount: 2, weight: 0.1333333333 },
+        { id: "SCARF_FREE", rarity: "единичный", maxCount: 2, weight: 0.1333333333 },
+        { id: "SCARF_20", rarity: "обычный", maxCount: 150, weight: 10 },
+        { id: "SCARF_50", rarity: "редкий", maxCount: 50, weight: 3.333333333 },
+        { id: "SCARF_70", rarity: "эксклюзивный", maxCount: 7, weight: 0.4666666667 },
+        { id: "CANDLES_SET_FREE", rarity: "единичный", maxCount: 2, weight: 0.1333333333 },
+        { id: "CANDLES_SET_20", rarity: "обычный", maxCount: 150, weight: 10 },
+        { id: "CANDLES_SET_50", rarity: "редкий", maxCount: 45, weight: 3 },
+        { id: "CANDLES_SET_70", rarity: "эксклюзивный", maxCount: 7, weight: 0.4666666667 },
+        { id: "CANDLES_KIT_FREE", rarity: "единичный", maxCount: 2, weight: 0.1333333333 },
+        { id: "CANDLES_KIT_20", rarity: "обычный", maxCount: 150, weight: 10 },
+        { id: "CANDLES_KIT_50", rarity: "редкий", maxCount: 50, weight: 3.333333333 },
+        { id: "CANDLES_KIT_70", rarity: "эксклюзивный", maxCount: 7, weight: 0.4666666667 },
+        { id: "SPORT_CHALLENGE_50", rarity: "эксклюзивный", maxCount: 4, weight: 0.2666666667 },
+        { id: "SPORT_CHALLENGE_FREE", rarity: "единичный", maxCount: 1, weight: 0.06666666667 },
+        { id: "COFFEE_KROK", rarity: "редкий", maxCount: 50, weight: 3.333333333 },
+        { id: "KARTING_COMP", rarity: "единичный", maxCount: 1, weight: 0.06666666667 },
+      ];
+
+      const rarityColors = {
+        "очень обычный": "#e5e7eb",
+        "обычный": "#fbbf24",
+        "редкий": "#22c55e",
+        "эксклюзивный": "#a855f7",
+        "единичный": "#ef4444",
+      };
+
+      function clonePrizes() {
+        return basePrizes.map((p) => ({ ...p, remaining: p.maxCount }));
+      }
+
+      function totalTickets() {
+        return basePrizes.reduce((sum, p) => sum + p.maxCount, 0);
+      }
+
+      function drawLegend(containerId) {
+        const container = document.getElementById(containerId);
+        container.innerHTML = "";
+        const used = {};
+        basePrizes.forEach((p) => {
+          if (used[p.rarity]) return;
+          used[p.rarity] = true;
+          const item = document.createElement("div");
+          item.className = "legend-item";
+          const swatch = document.createElement("div");
+          swatch.className = "legend-swatch";
+          swatch.style.background = rarityColors[p.rarity] || "#9ca3af";
+          const label = document.createElement("span");
+          label.textContent = p.rarity;
+          item.appendChild(swatch);
+          item.appendChild(label);
+          container.appendChild(item);
+        });
+      }
+
+      function simulateRun(mode) {
+        const draws = [];
+        const total = totalTickets();
+
+        if (mode === "original") {
+          // --- Оригинальная Стратегия 2 ---
+          const prizes = clonePrizes();
+          for (let step = 0; step < total; step++) {
+            const available = prizes.filter((p) => p.remaining > 0);
+            if (!available.length) break;
+
+            let totalRem = available.reduce((sum, p) => sum + p.remaining, 0);
+            let rnd = Math.random() * totalRem;
+            let chosen = available[available.length - 1];
+
+            for (const p of available) {
+              rnd -= p.remaining;
+              if (rnd <= 0) {
+                chosen = p;
+                break;
+              }
+            }
+            chosen.remaining--;
+            draws.push(chosen.rarity);
+          }
+        } else if (mode === "frontloaded") {
+          // --- Модифицированная Стратегия 2 (Редкие в 1-й половине) ---
+          const rareCategories = ["эксклюзивный", "единичный"];
+          const half = Math.floor(total / 2);
+
+          // Инициализируем две корзины пустыми значениями remaining
+          let bag1 = clonePrizes().map(p => ({ ...p, remaining: 0 }));
+          let bag2 = clonePrizes().map(p => ({ ...p, remaining: 0 }));
+
+          let currentBag1Size = 0;
+
+          // 1. Кладем ВСЕ редкие призы в первую корзину
+          basePrizes.forEach((p, i) => {
+            if (rareCategories.includes(p.rarity)) {
+              bag1[i].remaining = p.maxCount;
+              currentBag1Size += p.maxCount;
+            }
+          });
+
+          // 2. Добиваем первую корзину обычными призами ровно до половины (пропорционально)
+          const commonsNeeded = half - currentBag1Size;
+          const totalCommon = basePrizes.reduce((sum, p) => sum + (rareCategories.includes(p.rarity) ? 0 : p.maxCount), 0);
+          const commonIndices = basePrizes.map((p, i) => rareCategories.includes(p.rarity) ? -1 : i).filter(i => i !== -1);
+
+          commonIndices.forEach(i => {
+            bag1[i].remaining = Math.round(basePrizes[i].maxCount * (commonsNeeded / totalCommon));
+          });
+
+          // Сглаживаем погрешности округления, чтобы корзина была ровно размером `half`
+          let actualBag1Size = bag1.reduce((sum, p) => sum + p.remaining, 0);
+          while (actualBag1Size < half) {
+            let i = commonIndices[Math.floor(Math.random() * commonIndices.length)];
+            if (bag1[i].remaining < basePrizes[i].maxCount) {
+              bag1[i].remaining++;
+              actualBag1Size++;
+            }
+          }
+          while (actualBag1Size > half) {
+            let i = commonIndices[Math.floor(Math.random() * commonIndices.length)];
+            if (bag1[i].remaining > 0) {
+              bag1[i].remaining--;
+              actualBag1Size--;
+            }
+          }
+
+          // 3. Все остатки уходят во вторую корзину
+          for (let i = 0; i < basePrizes.length; i++) {
+            bag2[i].remaining = basePrizes[i].maxCount - bag1[i].remaining;
+          }
+
+          // 4. Сам процесс розыгрыша
+          for (let step = 0; step < total; step++) {
+            let currentBag = step < half ? bag1 : bag2;
+            const available = currentBag.filter((p) => p.remaining > 0);
+            
+            if (!available.length) break;
+
+            let totalRem = available.reduce((sum, p) => sum + p.remaining, 0);
+            let rnd = Math.random() * totalRem;
+            let chosen = available[available.length - 1];
+
+            for (const p of available) {
+              rnd -= p.remaining;
+              if (rnd <= 0) {
+                chosen = p;
+                break;
+              }
+            }
+            chosen.remaining--;
+            draws.push(chosen.rarity);
+          }
+        }
+
+        return draws;
+      }
+
+      function runSimulation() {
+        const runsInput = document.getElementById("runs-input");
+        const status = document.getElementById("status");
+        const runBtn = document.getElementById("run-btn");
+        const leftCanvas = document.getElementById("canvas-original");
+        const rightCanvas = document.getElementById("canvas-frontloaded");
+
+        let runs = Number(runsInput.value) || 300;
+        runs = Math.max(runs, 10);
+        runsInput.value = runs;
+
+        const width = totalTickets();
+        const maxDisplayHeight = 600;
+        const height = Math.min(runs, maxDisplayHeight);
+
+        leftCanvas.width = width;
+        leftCanvas.height = height;
+        rightCanvas.width = width;
+        rightCanvas.height = height;
+
+        const lctx = leftCanvas.getContext("2d");
+        const rctx = rightCanvas.getContext("2d");
+
+        lctx.clearRect(0, 0, width, height);
+        rctx.clearRect(0, 0, width, height);
+
+        status.textContent = "Считаем…";
+        runBtn.disabled = true;
+
+        setTimeout(() => {
+          for (let row = 0; row < runs; row++) {
+            const drawsOriginal = simulateRun("original");
+            const drawsFrontloaded = simulateRun("frontloaded");
+
+            const y = Math.floor((row / runs) * height);
+
+            for (let x = 0; x < drawsOriginal.length; x++) {
+              lctx.fillStyle = rarityColors[drawsOriginal[x]] || "#9ca3af";
+              lctx.fillRect(x, y, 1, 1);
+            }
+
+            for (let x = 0; x < drawsFrontloaded.length; x++) {
+              rctx.fillStyle = rarityColors[drawsFrontloaded[x]] || "#9ca3af";
+              rctx.fillRect(x, y, 1, 1);
+            }
+          }
+
+          status.textContent = `Готово: ${runs} прогонов, по ${totalTickets()} розыгрышей каждый.`;
+          runBtn.disabled = false;
+        }, 10);
+      }
+
+      document.getElementById("run-btn").addEventListener("click", runSimulation);
+      drawLegend("legend-left");
+      drawLegend("legend-right");
+    </script>
+  </body>
+</html>

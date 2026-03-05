@@ -1,0 +1,413 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8" />
+  <title>Ice Sandbox: Maximumus (Classic Smooth Melt)</title>
+  <style>
+    body { margin: 0; overflow: hidden; background: #000; font-family: 'Segoe UI', system-ui, sans-serif; }
+    canvas { width: 100vw; height: 100vh; display: block; cursor: none; }
+    
+    #admin-link {
+      position: fixed; top: 14px; right: 18px; z-index: 100;
+      color: #4facfe; font-size: 11px; letter-spacing: 1.5px; text-decoration: none; text-transform: uppercase;
+      opacity: 0.6; transition: opacity 0.2s;
+    }
+    #admin-link:hover { opacity: 1; }
+    #loader { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: #000; z-index: 200; display: flex; flex-direction:column; align-items: center; justify-content: center; color: #4facfe; font-family: monospace; letter-spacing: 2px; transition: opacity 0.5s; pointer-events: none; }
+    #loader-text { margin-top:8px; font-size:10px; color:#4b5563; }
+  </style>
+</head>
+<body>
+
+<div id="loader">
+  <div>MAXIMUMUS ENGINE BOOT...</div>
+  <div id="loader-text">Loading textures...</div>
+</div>
+<a id="admin-link" href="ice-sandbox-maximumus-admin.html">Admin</a>
+
+<canvas id="gl-canvas"></canvas>
+
+<script>
+(function(){
+  const canvas = document.getElementById('gl-canvas');
+  const gl = canvas.getContext('webgl', { alpha: false, depth: false, antialias: true, premultipliedAlpha: false }) || canvas.getContext('experimental-webgl');
+  if (!gl) return;
+
+  const PARAMS = {
+    aces: 1.0, dither: 1.0,
+    lightMode: 0.0, lightInt: 1.8, lightWarmth: 0.5, lightRad: 0.45, lightFalloff: 0.1, sunX: 0.2, sunY: 0.5,
+    texScale: 1.0, frostOpacity: 0.9, frostTint: 0.1, iceNormal: 1.5, refract: 0.05, chroma: 0.02, specular: 1.8, shadowStr: 0.6, sss: 0.3,
+    meltRadius: 0.35, meltSpeed: 0.06, edgeDistort: 1.0, brushNoise: 0.4, brushHardness: 0.5, cleanCutoff: 0.95, 
+    waterShiny: 150.0, waterOpacity: 0.1,
+    blurStr: 0.5, grain: 0.06, ambient: 0.25, emissive: 1.0, vignette: 0.4, parallax: 0.02,
+    exposure: 1.0, gamma: 2.2, contrast: 1.1, saturation: 1.2,
+    tintR: 1.0, tintG: 1.0, tintB: 1.0
+  };
+
+  const PRESETS = [
+    { bgTex: 'nature.jpg',  bgNorm: 'n1.png',  bgLight: 'n2.png',  bgDepth: 'n3.png'  },
+    { bgTex: 'nature2.jpg', bgNorm: 'nn1.png', bgLight: 'nn2.png', bgDepth: 'nn3.png' },
+    { bgTex: 'c.jpg',       bgNorm: 'c1.png',  bgLight: 'c2.png',  bgDepth: 'c3.png'  }
+  ];
+
+  let currentIceSet = 'mini';
+  let currentIceExt = 'png';
+
+  function getIceAssets() {
+    const suffix = currentIceSet === 'mini' ? '-mini' : '';
+    const ext = currentIceExt === 'jpg' ? 'jpg' : 'png';
+    return {
+      iceNorm: `prompt1${suffix}.${ext}`,
+      iceFrost: `prompt2${suffix}.${ext}`,
+      iceOpacity: `prompt3${suffix}.${ext}`,
+      iceRough: `prompt4${suffix}.${ext}`
+    };
+  }
+
+  function resize(){
+    const dpr = Math.min(window.devicePixelRatio || 1, 2);
+    canvas.width = window.innerWidth * dpr;
+    canvas.height = window.innerHeight * dpr;
+    gl.viewport(0, 0, canvas.width, canvas.height);
+  }
+  window.addEventListener('resize', resize); resize();
+
+  const VS = "attribute vec2 a_pos; varying vec2 v_uv; void main(){ v_uv = a_pos * 0.5 + 0.5; gl_Position = vec4(a_pos,0.0,1.0); }";
+  
+  // ---> ОТКАТ ШЕЙДЕРА К КЛАССИЧЕСКОЙ ЛОГИКЕ (КАК В СТАРОЙ ВЕРСИИ) <---
+  const FS = `
+precision highp float;
+varying vec2 v_uv;
+
+uniform sampler2D u_bgTex, u_bgNorm, u_bgLight, u_bgDepth;
+uniform sampler2D u_iceNorm, u_iceFrost, u_iceOpacity, u_iceRough;
+uniform sampler2D u_meltMap;
+
+uniform vec2 u_mouse;
+uniform float u_ratio, u_time;
+
+uniform float u_aces, u_dither;
+
+uniform float u_lightMode, u_lightInt, u_lightWarmth, u_lightRad, u_lightFalloff, u_sunX, u_sunY;
+uniform float u_texScale, u_frostOpacity, u_frostTint, u_iceNormal, u_refract, u_chroma, u_specular, u_shadowStr, u_sss;
+uniform float u_edgeDistort, u_waterShiny, u_waterOpacity;
+uniform float u_blurStr, u_grain, u_ambient, u_exposure, u_gamma, u_parallax, u_emissive, u_vignette;
+uniform float u_contrast, u_saturation, u_tintR, u_tintG, u_tintB;
+
+float hash(vec2 p) { return fract(sin(dot(p, vec2(12.9898, 78.233))) * 43758.5453); }
+
+vec3 aces(vec3 x) {
+  return clamp((x*(2.51*x+0.03))/(x*(2.43*x+0.59)+0.14), 0.0, 1.0);
+}
+
+void main() {
+  // Классическое таяние, никаких smoothstep на маске, чтобы не было колец
+  float melt = texture2D(u_meltMap, v_uv).r;
+  
+  float bgDepth = texture2D(u_bgDepth, v_uv).r;
+  vec2 iceUV = v_uv * u_texScale;
+
+  vec3 iceN = normalize(texture2D(u_iceNorm, iceUV).rgb * 2.0 - 1.0);
+  float edge = smoothstep(0.0, 0.2, melt) * (1.0 - smoothstep(0.8, 1.0, melt));
+  vec3 finalN = mix(iceN * u_iceNormal, vec3(0,0,1), melt); // Линейный микс, как в оригинале
+  finalN.xy += iceN.xy * edge * u_edgeDistort;
+  finalN = normalize(finalN);
+
+  vec2 parallax = (u_mouse - 0.5) * (1.0 - bgDepth) * u_parallax;
+  vec2 baseUV = clamp(v_uv + parallax, 0.001, 0.999);
+
+  float refr = u_refract * (1.0 - melt * 0.9);
+  vec2 uvR = baseUV + finalN.xy * refr * (1.0 - u_chroma) + vec2(0.002) * u_shadowStr * (1.0-melt);
+  vec2 uvG = baseUV + finalN.xy * refr;
+  vec2 uvB = baseUV + finalN.xy * refr * (1.0 + u_chroma);
+
+  // Мягкое 9-точечное размытие для фона (работает чисто)
+  vec3 bgCol = texture2D(u_bgTex, uvG).rgb;
+  if (u_blurStr > 0.0) {
+      float b = u_blurStr * (1.0 - melt) * 0.004;
+      vec3 blurCol = bgCol;
+      blurCol += texture2D(u_bgTex, uvG + vec2(b, 0.0)).rgb;
+      blurCol += texture2D(u_bgTex, uvG + vec2(-b, 0.0)).rgb;
+      blurCol += texture2D(u_bgTex, uvG + vec2(0.0, b)).rgb;
+      blurCol += texture2D(u_bgTex, uvG + vec2(0.0, -b)).rgb;
+      blurCol += texture2D(u_bgTex, uvG + vec2(b*0.7, b*0.7)).rgb;
+      blurCol += texture2D(u_bgTex, uvG + vec2(-b*0.7, b*0.7)).rgb;
+      blurCol += texture2D(u_bgTex, uvG + vec2(b*0.7, -b*0.7)).rgb;
+      blurCol += texture2D(u_bgTex, uvG + vec2(-b*0.7, -b*0.7)).rgb;
+      bgCol = blurCol / 9.0;
+  }
+
+  // Маска прозрачности льда
+  float iceMask = texture2D(u_iceOpacity, iceUV).r;
+  float opacity = iceMask * (1.0 - melt); // Линейное затухание
+  
+  float shadow = 1.0 - opacity * u_shadowStr * 0.5;
+  bgCol *= shadow;
+
+  vec3 bgNorm = normalize(texture2D(u_bgNorm, uvG).rgb * 2.0 - 1.0);
+  vec3 bgEmissive = texture2D(u_bgLight, uvG).rgb;
+
+  vec3 lightDir;
+  float atten = 1.0;
+  if (u_lightMode < 0.5) {
+      vec3 lPos = vec3(u_mouse.x * u_ratio, u_mouse.y, 0.3);
+      vec3 pPos = vec3(v_uv.x * u_ratio, v_uv.y, 0.0);
+      float d = distance(lPos, pPos);
+      atten = smoothstep(u_lightRad, u_lightRad * u_lightFalloff, d);
+      lightDir = normalize(lPos - pPos);
+  } else {
+      lightDir = normalize(vec3(u_sunX, u_sunY, 0.5));
+  }
+
+  vec3 lightColor = mix(vec3(0.8,0.9,1.0), vec3(1.0,0.9,0.55), u_lightWarmth);
+  float diff = max(dot(bgNorm, lightDir), 0.0) * u_lightInt * atten;
+  vec3 scene = bgCol * (u_ambient + diff * lightColor) + bgEmissive * u_emissive;
+
+  vec3 frostTex = texture2D(u_iceFrost, iceUV).rgb;
+  frostTex = mix(frostTex, vec3(0.75,0.88,1.0), u_frostTint);
+  vec3 frostLit = frostTex * (scene + u_sss) * (1.0 + diff * 0.3);
+  vec3 comp = mix(scene, frostLit, opacity * u_frostOpacity);
+
+  vec3 waterColor = vec3(0.8, 0.85, 0.9) * 0.4;
+  float waterVis = u_waterOpacity * melt * (1.0 - melt);
+  comp = mix(comp, waterColor, waterVis);
+
+  vec3 halfDir = normalize(lightDir + vec3(0,0,1));
+  float rough = texture2D(u_iceRough, iceUV).r;
+  float shine = mix(mix(15.0, 5.0, rough), u_waterShiny, melt);
+  float specBase = pow(max(dot(finalN, halfDir), 0.0), shine);
+  float wetBoost = 1.0 + edge * 5.0; 
+  comp += specBase * u_specular * atten * lightColor * wetBoost;
+
+  float n = (hash(gl_FragCoord.xy + u_time) - 0.5) * u_grain;
+  comp += n;
+
+  float d = distance(v_uv, vec2(0.5));
+  comp *= smoothstep(0.8, 0.8 - u_vignette, d * (1.0 + u_vignette));
+
+  if (u_dither > 0.5) {
+    comp += (hash(gl_FragCoord.xy * 0.123 + u_time) - 0.5) / 255.0;
+  }
+
+  comp *= vec3(u_tintR, u_tintG, u_tintB);
+  float gray = dot(comp, vec3(0.299,0.587,0.114));
+  comp = mix(vec3(gray), comp, u_saturation);
+  comp = (comp - 0.5) * u_contrast + 0.5;
+  comp *= u_exposure;
+  
+  if (u_aces > 0.5) comp = aces(comp);
+  comp = pow(max(comp, vec3(0.0)), vec3(1.0 / max(u_gamma, 0.1)));
+
+  gl_FragColor = vec4(clamp(comp, 0.0, 1.0), 1.0);
+}
+`;
+
+  const prog = gl.createProgram();
+  const sh = (t, s) => { const i=gl.createShader(t); gl.shaderSource(i,s); gl.compileShader(i); if(!gl.getShaderParameter(i, gl.COMPILE_STATUS)) console.error(gl.getShaderInfoLog(i)); return i; };
+  gl.attachShader(prog, sh(gl.VERTEX_SHADER, VS));
+  gl.attachShader(prog, sh(gl.FRAGMENT_SHADER, FS));
+  gl.linkProgram(prog); if (!gl.getProgramParameter(prog, gl.LINK_STATUS)) { console.error(gl.getProgramInfoLog(prog)); return; }
+  gl.useProgram(prog);
+
+  gl.bindBuffer(gl.ARRAY_BUFFER, gl.createBuffer());
+  gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([-1,-1, 1,-1, -1,1, -1,1, 1,-1, 1,1]), gl.STATIC_DRAW);
+  const aPos = gl.getAttribLocation(prog, 'a_pos');
+  gl.enableVertexAttribArray(aPos);
+  gl.vertexAttribPointer(aPos, 2, gl.FLOAT, false, 0, 0);
+
+  const U = {};
+  const names = [
+    'bgTex','bgNorm','bgLight','bgDepth','iceNorm','iceFrost','iceOpacity','iceRough','meltMap',
+    'mouse','ratio','time','aces','dither',
+    'lightMode','lightInt','lightWarmth','lightRad','lightFalloff','sunX','sunY',
+    'texScale','frostOpacity','frostTint','iceNormal','refract','chroma','specular','shadowStr','sss',
+    'edgeDistort','waterShiny','waterOpacity',
+    'blurStr','grain','ambient','exposure','parallax','emissive','vignette',
+    'gamma','contrast','saturation','tintR','tintG','tintB'
+  ];
+  names.forEach(n => U[n] = gl.getUniformLocation(prog, 'u_' + n));
+
+  // Возвращаем классический размер канваса 1024 (работает лучше с мягкими градиентами)
+  const meltSize = 1024;
+  const meltCanvas = document.createElement('canvas');
+  meltCanvas.width = meltCanvas.height = meltSize;
+  const meltCtx = meltCanvas.getContext('2d');
+  meltCtx.fillStyle = '#000'; meltCtx.fillRect(0,0,meltSize,meltSize);
+  
+  const meltTex = gl.createTexture();
+  gl.activeTexture(gl.TEXTURE8);
+  gl.bindTexture(gl.TEXTURE_2D, meltTex);
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+
+  let mouse = { x: -1, y: -1 };
+  let lastMouse = { x: -1, y: -1 };
+  let running = false;
+  let currentPresetIndex = 0;
+
+  const wsUrl = (location.protocol === 'https:' ? 'wss:' : 'ws:') + '//' + location.host + '/ws-maximumus';
+  try {
+    const viewWs = new WebSocket(wsUrl);
+    viewWs.onmessage = (ev) => {
+      try {
+        const state = JSON.parse(ev.data);
+        if (state && state.params) Object.assign(PARAMS, state.params);
+        if (state && state.presetIndex !== undefined) {
+          const idx = parseInt(state.presetIndex, 10) || 0;
+          if (idx !== currentPresetIndex) {
+            currentPresetIndex = idx;
+            loadedCount = 0;
+            loadPreset(currentPresetIndex);
+          }
+        }
+      } catch (e) {}
+    };
+    viewWs.onclose = () => {};
+  } catch (e) {}
+
+  canvas.addEventListener('mousemove', e => {
+    mouse.x = e.clientX / window.innerWidth;
+    mouse.y = 1.0 - (e.clientY / window.innerHeight);
+  });
+
+  const textureObjs = {};
+  let loadedCount = 0;
+
+  function loadPreset(idx) {
+    const preset = PRESETS[idx] || PRESETS[0];
+    const queue = { ...preset, ...getIceAssets() };
+    loadedCount = 0;
+    const loader = document.getElementById('loader');
+    loader.style.opacity = 1;
+    loader.style.display = 'flex';
+    Object.keys(queue).forEach((key, i) => {
+      const img = new Image();
+      img.crossOrigin = "anonymous";
+      img.onload = () => finalizeTex(img, key, i, true);
+      img.onerror = () => finalizeTex(null, key, i, false);
+      img.src = queue[key];
+    });
+  }
+
+ // Функция для поиска ближайшей степени двойки (512, 1024, 2048, 4096)
+ function nextPowerOf2(n) {
+      return Math.pow(2, Math.ceil(Math.log2(n)));
+  }
+
+  function finalizeTex(img, key, unit, ok) {
+    const t = gl.createTexture();
+    gl.activeTexture(gl.TEXTURE0 + unit);
+    gl.bindTexture(gl.TEXTURE_2D, t);
+    
+    if (ok) {
+      gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, key.startsWith('bg') ? 1 : 0);
+      
+      // АВТО-КОНВЕРТЕР В POT (Power Of Two)
+      const potCanvas = document.createElement('canvas');
+      potCanvas.width = nextPowerOf2(img.width);
+      potCanvas.height = nextPowerOf2(img.height);
+      const potCtx = potCanvas.getContext('2d');
+      // Рисуем исходную картинку на правильном "квадратном" холсте
+      potCtx.drawImage(img, 0, 0, potCanvas.width, potCanvas.height);
+      
+      // Отправляем исправленную картинку в видеокарту
+      gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, potCanvas);
+
+      // МАГИЯ СГЛАЖИВАНИЯ: Генерируем мипмапы (сработает только для POT)
+      gl.generateMipmap(gl.TEXTURE_2D);
+      
+      // Включаем фильтр высшего качества (Триволинейная фильтрация)
+      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR_MIPMAP_LINEAR);
+      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
+      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+      
+    } else {
+      const c = (unit+1)*35;
+      gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, 1, 1, 0, gl.RGBA, gl.UNSIGNED_BYTE, new Uint8Array([c,c,200,255]));
+      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
+      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+    }
+    
+    textureObjs[key] = t;
+    loadedCount++;
+    if (loadedCount === 8) {
+      const loader = document.getElementById('loader');
+      loader.style.opacity = 0;
+      setTimeout(()=> loader.style.display='none', 500);
+      if (!running) startLoop();
+    }
+  }
+
+  function startLoop() {
+    running = true;
+    const startTime = performance.now();
+
+    function frame() {
+      if (mouse.x >= 0) {
+        if (lastMouse.x < 0) { lastMouse.x = mouse.x; lastMouse.y = mouse.y; }
+
+        const dx = mouse.x - lastMouse.x;
+        const dy = mouse.y - lastMouse.y;
+        const distNorm = Math.sqrt(dx*dx + dy*dy);
+        
+        const r = PARAMS.meltRadius * 150;
+        
+        // Векторная интерполяция для непрерывной линии
+        const steps = Math.max(1, Math.ceil(distNorm / (PARAMS.meltRadius * 0.02)));
+
+        meltCtx.globalCompositeOperation = 'lighter';
+
+        for(let i=1; i<=steps; i++) {
+            const t = i / steps;
+            const nx = lastMouse.x + dx * t;
+            const ny = lastMouse.y + dy * t;
+            
+            const cx = nx * meltSize;
+            const cy = (1.0 - ny) * meltSize;
+            
+            // ОТКАТ К КЛАССИЧЕСКОЙ НЕЖНОЙ КИСТИ! (Никаких 100% белых пятен)
+            const g = meltCtx.createRadialGradient(cx, cy, 0, cx, cy, r);
+            const baseAlpha = 0.18 * PARAMS.meltSpeed * 10.0; // Смягченная альфа
+            const midAlpha = 0.08 * PARAMS.meltSpeed * 10.0;
+            
+            g.addColorStop(0.0, `rgba(255,255,255,${baseAlpha})`);
+            g.addColorStop(0.35, `rgba(255,255,255,${midAlpha})`);
+            g.addColorStop(1.0, 'rgba(255,255,255,0)');
+            
+            meltCtx.fillStyle = g;
+            meltCtx.beginPath(); meltCtx.arc(cx, cy, r, 0, Math.PI*2); meltCtx.fill();
+        }
+        lastMouse.x = mouse.x;
+        lastMouse.y = mouse.y;
+      }
+
+      gl.activeTexture(gl.TEXTURE8);
+      gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, true);
+      gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, meltCanvas);
+      gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, false);
+
+      gl.clear(gl.COLOR_BUFFER_BIT);
+      for (let i = 0; i < 9; i++) gl.uniform1i(U[names[i]], i);
+      gl.uniform2f(U.mouse, mouse.x, mouse.y);
+      gl.uniform1f(U.ratio, canvas.width / canvas.height);
+      gl.uniform1f(U.time, (performance.now() - startTime) * 0.001);
+
+      for (const k in PARAMS) {
+        if (U[k]) gl.uniform1f(U[k], PARAMS[k]);
+      }
+
+      gl.drawArrays(gl.TRIANGLES, 0, 6);
+      requestAnimationFrame(frame);
+    }
+    frame();
+  }
+
+  loadPreset(0);
+})();
+</script>
+</body>
+</html>

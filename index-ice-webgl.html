@@ -1,0 +1,678 @@
+<!DOCTYPE html>
+<html lang="ru">
+  <head>
+    <meta charset="UTF-8" />
+    <title>Растопи лёд — WebGL версия</title>
+
+    <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
+
+    <style>
+      @font-face {
+        font-family: "Crocnew";
+        src: url("CoFoWeather20240219-VF.ttf") format("truetype");
+        font-weight: 100 900;
+        font-stretch: 75% 125%;
+        font-style: normal;
+      }
+
+      /* Стилизация полноэкранного интерфейса */
+      #ice-app-wrapper {
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100vw;
+        height: 100vh;
+        z-index: 99999;
+        background: #000;
+        color: #fff;
+        font-family: "Crocnew", sans-serif;
+        overflow: hidden;
+      }
+
+      .fs-screen {
+        position: absolute;
+        inset: 0;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+      }
+
+      .auth-box {
+        text-align: center;
+        padding: 20px;
+      }
+
+      .ice-title {
+        font-size: 36px;
+        font-weight: 900;
+        letter-spacing: 5px;
+        margin-bottom: 10px;
+        font-variation-settings: "wdth" 125;
+      }
+
+      .ice-subtitle {
+        opacity: 0.5;
+        font-size: 14px;
+        margin-bottom: 30px;
+      }
+
+      #user-email-field {
+        width: 280px;
+        padding: 18px 25px;
+        border-radius: 50px;
+        border: 1px solid #333;
+        background: #111;
+        color: #fff;
+        font-size: 16px;
+        margin-bottom: 15px;
+        outline: none;
+      }
+
+      #btn-start-ice {
+        width: 280px;
+        padding: 18px;
+        border-radius: 50px;
+        border: none;
+        background: #fff;
+        color: #000;
+        font-weight: bold;
+        cursor: pointer;
+        transition: 0.3s;
+      }
+
+      #btn-start-ice:hover {
+        transform: translateY(-1px);
+        box-shadow: 0 8px 20px rgba(0, 0, 0, 0.4);
+      }
+
+      /* Фон с реальным льдом */
+      #prize-underlayer {
+        position: absolute;
+        inset: 0;
+        background:
+          linear-gradient(
+            to bottom,
+            rgba(0, 0, 0, 0.4),
+            rgba(0, 0, 0, 0.75)
+          ),
+          url("real-ice-bg.jpg") center center / cover no-repeat;
+        color: #e5e7eb;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+      }
+
+      .prize-container {
+        text-align: center;
+        max-width: 800px;
+        padding: 24px;
+      }
+
+      .prize-label {
+        font-size: 12px;
+        letter-spacing: 3px;
+        opacity: 0;
+        text-transform: uppercase;
+        margin-bottom: 10px;
+        filter: blur(10px);
+        transform: scale(0.96);
+      }
+
+      .prize-rarity {
+        display: inline-block;
+        padding: 4px 10px;
+        border-radius: 999px;
+        font-size: 11px;
+        letter-spacing: 2px;
+        text-transform: uppercase;
+        opacity: 0.7;
+        margin-bottom: 6px;
+        background: rgba(15, 23, 42, 0.5);
+        border: 1px solid rgba(148, 163, 184, 0.5);
+      }
+
+      #prize-content {
+        opacity: 0;
+        filter: blur(10px);
+        transform: scale(0.96);
+      }
+
+      #prize-title {
+        font-family: "Crocnew", sans-serif;
+        font-style: normal;
+        font-weight: 500;
+        font-size: clamp(40px, 7vw, 80px);
+        line-height: 1.02;
+        font-stretch: 125%;
+        font-variation-settings: "wdth" 125;
+        text-align: center;
+        text-transform: uppercase;
+        color: #e5e7eb;
+        letter-spacing: 0;
+        margin: 8px 0;
+        text-shadow:
+          0 0 24px rgba(15, 23, 42, 0.8),
+          0 0 60px rgba(15, 23, 42, 1);
+      }
+
+      #prize-nominal {
+        font-size: 14px;
+        opacity: 0.9;
+        margin-top: 4px;
+      }
+
+      #prize-description {
+        font-family: "Crocnew", sans-serif;
+        font-weight: 500;
+        font-style: normal;
+        font-size: clamp(26px, 4vw, 40px);
+        line-height: 1.18;
+        letter-spacing: 0;
+        text-align: center;
+        opacity: 0.9;
+        margin-top: 16px;
+      }
+
+      /* WebGL канвас льда */
+      #ice-canvas {
+        position: absolute;
+        inset: 0;
+        width: 100%;
+        height: 100%;
+        touch-action: none;
+        cursor: crosshair;
+        pointer-events: auto;
+      }
+
+      #game-instruction {
+        position: absolute;
+        bottom: 40px;
+        width: 100%;
+        display: flex;
+        justify-content: center;
+        pointer-events: none;
+      }
+
+      #progress-panel {
+        pointer-events: auto;
+        padding: 14px 20px 12px 20px;
+        min-width: 280px;
+        max-width: 360px;
+        background: rgba(15, 23, 42, 0.72);
+        box-shadow:
+          0 18px 45px rgba(15, 23, 42, 0.9),
+          inset 0 0 0 1px rgba(148, 163, 184, 0.2);
+        backdrop-filter: blur(30px);
+        border-radius: 16px;
+        text-align: center;
+        color: #e5e7eb;
+      }
+
+      #progress-bar {
+        position: relative;
+        width: 100%;
+        height: 6px;
+        margin: 0 auto 6px auto;
+        border-radius: 999px;
+        background: rgba(30, 64, 175, 0.4);
+        overflow: hidden;
+      }
+
+      #progress-bar-fill {
+        height: 100%;
+        width: 0;
+        background: linear-gradient(to right, #bfdbfe, #22d3ee);
+        border-radius: 999px;
+        transform-origin: left center;
+        transition: width 0.25s ease-out;
+      }
+
+      #progress-text {
+        font-size: 11px;
+        letter-spacing: 2px;
+        text-transform: uppercase;
+        color: #e5e7eb;
+      }
+
+      .reveal-zoom {
+        animation: revealZoom 2s cubic-bezier(0.77, 0, 0.175, 1) forwards;
+      }
+
+      @keyframes revealZoom {
+        0% {
+          opacity: 0;
+          transform: scale(0.9);
+          filter: blur(10px);
+        }
+        40% {
+          opacity: 0.3;
+          transform: scale(0.94);
+          filter: blur(6px);
+        }
+        100% {
+          opacity: 1;
+          transform: scale(1);
+          filter: blur(0);
+        }
+      }
+    </style>
+  </head>
+
+  <body>
+    <div id="ice-app-wrapper">
+      <div id="screen-auth" class="fs-screen">
+        <div class="auth-box">
+          <h2 class="ice-title">РАСТОПИ ЛЕД</h2>
+          <p class="ice-subtitle">Растопи лёд и узнай свой подарок</p>
+
+          <div class="ice-form">
+            <input
+              type="email"
+              id="user-email-field"
+              placeholder="name@company.com"
+            />
+            <button id="btn-start-ice">НАЧАТЬ</button>
+          </div>
+        </div>
+      </div>
+
+      <div id="screen-game" class="fs-screen" style="display: none">
+        <div id="prize-underlayer">
+          <div class="prize-container">
+            <p class="prize-label">Твой секретный приз:</p>
+
+            <div id="prize-content">
+              <span id="prize-rarity" class="prize-rarity"></span>
+              <h1 id="prize-title"></h1>
+              <div id="prize-nominal"></div>
+              <p id="prize-description"></p>
+            </div>
+          </div>
+        </div>
+
+        <canvas id="ice-canvas"></canvas>
+
+        <div id="game-instruction">
+          <div id="progress-panel">
+            <div id="progress-bar">
+              <div id="progress-bar-fill"></div>
+            </div>
+            <div id="progress-text">Растопи лёд, чтобы увидеть приз</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <script>
+      $(document).ready(function () {
+        const PRIZE_API = "/api/prize";
+
+        let finalPrize = "";
+        let clearedPercent = 0;
+        const REVEAL_PERCENT = 65;
+        let isAutoMelting = false;
+
+        $("#btn-start-ice").on("click", function () {
+          const email = $("#user-email-field").val().trim().toLowerCase();
+
+          if (!email || !email.includes("@")) {
+            alert("Введите корректную почту");
+            return;
+          }
+
+          $.ajax({
+            url: PRIZE_API,
+            method: "POST",
+            contentType: "application/json",
+            dataType: "json",
+            data: JSON.stringify({ email }),
+            success: function (res) {
+              let prize = null;
+
+              if (res && res.status === "success") {
+                if (res.prize && typeof res.prize === "object") {
+                  prize = res.prize;
+                } else if (typeof res.prize === "string") {
+                  prize = { title: res.prize };
+                } else if (typeof res === "string") {
+                  prize = { title: res };
+                }
+              }
+
+              if (prize) {
+                finalPrize = prize.title || prize.description || "";
+
+                $("#prize-title").text(prize.title || "");
+                $("#prize-rarity").text(prize.rarity || "");
+
+                if (prize.nominalRub) {
+                  $("#prize-nominal").text(
+                    "Номинал: " + prize.nominalRub + " ₽"
+                  );
+                } else {
+                  $("#prize-nominal").text("");
+                }
+
+                $("#prize-description").text(prize.description || "");
+              } else {
+                finalPrize =
+                  (res && res.message) || "Ошибка при получении приза";
+
+                $("#prize-title").text(finalPrize);
+                $("#prize-rarity").text("");
+                $("#prize-nominal").text("");
+                $("#prize-description").text("");
+              }
+            },
+            error: function () {
+              finalPrize = "Проверь таблицу!";
+
+              $("#prize-title").text(finalPrize);
+              $("#prize-rarity").text("");
+              $("#prize-nominal").text("");
+              $("#prize-description").text("");
+            },
+          });
+
+          $("#screen-auth").fadeOut(400, function () {
+            $("#screen-game").fadeIn(200);
+            startIceGame();
+          });
+        });
+
+        function startIceGame() {
+          const canvas = document.getElementById("ice-canvas");
+          const gl =
+            canvas.getContext("webgl", { premultipliedAlpha: false }) ||
+            canvas.getContext("experimental-webgl");
+          const $prizeContent = $("#prize-content");
+          const $prizeLabel = $(".prize-label");
+
+          if (!gl) {
+            alert("WebGL не поддерживается в этом браузере");
+            return;
+          }
+
+          const HOTSPOT_COUNT = 16;
+
+          function resize() {
+            const dpr = window.devicePixelRatio || 1;
+            const width = window.innerWidth;
+            const height = window.innerHeight;
+            canvas.width = width * dpr;
+            canvas.height = height * dpr;
+            canvas.style.width = width + "px";
+            canvas.style.height = height + "px";
+            gl.viewport(0, 0, canvas.width, canvas.height);
+          }
+
+          resize();
+          window.addEventListener("resize", resize);
+
+          gl.clearColor(0, 0, 0, 0);
+          gl.enable(gl.BLEND);
+          gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA);
+
+          const vertexSrc = `
+attribute vec2 a_position;
+varying vec2 v_uv;
+void main() {
+  v_uv = a_position * 0.5 + 0.5;
+  gl_Position = vec4(a_position, 0.0, 1.0);
+}
+`;
+
+          const fragmentSrc = `
+precision mediump float;
+varying vec2 v_uv;
+uniform float u_time;
+uniform vec2 u_hotspots[${16}];
+uniform float u_strengths[${16}];
+
+float hash(vec2 p) {
+  return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453123);
+}
+
+float noise(vec2 p) {
+  vec2 i = floor(p);
+  vec2 f = fract(p);
+
+  float a = hash(i);
+  float b = hash(i + vec2(1.0, 0.0));
+  float c = hash(i + vec2(0.0, 1.0));
+  float d = hash(i + vec2(1.0, 1.0));
+
+  vec2 u = f * f * (3.0 - 2.0 * f);
+
+  return mix(a, b, u.x) +
+         (c - a) * u.y * (1.0 - u.x) +
+         (d - b) * u.x * u.y;
+}
+
+void main() {
+  vec2 uv = v_uv;
+
+  float n1 = noise(uv * 6.0);
+  float n2 = noise(uv * 12.0 + u_time * 0.05);
+
+  // Цвет льда
+  vec3 cold = vec3(0.10, 0.30, 0.55);
+  vec3 light = vec3(0.80, 0.93, 1.0);
+  vec3 iceColor = mix(light, cold, n1 * 0.9 + 0.1);
+
+  // "Трещины" — контрастный шум
+  float crackNoise = noise(uv * 16.0);
+  float crack = smoothstep(0.47, 0.5, abs(crackNoise - 0.5) * 4.0);
+
+  float baseAlpha = 0.82 + 0.18 * crack;
+
+  // Тепло от курсора
+  float heat = 0.0;
+  for (int i = 0; i < ${16}; i++) {
+    vec2 hp = u_hotspots[i];
+    float s = u_strengths[i];
+    if (s <= 0.0) {
+      continue;
+    }
+    float d = distance(uv, hp);
+    float influence = max(0.0, 1.0 - d * 4.0); // радиус плавления
+    heat += influence * s;
+  }
+
+  heat = clamp(heat, 0.0, 1.0);
+
+  // Переход от матового льда к прозрачности
+  float alpha = baseAlpha * (1.0 - heat);
+  alpha = pow(alpha, 1.6);
+
+  // Лёгкая анимация "дыхания" льда
+  float breathing = 0.04 * sin(u_time * 0.5 + n2 * 3.14);
+  alpha = clamp(alpha + breathing, 0.0, 1.0);
+
+  if (alpha < 0.01) {
+    discard;
+  }
+
+  gl_FragColor = vec4(iceColor, alpha);
+}
+`;
+
+          function compileShader(type, source) {
+            const shader = gl.createShader(type);
+            gl.shaderSource(shader, source);
+            gl.compileShader(shader);
+            if (!gl.getShaderParameter(shader, gl.COMPILE_STATUS)) {
+              console.error(gl.getShaderInfoLog(shader));
+              gl.deleteShader(shader);
+              return null;
+            }
+            return shader;
+          }
+
+          const vertShader = compileShader(gl.VERTEX_SHADER, vertexSrc);
+          const fragShader = compileShader(gl.FRAGMENT_SHADER, fragmentSrc);
+          const program = gl.createProgram();
+          gl.attachShader(program, vertShader);
+          gl.attachShader(program, fragShader);
+          gl.linkProgram(program);
+          if (!gl.getProgramParameter(program, gl.LINK_STATUS)) {
+            console.error(gl.getProgramInfoLog(program));
+          }
+          gl.useProgram(program);
+
+          const positionLocation = gl.getAttribLocation(program, "a_position");
+          const timeLocation = gl.getUniformLocation(program, "u_time");
+          const hotspotsLocation = gl.getUniformLocation(
+            program,
+            "u_hotspots"
+          );
+          const strengthsLocation = gl.getUniformLocation(
+            program,
+            "u_strengths"
+          );
+
+          const buffer = gl.createBuffer();
+          gl.bindBuffer(gl.ARRAY_BUFFER, buffer);
+          const vertices = new Float32Array([
+            -1,
+            -1,
+            1,
+            -1,
+            -1,
+            1,
+            -1,
+            1,
+            1,
+            -1,
+            1,
+          ]);
+          gl.bufferData(gl.ARRAY_BUFFER, vertices, gl.STATIC_DRAW);
+          gl.enableVertexAttribArray(positionLocation);
+          gl.vertexAttribPointer(positionLocation, 2, gl.FLOAT, false, 0, 0);
+
+          const hotspotPositions = new Float32Array(HOTSPOT_COUNT * 2);
+          const hotspotStrengths = new Float32Array(HOTSPOT_COUNT);
+          let hotspotIndex = 0;
+
+          function addHotspot(nx, ny, strengthBoost) {
+            const idx = hotspotIndex % HOTSPOT_COUNT;
+            hotspotPositions[idx * 2] = nx;
+            hotspotPositions[idx * 2 + 1] = 1.0 - ny;
+            const base = Math.max(hotspotStrengths[idx], 0.0);
+            hotspotStrengths[idx] = Math.min(1.0, base + (strengthBoost || 0.55));
+            hotspotIndex++;
+          }
+
+          function decayHotspots() {
+            for (let i = 0; i < HOTSPOT_COUNT; i++) {
+              hotspotStrengths[i] *= 0.965;
+              if (hotspotStrengths[i] < 0.01) {
+                hotspotStrengths[i] = 0;
+              }
+            }
+          }
+
+          function getNormCoords(e) {
+            const event = e.originalEvent || e;
+            let clientX, clientY;
+
+            if (event.touches && event.touches.length > 0) {
+              clientX = event.touches[0].clientX;
+              clientY = event.touches[0].clientY;
+            } else {
+              clientX = event.clientX;
+              clientY = event.clientY;
+            }
+
+            const rect = canvas.getBoundingClientRect();
+            const x = (clientX - rect.left) / rect.width;
+            const y = (clientY - rect.top) / rect.height;
+
+            if (x < 0 || x > 1 || y < 0 || y > 1) return null;
+            return { x, y };
+          }
+
+          function updateProgress(delta) {
+            clearedPercent += delta;
+            if (clearedPercent < 0) clearedPercent = 0;
+            if (clearedPercent > 100) clearedPercent = 100;
+
+            $("#progress-bar-fill").css("width", clearedPercent + "%");
+            $("#progress-text").text(
+              "Растоплено: " + Math.round(clearedPercent) + "%"
+            );
+
+            if (
+              finalPrize &&
+              clearedPercent >= REVEAL_PERCENT &&
+              !$prizeContent.hasClass("reveal-zoom")
+            ) {
+              $prizeLabel.addClass("reveal-zoom");
+              $prizeContent.addClass("reveal-zoom");
+            }
+
+            if (clearedPercent >= REVEAL_PERCENT) {
+              startAutoMelt();
+            }
+          }
+
+          function startAutoMelt() {
+            if (isAutoMelting) return;
+            isAutoMelting = true;
+
+            const interval = setInterval(function () {
+              for (let i = 0; i < 6; i++) {
+                addHotspot(Math.random(), Math.random(), 0.4);
+              }
+              updateProgress(1.6);
+
+              if (clearedPercent >= 99) {
+                clearInterval(interval);
+              }
+            }, 80);
+          }
+
+          function scratch(e) {
+            const c = getNormCoords(e);
+            if (!c) return;
+
+            addHotspot(c.x, c.y, 0.55);
+            updateProgress(0.7);
+          }
+
+          canvas.addEventListener("mousemove", scratch);
+          canvas.addEventListener("mousedown", scratch);
+
+          canvas.addEventListener(
+            "touchmove",
+            function (e) {
+              scratch(e);
+              e.preventDefault();
+            },
+            { passive: false }
+          );
+
+          let startTime = performance.now();
+
+          function render(now) {
+            const t = (now - startTime) / 1000;
+
+            decayHotspots();
+
+            gl.clear(gl.COLOR_BUFFER_BIT);
+            gl.useProgram(program);
+            gl.uniform1f(timeLocation, t);
+            gl.uniform2fv(hotspotsLocation, hotspotPositions);
+            gl.uniform1fv(strengthsLocation, hotspotStrengths);
+            gl.drawArrays(gl.TRIANGLES, 0, 6);
+
+            requestAnimationFrame(render);
+          }
+
+          requestAnimationFrame(render);
+        }
+      });
+    </script>
+  </body>
+</html>
+

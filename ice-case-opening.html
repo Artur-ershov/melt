@@ -1,0 +1,450 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8" />
+  <title>Ice Case: Ultimate Edition</title>
+  <style>
+    body { margin: 0; overflow: hidden; background: #050505; font-family: 'Segoe UI', system-ui, sans-serif; user-select: none; }
+    canvas { width: 100vw; height: 100vh; display: block; cursor: crosshair; }
+
+    #game-ui {
+      position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+      pointer-events: none;
+      display: flex; flex-direction: column; align-items: center;
+      padding-top: 40px; z-index: 10;
+    }
+
+    h1 { color: #fff; margin: 0; font-size: 24px; letter-spacing: 4px; text-transform: uppercase; font-weight: 800; text-shadow: 0 2px 10px rgba(0,0,0,0.5); }
+    .subtitle { color: #6ab4ff; font-size: 12px; letter-spacing: 2px; opacity: 0.9; margin-top: 5px; text-shadow: 0 2px 10px rgba(0,0,0,0.5); }
+
+    #progress-container {
+      width: 320px; height: 4px; background: rgba(255,255,255,0.1);
+      margin-top: 15px; border-radius: 2px; overflow: hidden; backdrop-filter: blur(4px);
+    }
+    #progress-fill {
+      width: 0%; height: 100%; background: #6ab4ff;
+      box-shadow: 0 0 15px #6ab4ff; transition: width 0.1s linear;
+    }
+
+    #win-screen {
+      position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%) scale(0.9);
+      background: rgba(12, 20, 35, 0.95);
+      border: 1px solid rgba(255,255,255,0.1);
+      box-shadow: 0 0 50px rgba(0,100,255,0.2), inset 0 0 20px rgba(0,0,0,0.5);
+      backdrop-filter: blur(20px);
+      padding: 50px; text-align: center; border-radius: 24px;
+      opacity: 0; pointer-events: none; transition: all 0.6s cubic-bezier(0.22, 1, 0.36, 1);
+      z-index: 100; min-width: 300px;
+    }
+    #win-screen.visible { opacity: 1; transform: translate(-50%, -50%) scale(1); pointer-events: auto; }
+
+    .rarity-badge {
+      display: inline-block; padding: 6px 14px; border-radius: 6px;
+      font-size: 11px; font-weight: 800; text-transform: uppercase; letter-spacing: 2px;
+      margin-bottom: 20px; color: #000; box-shadow: 0 2px 10px rgba(0,0,0,0.3);
+    }
+    #item-name { font-size: 32px; color: #fff; margin: 0 0 10px; font-weight: 900; letter-spacing: 1px; }
+    #item-desc { color: #8a9bb0; margin-bottom: 35px; font-size: 13px; }
+    
+    button.btn-restart {
+      background: linear-gradient(135deg, #fff, #e0e0e0); 
+      color: #000; border: none; padding: 16px 40px;
+      font-size: 14px; font-weight: 800; letter-spacing: 1px; cursor: pointer; border-radius: 50px;
+      transition: transform 0.2s, box-shadow 0.2s;
+      text-transform: uppercase;
+    }
+    button.btn-restart:hover { transform: translateY(-2px); box-shadow: 0 5px 20px rgba(255,255,255,0.4); }
+
+    #controls {
+      position: fixed; top: 0; right: 0; bottom: 0; width: 280px;
+      background: rgba(8, 12, 18, 0.95); backdrop-filter: blur(15px);
+      border-left: 1px solid rgba(255,255,255,0.08);
+      z-index: 50; overflow-y: auto; pointer-events: auto;
+      transform: translateX(0); transition: transform 0.3s ease;
+      display: flex; flex-direction: column;
+    }
+    #controls.hidden { transform: translateX(100%); }
+
+    .panel-header { padding: 20px; border-bottom: 1px solid rgba(255,255,255,0.05); }
+    .panel-title { color: #fff; font-size: 14px; font-weight: 700; text-transform: uppercase; letter-spacing: 1.5px; }
+    .panel-hint { color: #556677; font-size: 10px; margin-top: 4px; }
+
+    .group { padding: 20px; border-bottom: 1px solid rgba(255,255,255,0.03); }
+    .group-title { color: #6ab4ff; font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 12px; }
+
+    .ctrl-row { display: flex; align-items: center; margin-bottom: 10px; }
+    .ctrl-row label { flex: 1; color: #ccc; font-size: 11px; opacity: 0.8; }
+    .ctrl-row input[type=range] { 
+      flex: 1; height: 4px; background: #223; border-radius: 2px; -webkit-appearance: none; outline: none; 
+    }
+    .ctrl-row input[type=range]::-webkit-slider-thumb {
+      -webkit-appearance: none; width: 12px; height: 12px; border-radius: 50%; background: #6ab4ff; cursor: pointer;
+    }
+    .val { width: 30px; text-align: right; color: #6ab4ff; font-family: monospace; font-size: 10px; margin-left: 8px; }
+
+    #toggle-hint { position: fixed; bottom: 15px; right: 15px; color: rgba(255,255,255,0.2); font-size: 10px; pointer-events: none; z-index: 40; transition: opacity 0.3s; }
+    
+    #loader {
+      position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+      background: #000; color: #6ab4ff;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 12px; letter-spacing: 2px; text-transform: uppercase; z-index: 200; transition: opacity 0.5s;
+    }
+  </style>
+</head>
+<body>
+
+<div id="loader">Загрузка ресурсов...</div>
+
+<div id="game-ui">
+  <h1>Ice Breaker</h1>
+  <div class="subtitle">Растопи слой, чтобы забрать приз</div>
+  <div id="progress-container"><div id="progress-fill"></div></div>
+</div>
+
+<div id="toggle-hint">Нажми [H] чтобы скрыть панель</div>
+
+<div id="controls">
+  <div class="panel-header">
+    <div class="panel-title">Настройки</div>
+    <div class="panel-hint">Твикинг в реальном времени</div>
+  </div>
+
+  <div class="group">
+    <div class="group-title">Кисть / Таяние</div>
+    <div class="ctrl-row"><label>Радиус</label><input id="s-meltRadius" type="range" min="0.1" max="1.0" step="0.01" value="0.35"><span class="val">0.35</span></div>
+    <div class="ctrl-row"><label>Сила (Скорость)</label><input id="s-meltSpeed" type="range" min="0.01" max="0.2" step="0.01" value="0.05"><span class="val">0.05</span></div>
+    <div class="ctrl-row"><label>Блеск кромки</label><input id="s-wetness" type="range" min="0" max="1" step="0.01" value="0.6"><span class="val">0.60</span></div>
+  </div>
+
+  <div class="group">
+    <div class="group-title">Лёд (Материал)</div>
+    <div class="ctrl-row"><label>Мутность</label><input id="s-frostOpacity" type="range" min="0" max="1" step="0.01" value="0.85"><span class="val">0.85</span></div>
+    <div class="ctrl-row"><label>Рельеф</label><input id="s-normalStr" type="range" min="0" max="2" step="0.1" value="1.0"><span class="val">1.0</span></div>
+    <div class="ctrl-row"><label>Преломление</label><input id="s-refract" type="range" min="0" max="0.15" step="0.001" value="0.06"><span class="val">0.06</span></div>
+    <div class="ctrl-row"><label>Аберрация (RGB)</label><input id="s-chroma" type="range" min="0" max="0.05" step="0.001" value="0.015"><span class="val">0.015</span></div>
+  </div>
+
+  <div class="group">
+    <div class="group-title">Пост-процесс</div>
+    <div class="ctrl-row"><label>Экспозиция</label><input id="s-exposure" type="range" min="0.5" max="2.0" step="0.05" value="1.0"><span class="val">1.0</span></div>
+    <div class="ctrl-row"><label>Контраст</label><input id="s-contrast" type="range" min="0.5" max="1.5" step="0.05" value="1.1"><span class="val">1.1</span></div>
+    <div class="ctrl-row"><label>Насыщенность</label><input id="s-saturation" type="range" min="0" max="2" step="0.05" value="1.2"><span class="val">1.2</span></div>
+  </div>
+</div>
+
+<div id="win-screen">
+  <div id="win-rarity" class="rarity-badge">Legendary</div>
+  <h2 id="item-name">Item Name</h2>
+  <div id="item-desc">Вы успешно растопили лёд!</div>
+  <button class="btn-restart" onclick="location.reload()">Следующий кейс</button>
+</div>
+
+<canvas id="gl-canvas"></canvas>
+
+<script>
+(function(){
+  const ITEMS = [
+    { name: "Forest DDPAT", rarity: "Common",    color: "#b0c3d9", img: "nature.jpg" },
+    { name: "Redline",      rarity: "Rare",      color: "#eb4b4b", img: "nature.jpg" },
+    { name: "Asiimov",      rarity: "Legendary", color: "#d32ce6", img: "nature.jpg" },
+    { name: "Dragon Lore",  rarity: "Arcana",    color: "#e4ae39", img: "nature.jpg" }
+  ];
+  const PRIZE = ITEMS[Math.floor(Math.random() * ITEMS.length)];
+
+  const PARAMS = {
+    meltRadius: 0.35,
+    meltSpeed: 0.05,
+    wetness: 0.6,
+    frostOpacity: 0.85,
+    normalStr: 1.0,
+    refract: 0.06,
+    chroma: 0.015,
+    exposure: 1.0,
+    contrast: 1.1,
+    saturation: 1.2
+  };
+
+  const canvas = document.getElementById('gl-canvas');
+  const gl = canvas.getContext('webgl', { alpha: false, depth: false, premultipliedAlpha: false }) || canvas.getContext('experimental-webgl');
+  if (!gl) return;
+
+  function resize(){
+    const dpr = Math.min(window.devicePixelRatio || 1, 2);
+    canvas.width = window.innerWidth * dpr;
+    canvas.height = window.innerHeight * dpr;
+    gl.viewport(0, 0, canvas.width, canvas.height);
+  }
+  window.addEventListener('resize', resize); resize();
+  gl.clearColor(0.05, 0.05, 0.08, 1.0);
+
+  const VS = "attribute vec2 a_pos; varying vec2 v_uv; void main(){ v_uv = a_pos * 0.5 + 0.5; gl_Position = vec4(a_pos,0.0,1.0); }";
+  const FS = `
+precision highp float;
+varying vec2 v_uv;
+
+uniform sampler2D u_prizeTex;
+uniform sampler2D u_iceNorm, u_iceFrost, u_iceOpacity, u_iceRough;
+uniform sampler2D u_meltMap;
+
+uniform vec2 u_ratio;
+uniform float u_frostOpacity, u_normalStr, u_refract, u_chroma, u_wetness, u_exposure, u_contrast, u_saturation;
+
+vec3 adjustSaturation(vec3 color, float value) {
+  float gray = dot(color, vec3(0.299, 0.587, 0.114));
+  return mix(vec3(gray), color, value);
+}
+vec3 adjustContrast(vec3 color, float value) {
+  return 0.5 + value * (color - 0.5);
+}
+
+void main() {
+  float melt = texture2D(u_meltMap, v_uv).r;
+  float cleanMelt = smoothstep(0.0, 0.98, melt);
+
+  vec3 iceN = normalize(texture2D(u_iceNorm, v_uv).rgb * 2.0 - 1.0);
+  vec3 finalN = mix(iceN * u_normalStr, vec3(0,0,1), cleanMelt);
+
+  float refrStr = u_refract * (1.0 - cleanMelt);
+  vec2 uvBase = v_uv;
+  
+  float r = texture2D(u_prizeTex, uvBase + finalN.xy * refrStr * (1.0 - u_chroma)).r;
+  float g = texture2D(u_prizeTex, uvBase + finalN.xy * refrStr).g;
+  float b = texture2D(u_prizeTex, uvBase + finalN.xy * refrStr * (1.0 + u_chroma)).b;
+  vec3 prizeCol = vec3(r, g, b);
+
+  float opacityMap = texture2D(u_iceOpacity, v_uv).r;
+  vec3 frostTex = texture2D(u_iceFrost, v_uv).rgb;
+  float prizeLum = dot(prizeCol, vec3(0.33));
+  vec3 frostLit = frostTex * (0.8 + prizeLum * 0.5);
+
+  float frostVis = opacityMap * u_frostOpacity * (1.0 - cleanMelt);
+  vec3 composite = mix(prizeCol, frostLit, frostVis);
+
+  vec3 lightDir = normalize(vec3(0.2, 0.5, 1.0)); 
+  vec3 halfDir = normalize(lightDir + vec3(0,0,1));
+  
+  float rough = texture2D(u_iceRough, v_uv).r;
+  float shininess = mix(mix(15.0, 5.0, rough), 80.0, melt);
+  float specBase = pow(max(dot(finalN, halfDir), 0.0), shininess);
+  
+  float edge = smoothstep(0.0, 0.1, melt) * (1.0 - smoothstep(0.9, 1.0, melt));
+  float wetSpec = specBase * (1.0 + edge * u_wetness * 5.0);
+  wetSpec *= (1.0 - cleanMelt);
+  
+  composite += wetSpec;
+
+  composite = adjustContrast(composite, u_contrast);
+  composite = adjustSaturation(composite, u_saturation);
+  composite *= u_exposure;
+
+  gl_FragColor = vec4(clamp(composite, 0.0, 1.0), 1.0);
+}
+`;
+
+  const prog = gl.createProgram();
+  const sh = (t, s) => { const i=gl.createShader(t); gl.shaderSource(i,s); gl.compileShader(i); return i; };
+  gl.attachShader(prog, sh(gl.VERTEX_SHADER, VS));
+  gl.attachShader(prog, sh(gl.FRAGMENT_SHADER, FS));
+  gl.linkProgram(prog);
+  if (!gl.getProgramParameter(prog, gl.LINK_STATUS)) { console.error(gl.getProgramInfoLog(prog)); return; }
+  gl.useProgram(prog);
+
+  const quad = new Float32Array([-1,-1, 1,-1, -1,1, -1,1, 1,-1, 1,1]);
+  gl.bindBuffer(gl.ARRAY_BUFFER, gl.createBuffer());
+  gl.bufferData(gl.ARRAY_BUFFER, quad, gl.STATIC_DRAW);
+  const aPos = gl.getAttribLocation(prog, "a_pos");
+  gl.enableVertexAttribArray(aPos);
+  gl.vertexAttribPointer(aPos, 2, gl.FLOAT, false, 0, 0);
+
+  const U = {};
+  ['prizeTex','iceNorm','iceFrost','iceOpacity','iceRough','meltMap','ratio',
+   'frostOpacity','normalStr','refract','chroma','wetness','exposure','contrast','saturation']
+   .forEach(n => U[n] = gl.getUniformLocation(prog, 'u_' + n));
+
+  const textureObjs = {};
+  let loaded = 0;
+  const files = {
+    prizeTex: PRIZE.img,
+    iceNorm: 'prompt1.png', iceFrost: 'prompt2.png', iceOpacity: 'prompt3.png', iceRough: 'prompt4.png'
+  };
+
+  function createPlaceholder() {
+    const t = gl.createTexture();
+    gl.bindTexture(gl.TEXTURE_2D, t);
+    gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, 1, 1, 0, gl.RGBA, gl.UNSIGNED_BYTE, new Uint8Array([0,0,255,255]));
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+    return t;
+  }
+
+  function checkLoad(){
+    loaded++;
+    if(loaded === 5) {
+      const loader = document.getElementById('loader');
+      loader.style.opacity = 0;
+      setTimeout(()=> loader.style.display='none', 500);
+      startLoop();
+    }
+  }
+
+  Object.keys(files).forEach((key, i) => {
+    const img = new Image();
+    img.crossOrigin = "anonymous";
+    img.onload = () => {
+      const t = gl.createTexture();
+      gl.bindTexture(gl.TEXTURE_2D, t);
+      gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, key === 'prizeTex' ? 1 : 0);
+      gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, img);
+      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
+      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
+      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+      textureObjs[key] = t;
+      checkLoad();
+    };
+    img.onerror = () => {
+      console.warn("Miss:", key);
+      textureObjs[key] = createPlaceholder();
+      checkLoad();
+    };
+    img.src = files[key];
+  });
+
+  const meltSize = 1024;
+  const meltCanvas = document.createElement('canvas');
+  meltCanvas.width = meltCanvas.height = meltSize;
+  const meltCtx = meltCanvas.getContext('2d');
+  meltCtx.fillStyle = '#000'; meltCtx.fillRect(0,0,meltSize,meltSize);
+  const meltTex = gl.createTexture();
+  gl.bindTexture(gl.TEXTURE_2D, meltTex);
+  gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, meltCanvas);
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+
+  let mouse = { x: -1, y: -1 };
+  let isWon = false;
+  let frame = 0;
+
+  function updateInput(x, y) {
+    if(isWon) return;
+    mouse.x = x / window.innerWidth;
+    mouse.y = 1.0 - (y / window.innerHeight);
+  }
+
+  canvas.addEventListener('mousemove', e => updateInput(e.clientX, e.clientY));
+  canvas.addEventListener('touchmove', e => { e.preventDefault(); updateInput(e.touches[0].clientX, e.touches[0].clientY); }, {passive:false});
+
+  document.querySelectorAll('#controls input[type=range]').forEach(inp => {
+    inp.addEventListener('input', e => {
+      const k = e.target.id.replace('s-','');
+      const v = parseFloat(e.target.value);
+      PARAMS[k] = v;
+      e.target.nextElementSibling.innerText = (k==='refract' ? v.toFixed(3) : v.toFixed(2));
+    });
+  });
+
+  window.addEventListener('keydown', e => {
+    if(e.key.toLowerCase() === 'h') {
+      const c = document.getElementById('controls');
+      c.classList.toggle('hidden');
+      document.getElementById('toggle-hint').style.opacity = c.classList.contains('hidden') ? 0.2 : 0;
+    }
+  });
+
+  function checkWin() {
+    if(isWon) return;
+    const small = 64;
+    const tmp = document.createElement('canvas');
+    tmp.width = tmp.height = small;
+    const tctx = tmp.getContext('2d');
+    tctx.drawImage(meltCanvas, 0,0,small,small);
+    const data = tctx.getImageData(0,0,small,small).data;
+    let count = 0;
+    for(let i=0;i<data.length;i+=4) if(data[i] > 100) count++;
+    const percent = count / (small*small);
+    
+    document.getElementById('progress-fill').style.width = (percent * 100) + '%';
+    
+    if(percent > 0.85) doWin();
+  }
+
+  function doWin() {
+    isWon = true;
+    meltCtx.fillStyle = '#fff';
+    meltCtx.fillRect(0,0,meltSize,meltSize);
+    gl.bindTexture(gl.TEXTURE_2D, meltTex);
+    gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, true);
+    gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, meltCanvas);
+    gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, false);
+
+    const win = document.getElementById('win-screen');
+    const badge = document.getElementById('win-rarity');
+    document.getElementById('item-name').innerText = PRIZE.name;
+    badge.innerText = PRIZE.rarity;
+    badge.style.background = PRIZE.color;
+    badge.style.color = (PRIZE.rarity === 'Common') ? '#000' : '#fff';
+    badge.style.boxShadow = '0 0 20px ' + PRIZE.color;
+    win.classList.add('visible');
+  }
+
+  function startLoop() {
+    function loop() {
+      if(mouse.x >= 0 && !isWon) {
+        const cx = mouse.x * meltSize;
+        const cy = (1.0 - mouse.y) * meltSize;
+        const rad = PARAMS.meltRadius * 300.0;
+        meltCtx.globalCompositeOperation = 'lighter';
+        const g = meltCtx.createRadialGradient(cx, cy, 0, cx, cy, rad);
+        g.addColorStop(0, 'rgba(255,255,255,' + PARAMS.meltSpeed + ')');
+        g.addColorStop(1, 'rgba(255,255,255,0)');
+        meltCtx.fillStyle = g;
+        meltCtx.beginPath(); meltCtx.arc(cx, cy, rad, 0, Math.PI*2.0); meltCtx.fill();
+        meltCtx.globalCompositeOperation = 'source-over';
+        mouse.x = -1;
+      }
+
+      gl.activeTexture(gl.TEXTURE5);
+      gl.bindTexture(gl.TEXTURE_2D, meltTex);
+      gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, true);
+      gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, meltCanvas);
+      gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, false);
+
+      gl.clear(gl.COLOR_BUFFER_BIT);
+      const keys = ['prizeTex','iceNorm','iceFrost','iceOpacity','iceRough'];
+      keys.forEach((k,i) => {
+        gl.activeTexture(gl.TEXTURE0+i);
+        gl.bindTexture(gl.TEXTURE_2D, textureObjs[k]);
+      });
+
+      gl.uniform1i(U.prizeTex, 0); 
+      gl.uniform1i(U.iceNorm, 1);
+      gl.uniform1i(U.iceFrost, 2); 
+      gl.uniform1i(U.iceOpacity, 3);
+      gl.uniform1i(U.iceRough, 4); 
+      gl.uniform1i(U.meltMap, 5);
+      
+      gl.uniform2f(U.ratio, canvas.width/canvas.height, 1.0);
+      
+      for(let k in PARAMS) {
+        if(U[k]) gl.uniform1f(U[k], PARAMS[k]);
+      }
+
+      gl.drawArrays(gl.TRIANGLES, 0, 6);
+
+      frame++;
+      if(frame % 10 === 0) checkWin();
+      
+      requestAnimationFrame(loop);
+    }
+    loop();
+  }
+})();
+</script>
+</body>
+</html>
+

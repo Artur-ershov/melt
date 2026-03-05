@@ -1,0 +1,954 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8" />
+  <title>Растопи лед</title>
+  <style>
+    @font-face {
+      font-family: "Crocnew";
+      src: url("CoFoWeather20240219-VF.ttf") format("truetype");
+      font-weight: 100 900;
+      font-stretch: 75% 125%;
+      font-style: normal;
+    }
+
+    *, *::before, *::after { box-sizing: border-box; }
+    body { margin: 0; overflow: hidden; background: #000; font-family: "Crocnew", system-ui, sans-serif; }
+    canvas { width: 100vw; height: 100vh; display: block; cursor: none; }
+
+    .glass {
+      background: rgba(235, 239, 243, 0.52);
+      backdrop-filter: blur(26px);
+      -webkit-backdrop-filter: blur(26px);
+      border: 1px solid rgba(255,255,255,0.55);
+      box-shadow: inset 0 1px 0 rgba(255,255,255,0.65), 0 16px 48px rgba(0,0,0,0.14);
+    }
+
+    /* ── Auth screen ── */
+    #screen-auth {
+      position: fixed; inset: 0; z-index: 300;
+      display: flex; align-items: center; justify-content: center;
+      transition: opacity 0.5s ease;
+    }
+    #screen-auth.fade-out { opacity: 0; pointer-events: none; }
+
+    .auth-box { text-align: center; padding: 52px 44px 44px; border-radius: 24px; width: 360px; }
+    .auth-box.glass {
+      background: rgba(235, 239, 243, 0.4);
+      box-shadow:
+        inset 47.7368px -47.7368px 47.7368px rgba(165, 165, 165, 0.094),
+        inset -47.7368px 47.7368px 47.7368px rgba(255, 255, 255, 0.094);
+      backdrop-filter: blur(50px);
+      -webkit-backdrop-filter: blur(50px);
+    }
+    .ice-title {
+      font-size: 36px; font-weight: 400; letter-spacing: 4px; margin: 0 0 10px;
+      text-transform: uppercase; color: #555758; line-height: 1;
+      font-variation-settings: "wdth" 125;
+    }
+    .ice-subtitle { font-size: 14px; color: #555758; margin: 0 0 34px; font-weight: 400; line-height: 1.5; }
+    .auth-box input[type=email] {
+      display: block; width: 100%; padding: 17px 24px; border-radius: 50px;
+      border: 1px solid rgba(0,0,0,0.13); background: rgba(255,255,255,0.75);
+      color: #111; font-size: 16px; font-family: inherit; margin-bottom: 6px; outline: none;
+      transition: border-color 0.2s, box-shadow 0.2s;
+    }
+    .auth-box input[type=email]:focus { border-color: rgba(0,0,0,0.3); box-shadow: 0 0 0 3px rgba(0,0,0,0.06); }
+    .auth-box input[type=email]::placeholder { color: #bbb; }
+    .auth-box input[type=email].invalid { border-color: #e53935; box-shadow: 0 0 0 2px rgba(229,57,53,0.15); }
+    .field-error {
+      min-height: 16px;
+      font-size: 11px;
+      color: #e53935;
+      text-align: left;
+      padding: 0 4px 4px 4px;
+    }
+    .auth-box select.employee-select {
+      display: block;
+      width: 100%;
+      padding: 17px 24px;
+      padding-right: 44px;
+      border-radius: 50px;
+      border: 1px solid rgba(0,0,0,0.13);
+      background: rgba(255,255,255,0.75) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%23555758' d='M6 8L1 3h10z'/%3E%3C/svg%3E") no-repeat right 18px center;
+      color: #111;
+      font-size: 16px;
+      font-family: inherit;
+      margin-bottom: 14px;
+      outline: none;
+      cursor: pointer;
+      transition: border-color 0.2s, box-shadow 0.2s;
+      -webkit-appearance: none;
+      appearance: none;
+      box-sizing: border-box;
+    }
+    .auth-box select.employee-select:hover,
+    .auth-box select.employee-select:focus {
+      border-color: rgba(0,0,0,0.3);
+      box-shadow: 0 0 0 3px rgba(0,0,0,0.06);
+    }
+    .auth-box select.employee-select:invalid {
+      color: #bbb;
+    }
+    #btn-start {
+      display: block; width: 100%; padding: 17px; border-radius: 50px; border: none;
+      background: #555758; color: #fff; font-family: inherit; font-size: 13px; font-weight: 400;
+      letter-spacing: 2.5px; text-transform: uppercase; cursor: pointer;
+      font-variation-settings: "wdth" 125;
+      transition: background 0.2s, transform 0.15s;
+    }
+    #btn-start:hover { background: #6a6c6d; transform: translateY(-1px); }
+    #btn-start:active { transform: translateY(0); }
+
+    /* ── HUD прогресс ── */
+    #game-hud {
+      position: fixed; bottom: 28px; left: 50%; transform: translateX(-50%);
+      z-index: 40; pointer-events: none; opacity: 0; transition: opacity 0.5s;
+      min-width: 280px; padding: 14px 22px 13px; border-radius: 16px;
+    }
+    #game-hud.visible { opacity: 1; }
+    #hud-label {
+      display: flex; justify-content: space-between; align-items: center;
+      font-size: 10px; letter-spacing: 2px; text-transform: uppercase;
+      color: rgba(0,0,0,0.55); font-weight: 700; margin-bottom: 8px;
+    }
+    #hud-pct { font-family: monospace; color: #333; }
+    #hud-bar { width: 100%; height: 5px; border-radius: 999px; background: rgba(0,0,0,0.1); overflow: hidden; }
+    #hud-fill { height: 100%; width: 0%; border-radius: inherit; background: linear-gradient(90deg,#444,#111); transition: width 0.3s ease-out; }
+
+    /* ── Prize popup ── */
+    #prize-overlay {
+      position: fixed; inset: 0; z-index: 250;
+      display: flex; align-items: center; justify-content: center;
+      background: transparent;
+      opacity: 0; pointer-events: none; transition: opacity 0.7s ease;
+    }
+    #prize-overlay.visible { opacity: 1; pointer-events: auto; }
+    .prize-box {
+      text-align: center; padding: 56px 52px 48px; border-radius: 28px; max-width: 580px; width: 92%;
+      opacity: 0; transform: scale(0.88); filter: blur(14px);
+    }
+    .prize-box.reveal-in {
+      animation: revealZoom 1.3s cubic-bezier(0.77,0,0.175,1) forwards;
+    }
+    .prize-box.glass {
+      background: rgba(235, 239, 243, 0.4);
+      box-shadow:
+        inset 47.7368px -47.7368px 47.7368px rgba(165, 165, 165, 0.094),
+        inset -47.7368px 47.7368px 47.7368px rgba(255, 255, 255, 0.094);
+      backdrop-filter: blur(50px);
+      -webkit-backdrop-filter: blur(50px);
+    }
+    .prize-eyebrow {
+      font-size: 11px; letter-spacing: 3px; text-transform: uppercase;
+      color: #555758; margin: 0 0 22px; font-weight: 400;
+    }
+    #pp-title {
+      font-size: 52px; font-weight: 400; line-height: 1; text-transform: uppercase;
+      color: #555758; margin: 0 0 14px; font-variation-settings: "wdth" 125;
+    }
+    #pp-subtitle {
+      font-size: 13px; color: #555758; margin: 0 0 10px; font-weight: 400; line-height: 1.3;
+    }
+    #pp-desc {
+      font-size: 20px; color: #555758; margin: 0 0 10px; font-weight: 400; line-height: 1.4;
+    }
+    .prize-close {
+      display: inline-block; padding: 14px 38px; border-radius: 50px;
+      border: 1.5px solid rgba(0,0,0,0.18); background: transparent; color: #555758;
+      font-family: inherit; font-size: 11px; font-weight: 400; letter-spacing: 2px;
+      text-transform: uppercase; cursor: pointer; transition: background 0.2s, color 0.2s;
+    }
+    .prize-close:hover { background: #555758; color: #fff; }
+
+    @keyframes revealZoom {
+      0%   { opacity: 0; transform: scale(0.88); filter: blur(14px); }
+      60%  { opacity: 0.7; transform: scale(0.98); filter: blur(3px); }
+      100% { opacity: 1; transform: scale(1);    filter: blur(0); }
+    }
+    .reveal-in { animation: revealZoom 1.3s cubic-bezier(0.77,0,0.175,1) forwards; }
+
+    @media (max-width: 768px) {
+      #pp-title { font-size: 36px; }
+    }
+
+    /* ── Dev panel (скрыта по умолчанию, [H] для открытия) ── */
+    #ui-container {
+      position: fixed; top: 0; right: 0; bottom: 0; width: 380px;
+      background: rgba(235,239,243,0.72); backdrop-filter: blur(24px); -webkit-backdrop-filter: blur(24px);
+      border-left: 1px solid rgba(255,255,255,0.5); box-shadow: -10px 0 40px rgba(0,0,0,0.1);
+      overflow-y: auto; z-index: 200; transform: translateX(100%);
+      transition: transform 0.4s cubic-bezier(0.16,1,0.3,1); display: flex; flex-direction: column;
+    }
+    #ui-container.open { transform: translateX(0); }
+    .panel-header { padding: 24px; border-bottom: 1px solid rgba(0,0,0,0.07); background: rgba(255,255,255,0.35); flex-shrink: 0; }
+    .panel-header h1 { margin: 0; font-size: 13px; color: #111; text-transform: uppercase; letter-spacing: 4px; font-weight: 900; }
+    .panel-header .sub { font-size: 9px; color: #4facfe; margin-top: 5px; letter-spacing: 1.5px; font-family: monospace; }
+    .controls-area { flex: 1; padding: 18px; scrollbar-width: thin; scrollbar-color: #ccc #f0f4f8; }
+    .section { margin-bottom: 26px; border-left: 2px solid rgba(79,172,254,0.3); padding-left: 14px; }
+    .section-title { font-size: 10px; font-weight: 800; color: #4facfe; text-transform: uppercase; margin-bottom: 14px; letter-spacing: 1px; }
+    .control-row { display: flex; justify-content: space-between; align-items: center; margin-bottom: 9px; font-size: 11px; color: #445; }
+    .control-row label { flex: 1; padding-right: 12px; cursor: default; }
+    .control-row:hover label { color: #111; }
+    input[type=range] { width: 130px; height: 3px; -webkit-appearance: none; background: rgba(0,0,0,0.12); border-radius: 2px; outline: none; }
+    input[type=range]::-webkit-slider-thumb { -webkit-appearance: none; width: 10px; height: 10px; border-radius: 50%; background: #333; cursor: pointer; border: 1px solid #fff; transition: 0.2s; }
+    input[type=range]::-webkit-slider-thumb:hover { transform: scale(1.4); background: #000; }
+    .val { width: 35px; text-align: right; color: #4facfe; font-family: monospace; font-size: 10px; font-weight: bold; }
+    select { width: 100%; padding: 8px; background: rgba(255,255,255,0.6); color: #111; border: 1px solid rgba(0,0,0,0.14); border-radius: 4px; font-size: 11px; outline: none; cursor: pointer; margin-bottom: 10px; }
+    select:hover { border-color: #4facfe; }
+    .toggle-row { display: flex; background: rgba(0,0,0,0.06); border-radius: 4px; padding: 3px; margin-bottom: 10px; border: 1px solid rgba(0,0,0,0.1); }
+    .tb { flex: 1; text-align: center; padding: 7px; font-size: 10px; cursor: pointer; color: #888; transition: 0.2s; font-weight: 800; text-transform: uppercase; border-radius: 2px; }
+    .tb.active { background: #4facfe; color: #fff; }
+    .check-row { display: flex; align-items: center; margin-bottom: 9px; cursor: pointer; font-size: 11px; color: #333; }
+    .check-row input { margin-right: 10px; width: 14px; height: 14px; accent-color: #4facfe; }
+    .lbl-r { color: #d03030; } .lbl-g { color: #1a8a3a; } .lbl-b { color: #1a5fc0; }
+    .act-group { display: flex; gap: 8px; margin-bottom: 14px; }
+    .act-btn { flex: 1; padding: 8px; background: rgba(255,255,255,0.5); color: #4facfe; border: 1px solid rgba(0,0,0,0.1); border-radius: 4px; font-size: 10px; font-weight: bold; text-transform: uppercase; cursor: pointer; transition: 0.2s; font-family: inherit; }
+    .act-btn:hover { background: #4facfe; color: #fff; }
+    .mode-1 { display: none; }
+
+    /* ── Loader ── */
+    #loader {
+      position: fixed; inset: 0; z-index: 500;
+      background: rgba(235,239,243,0.97); backdrop-filter: blur(20px);
+      display: flex; flex-direction: column; align-items: center; justify-content: center;
+      color: #111; letter-spacing: 3px; transition: opacity 0.6s;
+    }
+    #loader-text { margin-top: 14px; font-size: 11px; color: #999; letter-spacing: 2px; }
+
+    #hint { position: fixed; bottom: 20px; left: 20px; color: rgba(0,0,0,0.3); font-size: 10px; letter-spacing: 2px; pointer-events: none; text-transform: uppercase; z-index: 10; font-weight: bold; opacity: 0; transition: opacity 0.4s; }
+    #hint.show { opacity: 1; }
+  </style>
+</head>
+<body>
+
+<div id="loader">
+  <div>ЗАГРУЗКА...</div>
+  <div id="loader-text">Подготовка льда</div>
+</div>
+
+<!-- Экран почты -->
+<div id="screen-auth">
+  <div class="auth-box glass">
+    <h2 class="ice-title">РАСТОПИ ЛЕД</h2>
+    <p class="ice-subtitle">Растопи лед и узнай свой подарок</p>
+    <input type="email" id="email-field" placeholder="login@croc.ru" autocomplete="email" />
+    <div id="email-error" class="field-error"></div>
+    <select id="employee-type" class="employee-select" required>
+      <option value="" selected disabled hidden>Откуда ты</option>
+      <option value="moscow">Сотрудник московского офиса</option>
+      <option value="regional">Сотрудник регионального офиса</option>
+      <option value="remote">Удаленный сотрудник</option>
+    </select>
+    <button id="btn-start">НАЧАТЬ</button>
+  </div>
+</div>
+
+<!-- HUD -->
+<div id="game-hud" class="glass">
+  <div id="hud-label">
+    <span>Растопи лед</span>
+    <span id="hud-pct">0%</span>
+  </div>
+  <div id="hud-bar"><div id="hud-fill"></div></div>
+</div>
+
+<!-- Приз -->
+<div id="prize-overlay">
+  <div class="prize-box glass">
+    <p class="prize-eyebrow">Твой подарок</p>
+    <div id="prize-inner">
+      <h1 id="pp-title">🎁</h1>
+      <p id="pp-subtitle"></p>
+      <p id="pp-desc"></p>
+    </div>
+    <button class="prize-close" id="btn-prize-close">Закрыть</button>
+  </div>
+</div>
+
+<!-- Dev panel -->
+<div id="ui-container">
+  <div class="panel-header">
+    <h1>Dev Console</h1>
+    <div class="sub">ENHANCED · MEADOW · [H] ЗАКРЫТЬ</div>
+  </div>
+  <div class="controls-area">
+    <div class="section">
+      <div class="section-title">Configuration</div>
+      <div class="act-group">
+        <button class="act-btn" id="btn-export">Copy JSON</button>
+        <button class="act-btn" id="btn-import">Paste JSON</button>
+      </div>
+    </div>
+    <div class="section">
+      <div class="section-title">Environment</div>
+      <select id="preset-selector"><option value="0">Фон: 1.jpg (без нормалей)</option></select>
+      <input type="file" id="bg-file-input" accept="image/*" style="display:none">
+      <div class="act-group" style="margin-top:6px">
+        <button type="button" class="act-btn" id="btn-bg-upload">Загрузить свой фон</button>
+      </div>
+      <div class="control-row"><label>Parallax Power</label><input id="p-parallax" type="range" min="0" max="0.1" step="0.001" value="0.007"><span class="val">0.007</span></div>
+      <div class="control-row"><label>Window Glow</label><input id="p-emissive" type="range" min="0" max="5" step="0.1" value="0"><span class="val">0.00</span></div>
+    </div>
+    <div class="section">
+      <div class="section-title">Engine</div>
+      <div class="check-row"><label><input type="checkbox" id="c-aces"> ACES Tone Mapping</label></div>
+      <div class="check-row"><label><input type="checkbox" id="c-dither"> Blue Noise Dithering</label></div>
+      <div class="control-row"><label>Gamma</label><input id="p-gamma" type="range" min="1.0" max="3.0" step="0.1" value="1"><span class="val">1.00</span></div>
+    </div>
+    <div class="section">
+      <div class="section-title">Lighting</div>
+      <div class="toggle-row" id="light-mode-toggle">
+        <div class="tb active" data-val="0">Flashlight</div>
+        <div class="tb" data-val="1">Static Sun</div>
+      </div>
+      <div class="control-row"><label>Intensity</label><input id="p-lightInt" type="range" min="0" max="5" step="0.1" value="0.2"><span class="val">0.20</span></div>
+      <div class="control-row"><label>Color Temp</label><input id="p-lightWarmth" type="range" min="0" max="1" step="0.05" value="1"><span class="val">1.00</span></div>
+      <div class="mode-0">
+        <div class="control-row"><label>Spot Radius</label><input id="p-lightRad" type="range" min="0.1" max="1.5" step="0.01" value="0.4"><span class="val">0.40</span></div>
+        <div class="control-row"><label>Falloff</label><input id="p-lightFalloff" type="range" min="0.01" max="1.0" step="0.01" value="0.35"><span class="val">0.35</span></div>
+      </div>
+      <div class="mode-1">
+        <div class="control-row"><label>Sun X</label><input id="p-sunX" type="range" min="-1" max="1" step="0.01" value="0.2"><span class="val">0.20</span></div>
+        <div class="control-row"><label>Sun Y</label><input id="p-sunY" type="range" min="-1" max="1" step="0.01" value="0.5"><span class="val">0.50</span></div>
+      </div>
+    </div>
+    <div class="section">
+      <div class="section-title">Ice Properties</div>
+      <div class="control-row"><label>Texture Scale</label><input id="p-texScale" type="range" min="0.5" max="4.0" step="0.1" value="1"><span class="val">1.00</span></div>
+      <div class="control-row"><label>Frost Density</label><input id="p-frostOpacity" type="range" min="0" max="1" step="0.01" value="0.09"><span class="val">0.09</span></div>
+      <div class="control-row"><label>Frost Tint</label><input id="p-frostTint" type="range" min="0" max="1" step="0.01" value="0.39"><span class="val">0.39</span></div>
+      <div class="control-row"><label>Normal Depth</label><input id="p-iceNormal" type="range" min="0" max="4" step="0.1" value="4"><span class="val">4.00</span></div>
+      <div class="control-row"><label>Refraction</label><input id="p-refract" type="range" min="0" max="0.15" step="0.001" value="0.119"><span class="val">0.119</span></div>
+      <div class="control-row"><label>Chromatic Ab.</label><input id="p-chroma" type="range" min="0" max="0.1" step="0.001" value="0.01"><span class="val">0.010</span></div>
+      <div class="control-row"><label>Ambient Shadow</label><input id="p-shadowStr" type="range" min="0" max="1" step="0.01" value="0"><span class="val">0.00</span></div>
+      <div class="control-row"><label>SSS</label><input id="p-sss" type="range" min="0" max="0.5" step="0.01" value="0.5"><span class="val">0.50</span></div>
+      <div class="control-row"><label>Diffuse Mix</label><input id="p-diffuseIceMix" type="range" min="0" max="1" step="0.05" value="0.45"><span class="val">0.45</span></div>
+      <div class="control-row"><label>Fresnel Power</label><input id="p-fresnelPower" type="range" min="1" max="8" step="0.1" value="1.1"><span class="val">1.1</span></div>
+      <div class="control-row"><label>Fresnel Str</label><input id="p-fresnelStr" type="range" min="0" max="0.5" step="0.01" value="0.06"><span class="val">0.06</span></div>
+    </div>
+    <div class="section">
+      <div class="section-title">Thermodynamics</div>
+      <div class="control-row"><label>Brush Radius</label><input id="p-meltRadius" type="range" min="0.01" max="0.5" step="0.005" value="0.08"><span class="val">0.08</span></div>
+      <div class="control-row"><label>Melt Speed</label><input id="p-meltSpeed" type="range" min="0.01" max="0.4" step="0.005" value="0.09"><span class="val">0.09</span></div>
+      <div class="control-row"><label>Brush Hardness</label><input id="p-brushHardness" type="range" min="0" max="1" step="0.01" value="0.75"><span class="val">0.75</span></div>
+    </div>
+    <div class="section">
+      <div class="section-title">Liquid</div>
+      <div class="control-row"><label>Surface Tension</label><input id="p-edgeDistort" type="range" min="0" max="4" step="0.05" value="1.55"><span class="val">1.55</span></div>
+      <div class="control-row"><label>Water Gloss</label><input id="p-waterShiny" type="range" min="10" max="500" step="10" value="290"><span class="val">290</span></div>
+      <div class="control-row"><label>Specular</label><input id="p-specular" type="range" min="0" max="10" step="0.1" value="4.7"><span class="val">4.70</span></div>
+      <div class="control-row"><label>Water Turbidity</label><input id="p-waterOpacity" type="range" min="0" max="1" step="0.01" value="0.06"><span class="val">0.06</span></div>
+    </div>
+    <div class="section">
+      <div class="section-title">Color Grading</div>
+      <div class="control-row"><label>Exposure</label><input id="p-exposure" type="range" min="0.1" max="3" step="0.05" value="1"><span class="val">1.00</span></div>
+      <div class="control-row"><label>Contrast</label><input id="p-contrast" type="range" min="0.5" max="1.5" step="0.05" value="1"><span class="val">1.00</span></div>
+      <div class="control-row"><label>Saturation</label><input id="p-saturation" type="range" min="0" max="2" step="0.05" value="1"><span class="val">1.00</span></div>
+      <div class="control-row"><label class="lbl-r">Red</label><input id="p-tintR" type="range" min="0.5" max="1.5" step="0.01" value="1"><span class="val">1.00</span></div>
+      <div class="control-row"><label class="lbl-g">Green</label><input id="p-tintG" type="range" min="0.5" max="1.5" step="0.01" value="1"><span class="val">1.00</span></div>
+      <div class="control-row"><label class="lbl-b">Blue</label><input id="p-tintB" type="range" min="0.5" max="1.5" step="0.01" value="1"><span class="val">1.00</span></div>
+      <div class="control-row"><label>Bg Blur</label><input id="p-blurStr" type="range" min="0" max="1" step="0.01" value="0.25"><span class="val">0.25</span></div>
+      <div class="control-row"><label>Film Grain</label><input id="p-grain" type="range" min="0" max="0.3" step="0.01" value="0.03"><span class="val">0.03</span></div>
+      <div class="control-row"><label>Vignette</label><input id="p-vignette" type="range" min="0" max="1" step="0.01" value="0"><span class="val">0.00</span></div>
+      <div class="control-row"><label>Ambient Light</label><input id="p-ambient" type="range" min="0" max="1" step="0.01" value="1"><span class="val">1.00</span></div>
+    </div>
+  </div>
+</div>
+
+<div id="hint">[H] Dev Console</div>
+<canvas id="gl-canvas"></canvas>
+
+<script>
+(function () {
+  // ── GAME STATE ───────────────────────────────────────────────────────────────
+  const REVEAL_THRESHOLD = 75;
+  const GOOGLE_URL = 'https://script.google.com/macros/s/AKfycbxglNCMWE7mmWx4SXeJXUCttWKR54829vyzdEPjfdGIefJ8Pcje1WmIUOXphcJ56XpsMw/exec';
+
+  let gameStarted = false;
+  let prizeShown        = false;
+  let prizeReady        = false;
+  let prizeData         = null;
+  let currentEmail      = '';
+  let currentEmployeeType = '';
+  let panelOpen   = false;
+  let lastMeltPct = 0;
+
+  const screenAuth      = document.getElementById('screen-auth');
+  const gameHud         = document.getElementById('game-hud');
+  const hudFill         = document.getElementById('hud-fill');
+  const hudPct          = document.getElementById('hud-pct');
+  const prizeOverlay    = document.getElementById('prize-overlay');
+  const ppTitle         = document.getElementById('pp-title');
+  const ppSubtitle      = document.getElementById('pp-subtitle');
+  const ppDesc          = document.getElementById('pp-desc');
+  const uiContainer     = document.getElementById('ui-container');
+  const hintEl          = document.getElementById('hint');
+  const emailInput      = document.getElementById('email-field');
+  const emailErrorEl    = document.getElementById('email-error');
+  const btnStart        = document.getElementById('btn-start');
+  const employeeTypeSel = document.getElementById('employee-type');
+
+  const urlParams   = new URLSearchParams(window.location.search);
+  const isTestMode  = urlParams.get('test') === '1';
+  const isSkipMode  = urlParams.get('skip') === '1';
+  const VALID_LOCS  = ['moscow', 'regional', 'remote'];
+  const testModeLoc = VALID_LOCS.includes(urlParams.get('loc') || '') ? urlParams.get('loc') : 'moscow';
+
+  function validateEmail(showMessage = true) {
+    const value = emailInput.value.trim().toLowerCase();
+    let message = '';
+    let isValid = true;
+
+    if (!value) {
+      isValid = false;
+    } else {
+      const parts = value.split('@');
+      const local = parts[0] || '';
+      const hasAt = parts.length === 2 && local !== '' && parts[1] !== '';
+      if (!hasAt || /^\d+$/.test(local)) {
+        isValid = false;
+        message = 'Укажи почту в формате login@croc.ru';
+      }
+    }
+
+    const hasEmployeeType = employeeTypeSel.value !== '';
+    if (showMessage) {
+      emailInput.classList.toggle('invalid', !isValid && value !== '');
+      if (!isValid) {
+        emailErrorEl.textContent = message;
+      } else if (!hasEmployeeType) {
+        emailErrorEl.textContent = 'Выбери, откуда ты';
+      } else {
+        emailErrorEl.textContent = '';
+      }
+    } else {
+      emailInput.classList.remove('invalid');
+      emailErrorEl.textContent = '';
+    }
+
+    const canStart = isValid && hasEmployeeType;
+    btnStart.style.opacity = canStart ? '' : '0.5';
+    btnStart.style.cursor = canStart ? 'pointer' : 'default';
+    btnStart.setAttribute('aria-disabled', canStart ? 'false' : 'true');
+
+    return canStart;
+  }
+
+  // ── Auth ─────────────────────────────────────────────────────────────────────
+  btnStart.addEventListener('click', () => {
+    const canStart = validateEmail(true);
+    if (!canStart) {
+      if (!employeeTypeSel.value) employeeTypeSel.focus();
+      else emailInput.focus();
+      return;
+    }
+    const email = emailInput.value.trim().toLowerCase();
+    currentEmail = email;
+    currentEmployeeType = employeeTypeSel.value;
+    screenAuth.classList.add('fade-out');
+    setTimeout(() => { screenAuth.style.display = 'none'; }, 520);
+    gameStarted = true;
+    gameHud.classList.add('visible');
+    hintEl.classList.add('show');
+    requestPrize();
+  });
+  emailInput.addEventListener('keydown', e => {
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      if (validateEmail(true)) btnStart.click();
+    }
+  });
+  employeeTypeSel.addEventListener('change', () => validateEmail(false));
+
+  let emailValidateDebounce = null;
+  emailInput.addEventListener('input', () => {
+    validateEmail(false);
+    clearTimeout(emailValidateDebounce);
+    emailValidateDebounce = setTimeout(() => { validateEmail(true); }, 1000);
+  });
+
+  function autoStartTestIfNeeded() {
+    if (!isTestMode) return;
+    const testEmail = `test${Date.now()}${Math.floor(Math.random() * 1000)}@croc.ru`;
+    emailInput.value = testEmail;
+    currentEmployeeType = testModeLoc;
+    employeeTypeSel.value = testModeLoc;
+    validateEmail(false);
+    currentEmail = testEmail;
+    screenAuth.classList.add('fade-out');
+    setTimeout(() => { screenAuth.style.display = 'none'; }, 520);
+    gameStarted = true;
+    gameHud.classList.add('visible');
+    hintEl.classList.add('show');
+    requestPrize();
+  }
+
+  // ── Prize fetch ───────────────────────────────────────────────────────────────
+  function requestPrize() {
+    fetch(GOOGLE_URL, {
+      method: 'POST',
+      body: JSON.stringify({
+        email: currentEmail,
+        employeeType: currentEmployeeType,
+        location: currentEmployeeType
+      })
+    })
+    .then(r => r.json())
+    .then(res => {
+      if (res && res.status === 'success' && res.prize) {
+        prizeData = typeof res.prize === 'object' ? res.prize : { title: res.prize };
+      } else {
+        prizeData = { title: 'Подарок', description: res?.message || '' };
+      }
+      prizeReady = true;
+      if (lastMeltPct >= REVEAL_THRESHOLD || isSkipMode) showPrize();
+    })
+    .catch(() => {
+      prizeData = { title: 'Подарок', description: 'Проверь таблицу!' };
+      prizeReady = true;
+      if (lastMeltPct >= REVEAL_THRESHOLD || isSkipMode) showPrize();
+    });
+  }
+
+  function parseDescriptionLinks(text) {
+    if (!text || typeof text !== 'string') return '';
+    const escaped = text
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;');
+    return escaped.replace(
+      /\[([^\]]*)\]\((https?:\/\/[^)]+)\)/g,
+      (_, label, url) => {
+        const safeUrl = url.replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+        return '<a href="' + safeUrl + '" target="_blank" rel="noopener noreferrer">' + label + '</a>';
+      }
+    );
+  }
+
+  function showPrize() {
+    if (prizeShown || !prizeData) return;
+    prizeShown = true;
+    ppTitle.textContent = prizeData.title || '🎁';
+    const sub = String(prizeData.subtitle || '').trim();
+    ppSubtitle.textContent = sub;
+    ppSubtitle.style.display = sub ? '' : 'none';
+    ppDesc.innerHTML = parseDescriptionLinks(prizeData.description || '');
+    prizeOverlay.classList.add('visible');
+    const prizeBox = prizeOverlay.querySelector('.prize-box');
+    if (prizeBox) prizeBox.classList.add('reveal-in');
+  }
+
+  document.getElementById('btn-prize-close').addEventListener('click', () => {
+    prizeOverlay.classList.remove('visible');
+  });
+
+  // ── Dev panel [H] ─────────────────────────────────────────────────────────────
+  window.addEventListener('keydown', e => {
+    if (e.key.toLowerCase() === 'h' || e.key.toLowerCase() === 'p') {
+      panelOpen = !panelOpen;
+      uiContainer.classList.toggle('open', panelOpen);
+    }
+  });
+
+  // ── WebGL2 ───────────────────────────────────────────────────────────────────
+  const canvas = document.getElementById('gl-canvas');
+  const gl = canvas.getContext('webgl2', { alpha: false, depth: false, antialias: true, premultipliedAlpha: false });
+  if (!gl) { alert('WebGL2 не поддерживается'); return; }
+
+  const PARAMS = {
+    aces:0, dither:0,
+    lightMode:0, lightInt:0.2, lightWarmth:1, lightRad:0.4, lightFalloff:0.35, sunX:0.2, sunY:0.5,
+    texScale:1, frostOpacity:0.09, frostTint:0.39, iceNormal:4, refract:0.119, chroma:0.01, specular:4.7, shadowStr:0, sss:0.5,
+    meltRadius:0.08, meltSpeed:0.09, edgeDistort:1.55, brushHardness:0.75,
+    waterShiny:290, waterOpacity:0.06,
+    blurStr:0.25, grain:0.03, ambient:1, emissive:0, vignette:0, parallax:0.007,
+    exposure:1, gamma:1, contrast:1, saturation:1, tintR:1, tintG:1, tintB:1,
+    fresnelPower:1.1, fresnelStr:0.06, diffuseIceMix:0.45,
+  };
+
+  const TEX_ORDER = ['bgTex','bgNorm','bgLight','bgDepth','iceNorm','iceFrost','iceOpacity','iceRough'];
+  const PRESETS   = [{ name:'Meadow', bgTex:'1.jpg', placeholders:['bgNorm','bgLight','bgDepth'] }];
+
+  function getIceAssets() {
+    return { iceNorm:'prompt1.png', iceFrost:'prompt2.png', iceOpacity:'prompt3.png', iceRough:'prompt4.png' };
+  }
+
+  function resize() {
+    const dpr = Math.min(window.devicePixelRatio||1, 2);
+    canvas.width  = window.innerWidth  * dpr;
+    canvas.height = window.innerHeight * dpr;
+    gl.viewport(0, 0, canvas.width, canvas.height);
+  }
+  window.addEventListener('resize', resize);
+  resize();
+
+  // ── Shaders ──────────────────────────────────────────────────────────────────
+  const VS = `#version 300 es
+in vec2 a_pos; out vec2 v_uv;
+void main(){ v_uv=a_pos*0.5+0.5; gl_Position=vec4(a_pos,0,1); }`;
+
+  const FS = `#version 300 es
+precision highp float;
+in vec2 v_uv; out vec4 fragColor;
+uniform sampler2D u_bgTex,u_bgNorm,u_bgLight,u_bgDepth;
+uniform sampler2D u_iceNorm,u_iceFrost,u_iceOpacity,u_iceRough,u_meltMap;
+uniform vec2 u_mouse; uniform float u_ratio,u_time;
+uniform float u_aces,u_dither,u_lightMode,u_lightInt,u_lightWarmth,u_lightRad,u_lightFalloff,u_sunX,u_sunY;
+uniform float u_texScale,u_frostOpacity,u_frostTint,u_iceNormal,u_refract,u_chroma,u_specular,u_shadowStr,u_sss;
+uniform float u_edgeDistort,u_waterShiny,u_waterOpacity;
+uniform float u_blurStr,u_grain,u_ambient,u_exposure,u_gamma,u_parallax,u_emissive,u_vignette;
+uniform float u_contrast,u_saturation,u_tintR,u_tintG,u_tintB,u_fresnelPower,u_fresnelStr,u_diffuseIceMix;
+float hash(vec2 p){return fract(sin(dot(p,vec2(12.9898,78.233)))*43758.5453);}
+vec3 aces_tm(vec3 x){return clamp((x*(2.51*x+0.03))/(x*(2.43*x+0.59)+0.14),0.,1.);}
+void main(){
+  float melt=texture(u_meltMap,v_uv).r;
+  float bgDepth=texture(u_bgDepth,v_uv).r;
+  vec2 iceUV=v_uv*u_texScale;
+  vec3 rawN=texture(u_iceNorm,iceUV).rgb*2.-1.;
+  vec3 iceN=normalize(vec3(rawN.xy*u_iceNormal,rawN.z));
+  float edge=smoothstep(0.,0.2,melt)*(1.-smoothstep(0.8,1.,melt));
+  vec3 finalN=mix(iceN,vec3(0,0,1),melt);
+  finalN.xy+=iceN.xy*edge*u_edgeDistort; finalN=normalize(finalN);
+  vec2 parallax=(u_mouse-0.5)*(1.-bgDepth)*u_parallax;
+  vec2 baseUV=clamp(v_uv+parallax,0.001,0.999);
+  float refr=u_refract*(1.-melt);
+  vec2 uvR=baseUV+finalN.xy*refr*(1.-u_chroma)+vec2(0.002)*u_shadowStr*(1.-melt);
+  vec2 uvG=baseUV+finalN.xy*refr;
+  vec2 uvB=baseUV+finalN.xy*refr*(1.+u_chroma);
+  vec3 bgCol=vec3(0);
+  if(u_blurStr>0.){
+    float b=u_blurStr*(1.-melt)*0.004;
+    bgCol.r=(texture(u_bgTex,uvR).r+texture(u_bgTex,uvR+vec2(b,b)).r+texture(u_bgTex,uvR-vec2(b,b)).r+texture(u_bgTex,uvR+vec2(b,-b)).r+texture(u_bgTex,uvR+vec2(-b,b)).r)/5.;
+    bgCol.g=(texture(u_bgTex,uvG).g+texture(u_bgTex,uvG+vec2(b,b)).g+texture(u_bgTex,uvG-vec2(b,b)).g+texture(u_bgTex,uvG+vec2(b,-b)).g+texture(u_bgTex,uvG+vec2(-b,b)).g)/5.;
+    bgCol.b=(texture(u_bgTex,uvB).b+texture(u_bgTex,uvB+vec2(b,b)).b+texture(u_bgTex,uvB-vec2(b,b)).b+texture(u_bgTex,uvB+vec2(b,-b)).b+texture(u_bgTex,uvB+vec2(-b,b)).b)/5.;
+  } else { bgCol=vec3(texture(u_bgTex,uvR).r,texture(u_bgTex,uvG).g,texture(u_bgTex,uvB).b); }
+  float iceMask=texture(u_iceOpacity,iceUV).r;
+  float opacity=iceMask*(1.-melt);
+  bgCol*=1.-opacity*u_shadowStr*0.5;
+  vec3 bgEmissive=texture(u_bgLight,uvG).rgb;
+  vec3 lightDir; float atten=1.;
+  if(u_lightMode<0.5){
+    vec3 lPos=vec3(u_mouse.x*u_ratio,u_mouse.y,0.3);
+    vec3 pPos=vec3(v_uv.x*u_ratio,v_uv.y,0.);
+    float d=distance(lPos,pPos);
+    atten=1.-smoothstep(u_lightRad*u_lightFalloff,u_lightRad,d);
+    lightDir=normalize(lPos-pPos);
+  } else { lightDir=normalize(vec3(u_sunX,u_sunY,0.5)); }
+  vec3 lightColor=mix(vec3(0.8,0.9,1.),vec3(1.,0.9,0.55),u_lightWarmth);
+  vec3 bgNorm=normalize(texture(u_bgNorm,uvG).rgb*2.-1.);
+  float diffBg=max(dot(bgNorm,lightDir),0.);
+  float diffIce=max(dot(finalN,lightDir),0.);
+  float bgIllum=mix(diffBg,diffIce,u_diffuseIceMix)*atten*u_lightInt;
+  vec3 scene=bgCol*(u_ambient+bgIllum*lightColor)+bgEmissive*u_emissive;
+  vec3 frostTex=texture(u_iceFrost,iceUV).rgb;
+  frostTex=mix(frostTex,vec3(0.75,0.88,1.),u_frostTint);
+  vec3 frostLit=frostTex*(scene+bgIllum*u_sss*2.*lightColor);
+  vec3 comp=mix(scene,frostLit,opacity*u_frostOpacity);
+  comp=mix(comp,vec3(0.8,0.85,0.9)*0.4,u_waterOpacity*melt*(1.-melt));
+  vec3 viewDir=vec3(0,0,1);
+  float fresnel=pow(1.-max(dot(finalN,viewDir),0.),u_fresnelPower)*u_fresnelStr;
+  comp+=mix(vec3(0.6,0.75,0.95),lightColor,0.4)*fresnel*min(opacity+edge,1.);
+  float rough=texture(u_iceRough,iceUV).r;
+  float shine=mix(mix(15.,5.,rough),u_waterShiny,melt);
+  comp+=pow(max(dot(finalN,normalize(lightDir+viewDir)),0.),shine)*u_specular*bgIllum*lightColor*(1.+edge*5.);
+  if(u_lightMode<0.5){
+    vec2 fa=vec2(v_uv.x*u_ratio,v_uv.y),fb=vec2(u_mouse.x*u_ratio,u_mouse.y);
+    comp+=lightColor*pow(max(0.,1.-distance(fa,fb)*1.5),2.)*0.6*u_lightInt*mix(0.4,1.,melt);
+  }
+  if(u_vignette>0.){
+    float dist=distance(v_uv,vec2(0.5));
+    comp*=smoothstep(0.8,0.8-u_vignette,dist*(1.+u_vignette));
+  }
+  comp*=vec3(u_tintR,u_tintG,u_tintB);
+  float gray=dot(comp,vec3(0.299,0.587,0.114));
+  comp=mix(vec3(gray),comp,u_saturation);
+  comp=(comp-0.5)*u_contrast+0.5;
+  comp*=u_exposure;
+  if(u_aces>0.5) comp=aces_tm(comp);
+  comp=pow(max(comp,vec3(0)),vec3(1./max(u_gamma,0.1)));
+  comp+=(hash(gl_FragCoord.xy+u_time)-0.5)*u_grain;
+  if(u_dither>0.5) comp+=(hash(gl_FragCoord.xy*0.123+u_time)-0.5)/255.;
+  fragColor=vec4(clamp(comp,0.,1.),1.);
+}`;
+
+  const PAINT_FS = `#version 300 es
+precision highp float;
+in vec2 v_uv; out vec4 fragColor;
+uniform sampler2D u_prev;
+uniform vec2 u_mouseA,u_mouseB;
+uniform float u_radius,u_speed,u_hardness;
+float segDist(vec2 p,vec2 a,vec2 b){
+  vec2 ab=b-a,ap=p-a;
+  float t=clamp(dot(ap,ab)/max(dot(ab,ab),0.00001),0.,1.);
+  return length(ap-ab*t);
+}
+void main(){
+  float prev=texture(u_prev,v_uv).r;
+  float d=segDist(v_uv,u_mouseA,u_mouseB);
+  float heat=smoothstep(u_radius,u_radius*(1.-u_hardness*0.8),d)*u_speed;
+  fragColor=vec4(min(prev+heat,1.),0,0,1);
+}`;
+
+  function mkShader(type, src) {
+    const s=gl.createShader(type); gl.shaderSource(s,src); gl.compileShader(s);
+    if(!gl.getShaderParameter(s,gl.COMPILE_STATUS)) console.error(gl.getShaderInfoLog(s));
+    return s;
+  }
+  function mkProg(vs, fs) {
+    const p=gl.createProgram();
+    gl.attachShader(p,mkShader(gl.VERTEX_SHADER,vs));
+    gl.attachShader(p,mkShader(gl.FRAGMENT_SHADER,fs));
+    gl.linkProgram(p);
+    if(!gl.getProgramParameter(p,gl.LINK_STATUS)) console.error(gl.getProgramInfoLog(p));
+    return p;
+  }
+  const prog      = mkProg(VS, FS);
+  const paintProg = mkProg(VS, PAINT_FS);
+
+  const vao = gl.createVertexArray(); gl.bindVertexArray(vao);
+  gl.bindBuffer(gl.ARRAY_BUFFER,gl.createBuffer());
+  gl.bufferData(gl.ARRAY_BUFFER,new Float32Array([-1,-1,1,-1,-1,1,-1,1,1,-1,1,1]),gl.STATIC_DRAW);
+  const aPos=gl.getAttribLocation(prog,'a_pos');
+  gl.enableVertexAttribArray(aPos); gl.vertexAttribPointer(aPos,2,gl.FLOAT,false,0,0);
+
+  const uNames=[
+    'bgTex','bgNorm','bgLight','bgDepth','iceNorm','iceFrost','iceOpacity','iceRough','meltMap',
+    'mouse','ratio','time','aces','dither',
+    'lightMode','lightInt','lightWarmth','lightRad','lightFalloff','sunX','sunY',
+    'texScale','frostOpacity','frostTint','iceNormal','refract','chroma','specular','shadowStr','sss',
+    'edgeDistort','waterShiny','waterOpacity',
+    'blurStr','grain','ambient','exposure','parallax','emissive','vignette',
+    'gamma','contrast','saturation','tintR','tintG','tintB','fresnelPower','fresnelStr','diffuseIceMix'
+  ];
+  const NSAMP=9;
+  const U={};
+  uNames.forEach(n=>{ U[n]=gl.getUniformLocation(prog,'u_'+n); });
+  const PU={
+    prev:    gl.getUniformLocation(paintProg,'u_prev'),
+    mouseA:  gl.getUniformLocation(paintProg,'u_mouseA'),
+    mouseB:  gl.getUniformLocation(paintProg,'u_mouseB'),
+    radius:  gl.getUniformLocation(paintProg,'u_radius'),
+    speed:   gl.getUniformLocation(paintProg,'u_speed'),
+    hardness:gl.getUniformLocation(paintProg,'u_hardness'),
+  };
+
+  const meltSize=Math.min(2048,Math.max(window.innerWidth,window.innerHeight)*(window.devicePixelRatio||1)|0);
+
+  function makeFBO(){
+    const tex=gl.createTexture(); gl.bindTexture(gl.TEXTURE_2D,tex);
+    gl.texImage2D(gl.TEXTURE_2D,0,gl.RGBA8,meltSize,meltSize,0,gl.RGBA,gl.UNSIGNED_BYTE,null);
+    gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_MIN_FILTER,gl.LINEAR);
+    gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_MAG_FILTER,gl.LINEAR);
+    gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_WRAP_S,gl.CLAMP_TO_EDGE);
+    gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_WRAP_T,gl.CLAMP_TO_EDGE);
+    const fbo=gl.createFramebuffer(); gl.bindFramebuffer(gl.FRAMEBUFFER,fbo);
+    gl.framebufferTexture2D(gl.FRAMEBUFFER,gl.COLOR_ATTACHMENT0,gl.TEXTURE_2D,tex,0);
+    if(gl.checkFramebufferStatus(gl.FRAMEBUFFER)!==gl.FRAMEBUFFER_COMPLETE) console.error('FBO incomplete');
+    gl.bindFramebuffer(gl.FRAMEBUFFER,null);
+    return {tex,fbo};
+  }
+  let ping=makeFBO(), pong=makeFBO();
+  [ping,pong].forEach(b=>{gl.bindFramebuffer(gl.FRAMEBUFFER,b.fbo);gl.clearColor(0,0,0,1);gl.clear(gl.COLOR_BUFFER_BIT);});
+  gl.bindFramebuffer(gl.FRAMEBUFFER,null);
+
+  const READ_SIZE=64;
+  const readTex=gl.createTexture(); gl.bindTexture(gl.TEXTURE_2D,readTex);
+  gl.texImage2D(gl.TEXTURE_2D,0,gl.RGBA8,READ_SIZE,READ_SIZE,0,gl.RGBA,gl.UNSIGNED_BYTE,null);
+  gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_MIN_FILTER,gl.LINEAR);
+  const readFbo=gl.createFramebuffer(); gl.bindFramebuffer(gl.FRAMEBUFFER,readFbo);
+  gl.framebufferTexture2D(gl.FRAMEBUFFER,gl.COLOR_ATTACHMENT0,gl.TEXTURE_2D,readTex,0);
+  gl.bindFramebuffer(gl.FRAMEBUFFER,null);
+  const readBuf=new Uint8Array(READ_SIZE*READ_SIZE*4);
+
+  let mouse={x:-1,y:-1}, lastMouse={x:-1,y:-1};
+  let frameCount=0, running=false;
+  const textureObjs={}; let loadedCount=0;
+
+  function createPlaceholder(key,unit){
+    const t=gl.createTexture(); gl.activeTexture(gl.TEXTURE0+unit); gl.bindTexture(gl.TEXTURE_2D,t);
+    const px=key==='bgNorm'?new Uint8Array([128,128,255,255]):new Uint8Array([0,0,0,255]);
+    gl.texImage2D(gl.TEXTURE_2D,0,gl.RGBA,1,1,0,gl.RGBA,gl.UNSIGNED_BYTE,px);
+    gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_MIN_FILTER,gl.LINEAR);
+    gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_WRAP_S,gl.CLAMP_TO_EDGE);
+    gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_WRAP_T,gl.CLAMP_TO_EDGE);
+    return t;
+  }
+  function uploadTex(img,key,isBg){
+    const wrap=isBg?gl.CLAMP_TO_EDGE:gl.REPEAT;
+    gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL,isBg?1:0);
+    gl.texImage2D(gl.TEXTURE_2D,0,gl.RGBA,gl.RGBA,gl.UNSIGNED_BYTE,img);
+    gl.generateMipmap(gl.TEXTURE_2D);
+    gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_MIN_FILTER,gl.LINEAR_MIPMAP_LINEAR);
+    gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_MAG_FILTER,gl.LINEAR);
+    gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_WRAP_S,wrap);
+    gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_WRAP_T,wrap);
+    gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL,0);
+  }
+  function replaceBgTex(img){
+    if(!textureObjs['bgTex']) return;
+    gl.activeTexture(gl.TEXTURE0); gl.bindTexture(gl.TEXTURE_2D,textureObjs['bgTex']);
+    uploadTex(img,'bgTex',true);
+  }
+  function loadPreset(idx){
+    const preset=PRESETS[idx]||PRESETS[0], ice=getIceAssets();
+    Object.keys(textureObjs).forEach(k=>{gl.deleteTexture(textureObjs[k]);delete textureObjs[k];});
+    loadedCount=0;
+    const loader=document.getElementById('loader'); loader.style.opacity=1; loader.style.display='flex';
+    if(preset.placeholders) preset.placeholders.forEach(k=>{ textureObjs[k]=createPlaceholder(k,TEX_ORDER.indexOf(k)); loadedCount++; });
+    const queue={};
+    if(preset.bgTex) queue.bgTex=preset.bgTex;
+    TEX_ORDER.forEach(k=>{if(!textureObjs[k]&&ice[k]) queue[k]=ice[k];});
+    Object.keys(queue).forEach(key=>{
+      const unit=TEX_ORDER.indexOf(key), img=new Image(); img.crossOrigin='anonymous';
+      img.onload=()=>finalizeTex(img,key,unit,true);
+      img.onerror=()=>finalizeTex(null,key,unit,false);
+      img.src=queue[key];
+    });
+  }
+  function finalizeTex(img,key,unit,ok){
+    const t=gl.createTexture(); gl.activeTexture(gl.TEXTURE0+unit); gl.bindTexture(gl.TEXTURE_2D,t);
+    if(ok&&img){ uploadTex(img,key,key.startsWith('bg')); }
+    else{
+      const px=key==='bgNorm'?new Uint8Array([128,128,255,255]):new Uint8Array([0,0,0,255]);
+      gl.texImage2D(gl.TEXTURE_2D,0,gl.RGBA,1,1,0,gl.RGBA,gl.UNSIGNED_BYTE,px);
+      gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_MIN_FILTER,gl.LINEAR);
+      gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_WRAP_S,gl.CLAMP_TO_EDGE);
+      gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_WRAP_T,gl.CLAMP_TO_EDGE);
+    }
+    textureObjs[key]=t; loadedCount++;
+    if(loadedCount>=8){
+      const l=document.getElementById('loader'); l.style.opacity=0; setTimeout(()=>{l.style.display='none';},600);
+      if(!running) startLoop();
+    }
+  }
+
+  // ── UI sync ──────────────────────────────────────────────────────────────────
+  function fmtVal(id,v){ return ['refract','parallax','chroma'].includes(id)?v.toFixed(3):id==='fresnelPower'?v.toFixed(1):v.toFixed(2); }
+
+  function syncUI(){
+    document.querySelectorAll('#ui-container input').forEach(inp=>{
+      const id=inp.id.replace('p-','').replace('c-','');
+      if(PARAMS[id]===undefined) return;
+      if(inp.type==='checkbox') inp.checked=PARAMS[id]>0.5;
+      else{ inp.value=PARAMS[id]; const sp=inp.nextElementSibling; if(sp&&sp.classList.contains('val')) sp.innerText=fmtVal(id,PARAMS[id]); }
+    });
+    document.querySelectorAll('.tb').forEach(b=>b.classList.toggle('active',parseFloat(b.dataset.val)===PARAMS.lightMode));
+    document.querySelector('.mode-0').style.display=PARAMS.lightMode===0?'':'none';
+    document.querySelector('.mode-1').style.display=PARAMS.lightMode===1?'':'none';
+  }
+
+  document.querySelectorAll('#ui-container input').forEach(inp=>{
+    inp.addEventListener('input',e=>{
+      const id=e.target.id.replace('p-','').replace('c-','');
+      if(PARAMS[id]===undefined) return;
+      if(e.target.type==='checkbox') PARAMS[id]=e.target.checked?1:0;
+      else{ PARAMS[id]=parseFloat(e.target.value); const sp=e.target.nextElementSibling; if(sp&&sp.classList.contains('val')) sp.innerText=fmtVal(id,PARAMS[id]); }
+    });
+  });
+  document.querySelectorAll('.tb').forEach(btn=>{
+    btn.addEventListener('click',()=>{
+      document.querySelectorAll('.tb').forEach(b=>b.classList.remove('active'));
+      btn.classList.add('active'); PARAMS.lightMode=parseFloat(btn.dataset.val);
+      document.querySelector('.mode-0').style.display=PARAMS.lightMode===0?'':'none';
+      document.querySelector('.mode-1').style.display=PARAMS.lightMode===1?'':'none';
+    });
+  });
+  document.getElementById('preset-selector').addEventListener('change',e=>loadPreset(parseInt(e.target.value,10)));
+  document.getElementById('btn-bg-upload').addEventListener('click',()=>document.getElementById('bg-file-input').click());
+  document.getElementById('bg-file-input').addEventListener('change',e=>{
+    const f=e.target.files&&e.target.files[0]; if(!f) return;
+    const url=URL.createObjectURL(f), img=new Image();
+    img.onload=()=>{replaceBgTex(img);URL.revokeObjectURL(url);e.target.value='';};
+    img.onerror=()=>{URL.revokeObjectURL(url);e.target.value='';};
+    img.src=url;
+  });
+  document.getElementById('btn-export').addEventListener('click',e=>{
+    navigator.clipboard.writeText(JSON.stringify({l1:PARAMS},null,2)).then(()=>{
+      const btn=e.target,orig=btn.innerText; btn.innerText='COPIED!'; setTimeout(()=>btn.innerText=orig,1500);
+    });
+  });
+  document.getElementById('btn-import').addEventListener('click',()=>{
+    const s=prompt('Paste JSON:'); if(!s) return;
+    try{Object.assign(PARAMS,(JSON.parse(s).l1||JSON.parse(s)));syncUI();}catch(e){alert('Invalid JSON');}
+  });
+
+  // ── Mouse / Touch ─────────────────────────────────────────────────────────────
+  canvas.addEventListener('mousemove',e=>{
+    if(!gameStarted) return;
+    mouse.x=e.clientX/window.innerWidth; mouse.y=1-(e.clientY/window.innerHeight);
+  });
+  canvas.addEventListener('touchmove',e=>{
+    if(!gameStarted) return;
+    e.preventDefault();
+    const t=e.touches[0]; mouse.x=t.clientX/window.innerWidth; mouse.y=1-(t.clientY/window.innerHeight);
+  },{passive:false});
+  canvas.addEventListener('mouseleave',()=>{mouse.x=-1;mouse.y=-1;lastMouse.x=-1;lastMouse.y=-1;});
+
+  // ── Render loop ───────────────────────────────────────────────────────────────
+  function startLoop(){
+    running=true; const t0=performance.now();
+    function frame(){
+      // PASS 1: paint melt map on GPU
+      if(gameStarted && mouse.x>=0){
+        if(lastMouse.x<0){lastMouse.x=mouse.x;lastMouse.y=mouse.y;}
+        gl.bindFramebuffer(gl.FRAMEBUFFER,pong.fbo);
+        gl.viewport(0,0,meltSize,meltSize);
+        gl.useProgram(paintProg); gl.bindVertexArray(vao);
+        gl.activeTexture(gl.TEXTURE9); gl.bindTexture(gl.TEXTURE_2D,ping.tex);
+        gl.uniform1i(PU.prev,9);
+        gl.uniform2f(PU.mouseA,lastMouse.x,lastMouse.y);
+        gl.uniform2f(PU.mouseB,mouse.x,mouse.y);
+        gl.uniform1f(PU.radius,  PARAMS.meltRadius);
+        gl.uniform1f(PU.speed,   PARAMS.meltSpeed*1.8);
+        gl.uniform1f(PU.hardness,PARAMS.brushHardness);
+        gl.drawArrays(gl.TRIANGLES,0,6);
+        gl.bindFramebuffer(gl.FRAMEBUFFER,null);
+        [ping,pong]=[pong,ping];
+        lastMouse.x=mouse.x; lastMouse.y=mouse.y;
+      }
+
+      // PASS 2: main render
+      gl.viewport(0,0,canvas.width,canvas.height);
+      gl.useProgram(prog); gl.bindVertexArray(vao);
+      gl.activeTexture(gl.TEXTURE8); gl.bindTexture(gl.TEXTURE_2D,ping.tex);
+      gl.clear(gl.COLOR_BUFFER_BIT);
+      for(let i=0;i<NSAMP;i++) gl.uniform1i(U[uNames[i]],i);
+      gl.uniform2f(U.mouse,mouse.x<0?0.5:mouse.x,mouse.y<0?0.5:mouse.y);
+      gl.uniform1f(U.ratio,canvas.width/canvas.height);
+      gl.uniform1f(U.time,(performance.now()-t0)*0.001);
+      uNames.forEach(n=>{if(U[n]&&PARAMS[n]!==undefined) gl.uniform1f(U[n],PARAMS[n]);});
+      gl.drawArrays(gl.TRIANGLES,0,6);
+
+      // Readback every 30 frames
+      frameCount++;
+      if(frameCount%30===0){
+        gl.bindFramebuffer(gl.READ_FRAMEBUFFER,ping.fbo);
+        gl.bindFramebuffer(gl.DRAW_FRAMEBUFFER,readFbo);
+        gl.blitFramebuffer(0,0,meltSize,meltSize,0,0,READ_SIZE,READ_SIZE,gl.COLOR_BUFFER_BIT,gl.LINEAR);
+        gl.bindFramebuffer(gl.READ_FRAMEBUFFER,readFbo);
+        gl.readPixels(0,0,READ_SIZE,READ_SIZE,gl.RGBA,gl.UNSIGNED_BYTE,readBuf);
+        gl.bindFramebuffer(gl.READ_FRAMEBUFFER,null);
+        let melted=0;
+        for(let i=0;i<readBuf.length;i+=4) if(readBuf[i]>128) melted++;
+        lastMeltPct=Math.round(melted/(READ_SIZE*READ_SIZE)*100);
+        if(gameStarted){
+          hudFill.style.width=lastMeltPct+'%';
+          hudPct.textContent=lastMeltPct+'%';
+          if(lastMeltPct>=REVEAL_THRESHOLD && prizeReady && !prizeShown) showPrize();
+        }
+      }
+      requestAnimationFrame(frame);
+    }
+    frame();
+  }
+
+  syncUI();
+  loadPreset(0);
+  validateEmail(false);
+  autoStartTestIfNeeded();
+})();
+</script>
+</body>
+</html>

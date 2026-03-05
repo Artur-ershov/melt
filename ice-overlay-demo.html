@@ -1,0 +1,472 @@
+<!DOCTYPE html>
+<html lang="ru">
+  <head>
+    <meta charset="UTF-8" />
+    <title>Frozen Glass Overlay Demo</title>
+
+    <style>
+      html,
+      body {
+        margin: 0;
+        padding: 0;
+        width: 100%;
+        height: 100%;
+        overflow: hidden;
+      }
+
+      body {
+        /* Фон будем рисовать в WebGL из текстуры nature.jpg */
+        background: #000;
+      }
+
+      #ice-overlay-canvas {
+        position: fixed;
+        inset: 0;
+        width: 100%;
+        height: 100%;
+        pointer-events: none;
+        z-index: 10;
+        background: transparent;
+      }
+
+      #ice-controls {
+        position: fixed;
+        top: 16px;
+        right: 16px;
+        z-index: 20;
+        padding: 10px 12px;
+        background: rgba(15, 23, 42, 0.85);
+        border-radius: 10px;
+        color: #e5e7eb;
+        font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI",
+          sans-serif;
+        font-size: 11px;
+        box-shadow: 0 10px 30px rgba(15, 23, 42, 0.8);
+        min-width: 220px;
+      }
+
+      #ice-controls h2 {
+        margin: 0 0 6px;
+        font-size: 12px;
+        font-weight: 600;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+        opacity: 0.9;
+      }
+
+      .control-row {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        margin-bottom: 6px;
+      }
+
+      .control-row label {
+        flex: 0 0 82px;
+        opacity: 0.8;
+      }
+
+      .control-row input[type="range"] {
+        flex: 1;
+      }
+    </style>
+  </head>
+
+  <body>
+    <div id="ice-controls">
+      <h2>Frozen Glass</h2>
+      <div class="control-row">
+        <label for="ctrl-intensity">Мороз</label>
+        <input
+          id="ctrl-intensity"
+          type="range"
+          min="0"
+          max="1"
+          step="0.01"
+          value="0.9"
+        />
+      </div>
+      <div class="control-row">
+        <label for="ctrl-refract">Преломление</label>
+        <input
+          id="ctrl-refract"
+          type="range"
+          min="0"
+          max="1"
+          step="0.01"
+          value="0.6"
+        />
+      </div>
+      <div class="control-row">
+        <label for="ctrl-desat">Мутность</label>
+        <input
+          id="ctrl-desat"
+          type="range"
+          min="0"
+          max="1"
+          step="0.01"
+          value="0.7"
+        />
+      </div>
+    </div>
+
+    <canvas id="ice-overlay-canvas"></canvas>
+
+    <script>
+      (function () {
+        const canvas = document.getElementById("ice-overlay-canvas");
+        const gl =
+          canvas.getContext("webgl", { premultipliedAlpha: false }) ||
+          canvas.getContext("experimental-webgl");
+
+        if (!gl) {
+          console.warn("WebGL не поддерживается");
+          return;
+        }
+
+        function resize() {
+          const dpr = window.devicePixelRatio || 1;
+          const width = window.innerWidth;
+          const height = window.innerHeight;
+          canvas.width = width * dpr;
+          canvas.height = height * dpr;
+          canvas.style.width = width + "px";
+          canvas.style.height = height + "px";
+          gl.viewport(0, 0, canvas.width, canvas.height);
+        }
+
+        resize();
+        window.addEventListener("resize", resize);
+
+        gl.clearColor(0, 0, 0, 0);
+        gl.enable(gl.BLEND);
+        gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA);
+
+        const vertexSrc = `
+attribute vec2 a_position;
+varying vec2 v_uv;
+void main() {
+  v_uv = a_position * 0.5 + 0.5;
+  gl_Position = vec4(a_position, 0.0, 1.0);
+}
+`;
+
+        const fragmentSrc = `
+precision mediump float;
+
+varying vec2 v_uv;
+
+uniform float u_time;
+uniform float u_intensity; // 0..1 насколько сильно замёрз экран
+uniform float u_refract;   // 0..1 сила преломления
+uniform float u_desat;     // 0..1 степень "черно-белости"
+uniform sampler2D u_sceneTex;
+
+// Простая value noise
+float hash(vec2 p) {
+  return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453123);
+}
+
+float noise(vec2 p) {
+  vec2 i = floor(p);
+  vec2 f = fract(p);
+
+  float a = hash(i);
+  float b = hash(i + vec2(1.0, 0.0));
+  float c = hash(i + vec2(0.0, 1.0));
+  float d = hash(i + vec2(1.0, 1.0));
+
+  vec2 u = f * f * (3.0 - 2.0 * f);
+
+  return mix(a, b, u.x) +
+         (c - a) * u.y * (1.0 - u.x) +
+         (d - b) * u.x * u.y;
+}
+
+float fbm(vec2 p) {
+  float v = 0.0;
+  float a = 0.5;
+  for (int i = 0; i < 5; i++) {
+    v += a * noise(p);
+    p *= 2.0;
+    a *= 0.5;
+  }
+  return v;
+}
+
+void main() {
+  vec2 uv = v_uv;
+
+  // Сэмплируем картинку-фон и сразу добавляем рефракцию
+  float nRefract1 = fbm(uv * 10.0);
+  float nRefract2 = fbm(uv * 18.0 + vec2(0.0, u_time * 0.08));
+  vec2 refractOffset = vec2(
+    (nRefract1 - 0.5),
+    (nRefract2 - 0.5)
+  );
+  // максимальная величина искажения в UV
+  float maxRefract = 0.08 * u_refract; // 0..0.08
+  refractOffset *= maxRefract;
+
+  vec2 sceneUV = uv + refractOffset;
+  sceneUV = clamp(sceneUV, 0.0, 1.0);
+  vec3 sceneColor = texture2D(u_sceneTex, sceneUV).rgb;
+
+  // Маска "ближе к стеклу" — по центру почти нет инея, по краям больше
+  vec2 centered = uv - 0.5;
+  float dist = length(centered * vec2(1.1, 1.6)); // слегка вытягиваем по вертикали
+  float edgeFrost = smoothstep(0.3, 0.8, dist);   // 0 в центре, 1 на краях
+
+  // Базовый шум для фактуры льда
+  float nLarge = fbm(uv * 4.0);
+  float nMedium = fbm(uv * 12.0 + u_time * 0.03);
+  float nFine = fbm(uv * 32.0 + u_time * 0.08);
+
+  // Вертикальные "подтёки" / царапины
+  float streaks = noise(vec2(uv.x * 80.0, uv.y * 3.0 + u_time * 0.05));
+  streaks = smoothstep(0.5, 0.9, streaks);
+
+  // Общая маска инея
+  float frostDetail = nLarge * 0.6 + nMedium * 0.3 + nFine * 0.1;
+  float frost = edgeFrost * (0.5 + frostDetail * 0.8);
+
+  // Немного "проталин" / прозрачных островков
+  float meltIslands = fbm(uv * 6.0 - u_time * 0.02);
+  float meltMask = smoothstep(0.3, 0.7, meltIslands);
+
+  // Смешиваем всё в "маску льда"
+  float frostAmount = frost;
+  frostAmount += streaks * 0.18;                   // чуть добавляем структуры трещин
+  frostAmount *= (0.45 + 0.55 * u_intensity);      // глобальный контроль интенсивности
+
+  // В центре чуть чище
+  float centerClear = smoothstep(0.0, 0.5, dist);
+  frostAmount *= mix(0.25, 1.0, centerClear);
+
+  // Проталины уменьшают толщину льда локально
+  frostAmount *= mix(0.5, 1.0, meltMask);
+
+  // Лёгкое "дыхание" льда
+  frostAmount += 0.02 * sin(u_time * 0.5 + nFine * 6.28);
+
+  frostAmount = clamp(frostAmount, 0.0, 1.0);
+
+  // Цвет льда поверх сцены: "иней + микротрещины"
+  vec3 iceTint = vec3(0.88, 0.93, 1.0);
+  iceTint = mix(iceTint, vec3(0.60, 0.78, 0.95), edgeFrost * 0.7);
+
+  // Небольшой "блик" по диагонали
+  float highlight = smoothstep(0.1, 0.9, uv.x + uv.y);
+  iceTint += highlight * 0.05;
+
+  // Базовая сцена под стеклом со слегка съеденным контрастом
+  vec3 baseScene = sceneColor;
+  float sceneFade = frostAmount * 0.35;
+  baseScene = mix(baseScene, baseScene * (1.0 - sceneFade) + vec3(0.9) * sceneFade, frostAmount);
+
+  // Добавляем иней как белёсый слой
+  vec3 mixed = mix(baseScene, iceTint, frostAmount * 0.75);
+
+  // Дополнительное "молоко" при сильном льде
+  float desat = frostAmount * (0.2 + 0.8 * u_desat);
+  float luma = dot(mixed, vec3(0.299, 0.587, 0.114));
+  mixed = mix(mixed, vec3(luma), desat);
+
+  gl_FragColor = vec4(mixed, 1.0);
+}
+`;
+
+        function compileShader(type, source) {
+          const shader = gl.createShader(type);
+          gl.shaderSource(shader, source);
+          gl.compileShader(shader);
+          if (!gl.getShaderParameter(shader, gl.COMPILE_STATUS)) {
+            console.error(gl.getShaderInfoLog(shader));
+            gl.deleteShader(shader);
+            return null;
+          }
+          return shader;
+        }
+
+        const vertShader = compileShader(gl.VERTEX_SHADER, vertexSrc);
+        const fragShader = compileShader(gl.FRAGMENT_SHADER, fragmentSrc);
+        const program = gl.createProgram();
+        gl.attachShader(program, vertShader);
+        gl.attachShader(program, fragShader);
+        gl.linkProgram(program);
+
+        if (!gl.getProgramParameter(program, gl.LINK_STATUS)) {
+          console.error(gl.getProgramInfoLog(program));
+          return;
+        }
+
+        gl.useProgram(program);
+
+        const positionLocation = gl.getAttribLocation(program, "a_position");
+        const timeLocation = gl.getUniformLocation(program, "u_time");
+        const intensityLocation = gl.getUniformLocation(
+          program,
+          "u_intensity"
+        );
+        const refractLocation = gl.getUniformLocation(program, "u_refract");
+        const desatLocation = gl.getUniformLocation(program, "u_desat");
+        const sceneTexLocation = gl.getUniformLocation(
+          program,
+          "u_sceneTex"
+        );
+
+        const buffer = gl.createBuffer();
+        gl.bindBuffer(gl.ARRAY_BUFFER, buffer);
+        const vertices = new Float32Array([
+          -1,
+          -1,
+          1,
+          -1,
+          -1,
+          1,
+          -1,
+          1,
+          1,
+          -1,
+          1,
+          1,
+        ]);
+        gl.bufferData(gl.ARRAY_BUFFER, vertices, gl.STATIC_DRAW);
+        gl.enableVertexAttribArray(positionLocation);
+        gl.vertexAttribPointer(positionLocation, 2, gl.FLOAT, false, 0, 0);
+
+        // #region agent log
+        fetch("http://127.0.0.1:7670/ingest/da0d9d84-bd64-4891-8e68-68e6aa171e9a", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "X-Debug-Session-Id": "7e1476",
+          },
+          body: JSON.stringify({
+            sessionId: "7e1476",
+            runId: "pre-fix",
+            hypothesisId: "H1",
+            location: "ice-overlay-demo.html:initVertices",
+            message: "Vertices buffer initialized",
+            data: {
+              vertexCount: vertices.length / 2,
+              vertices: Array.from(vertices),
+            },
+            timestamp: Date.now(),
+          }),
+        }).catch(() => {});
+        // #endregion
+
+        // UI значения
+        const ui = {
+          intensity: 0.9,
+          refract: 0.6,
+          desat: 0.7,
+        };
+
+        const ctrlIntensity = document.getElementById("ctrl-intensity");
+        const ctrlRefract = document.getElementById("ctrl-refract");
+        const ctrlDesat = document.getElementById("ctrl-desat");
+
+        ctrlIntensity.addEventListener("input", () => {
+          ui.intensity = parseFloat(ctrlIntensity.value) || 0;
+        });
+        ctrlRefract.addEventListener("input", () => {
+          ui.refract = parseFloat(ctrlRefract.value) || 0;
+        });
+        ctrlDesat.addEventListener("input", () => {
+          ui.desat = parseFloat(ctrlDesat.value) || 0;
+        });
+
+        // Текстура с пейзажем
+        let sceneTexture = null;
+        let sceneReady = false;
+        const img = new Image();
+        img.src = "nature.jpg";
+        img.onload = function () {
+          // Переворачиваем картинку по вертикали, чтобы не была вверх ногами
+          gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, true);
+          sceneTexture = gl.createTexture();
+          gl.bindTexture(gl.TEXTURE_2D, sceneTexture);
+          gl.texImage2D(
+            gl.TEXTURE_2D,
+            0,
+            gl.RGBA,
+            gl.RGBA,
+            gl.UNSIGNED_BYTE,
+            img
+          );
+          gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+          gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+          gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
+          gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
+          sceneReady = true;
+
+          // Привязываем текстуру к юниту 0
+          gl.useProgram(program);
+          gl.uniform1i(sceneTexLocation, 0);
+
+          startRenderLoop();
+        };
+
+        let start = performance.now();
+        let firstFrameLogged = false;
+
+        function startRenderLoop() {
+          function render() {
+            if (!sceneReady) {
+              requestAnimationFrame(render);
+              return;
+            }
+
+            const now = performance.now();
+            const t = (now - start) / 1000;
+
+            gl.clear(gl.COLOR_BUFFER_BIT);
+            gl.useProgram(program);
+
+            // активируем текстуру сцены
+            gl.activeTexture(gl.TEXTURE0);
+            gl.bindTexture(gl.TEXTURE_2D, sceneTexture);
+
+            gl.uniform1f(timeLocation, t);
+            gl.uniform1f(intensityLocation, ui.intensity);
+            gl.uniform1f(refractLocation, ui.refract);
+            gl.uniform1f(desatLocation, ui.desat);
+            gl.drawArrays(gl.TRIANGLES, 0, 6);
+
+            if (!firstFrameLogged) {
+              firstFrameLogged = true;
+              // #region agent log
+              fetch("http://127.0.0.1:7670/ingest/da0d9d84-bd64-4891-8e68-68e6aa171e9a", {
+                method: "POST",
+                headers: {
+                  "Content-Type": "application/json",
+                  "X-Debug-Session-Id": "7e1476",
+                },
+                body: JSON.stringify({
+                  sessionId: "7e1476",
+                  runId: "pre-fix",
+                  hypothesisId: "H2",
+                  location: "ice-overlay-demo.html:firstFrame",
+                  message: "First frame rendered",
+                  data: {
+                    canvasWidth: canvas.width,
+                    canvasHeight: canvas.height,
+                  },
+                  timestamp: Date.now(),
+                }),
+              }).catch(() => {});
+              // #endregion
+            }
+
+            requestAnimationFrame(render);
+          }
+
+          requestAnimationFrame(render);
+        }
+      })();
+    </script>
+  </body>
+</html>
+

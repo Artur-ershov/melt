@@ -1,0 +1,223 @@
+да<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8" />
+  <title>Растопи лёд — обзор версий</title>
+  <style>
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      padding: 24px 16px;
+      font-family: system-ui, -apple-system, sans-serif;
+      background: #0f172a;
+      color: #e2e8f0;
+      line-height: 1.5;
+      max-width: 720px;
+      margin-left: auto;
+      margin-right: auto;
+    }
+    h1 {
+      font-size: 1.5rem;
+      margin: 0 0 8px;
+      color: #f8fafc;
+    }
+    p.lead {
+      color: #94a3b8;
+      margin: 0 0 24px;
+    }
+    section {
+      margin-bottom: 28px;
+    }
+    section h2 {
+      font-size: 0.75rem;
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
+      color: #64748b;
+      margin: 0 0 10px;
+      padding-bottom: 4px;
+      border-bottom: 1px solid #334155;
+    }
+    .card {
+      display: block;
+      padding: 14px 16px;
+      margin-bottom: 10px;
+      background: rgba(30, 41, 59, 0.8);
+      border: 1px solid rgba(71, 85, 105, 0.5);
+      border-radius: 10px;
+      color: inherit;
+      text-decoration: none;
+      transition: border-color 0.2s, background 0.2s;
+    }
+    .card:hover {
+      background: rgba(51, 65, 85, 0.9);
+      border-color: rgba(100, 116, 139, 0.8);
+    }
+    .card h3 {
+      margin: 0 0 4px;
+      font-size: 1rem;
+      font-weight: 600;
+      color: #f1f5f9;
+    }
+    .card p {
+      margin: 0;
+      font-size: 0.8125rem;
+      color: #94a3b8;
+    }
+    .card .file {
+      font-size: 0.75rem;
+      color: #64748b;
+      margin-top: 6px;
+    }
+  </style>
+</head>
+<body>
+
+  <h1>❄ Растопи лёд — обзор версий</h1>
+  <p class="lead">Выбери версию: от оригинальной игры до оверлеев с картой нормалей и таянием по курсору. Все ссылки ведут на файлы в этой же папке.</p>
+
+  <section>
+    <h2>Основная игра</h2>
+    <a class="card" href="index.html">
+      <h3>Оригинал (картинка льда)</h3>
+      <p>Классическая механика: фон — ice.jpg, стирание «кистью» по экрану, прогресс и показ приза. Запрос приза по email к Google Apps Script.</p>
+      <span class="file">index.html</span>
+    </a>
+    <a class="card" href="index-ice-procedural.html">
+      <h3>Процедурный лёд (без картинки)</h3>
+      <p>Тот же сценарий, но лёд рисуется на canvas градиентами, шумом и трещинами. Не нужен ice.jpg.</p>
+      <span class="file">index-ice-procedural.html</span>
+    </a>
+    <a class="card" href="index-ice-webgl.html">
+      <h3>WebGL + «тепло» от курсора</h3>
+      <p>Лёд — WebGL-шейдер. Таяние от горячих точек под курсором, автодотапливание после порога. Фон — real-ice-bg.jpg.</p>
+      <span class="file">index-ice-webgl.html</span>
+    </a>
+    <a class="card" href="ice-case-opening.html">
+      <h3>Ice Breaker: Case Opening</h3>
+      <p>Мини-игра: WebGL-лёд поверх картинки приза (nature/nature2 или свои скины). Растапливаешь лёд мышкой или пальцем, шкала заполняется, после ~85% показывается редкий предмет с окном победы. Призы берутся из массива ITEMS.</p>
+      <span class="file">ice-case-opening.html</span>
+    </a>
+  </section>
+
+  <section>
+    <h2>Демо-оверлеи (только лёд поверх фона)</h2>
+    <p style="font-size: 0.8125rem; color: #94a3b8; margin: 0 0 10px;">Фон — nature.jpg. Нет логики призов, только визуал льда и панели настроек.</p>
+    <a class="card" href="ice-overlay-demo.html">
+      <h3>FBM-иней + преломление</h3>
+      <p>Шум (fbm), иней по краям, преломление фона в шейдере. Слайдеры: мороз, преломление, мутность.</p>
+      <span class="file">ice-overlay-demo.html</span>
+    </a>
+    <a class="card" href="ice-overlay-demo-voronoi.html">
+      <h3>Voronoi-кристаллы</h3>
+      <p>Структура льда на основе Voronoi, нормали из высоты, хроматическая аберрация и блики. Упрощённая панель.</p>
+      <span class="file">ice-overlay-demo-voronoi.html</span>
+    </a>
+    <a class="card" href="ice-overlay-realistic.html">
+      <h3>Реалистичный кристалл (полный шейдер)</h3>
+      <p>Большой шейдер: Voronoi, иглы инея, каустики, освещение, блики, виньетка. Панель: мороз, кристаллы, преломление, блеск, мутность.</p>
+      <span class="file">ice-overlay-realistic.html</span>
+    </a>
+    <a class="card" href="ice-overlay-ultra-pbr.html">
+      <h3>Ultra PBR Ice Overlay</h3>
+      <p>PBR-подход: сцена + normal/roughness/opacity/frost карты. Физический блик от roughness, мерцающие искры и таяние по курсору. Слайдеры: преломление, сила инея, блеск, мерцание.</p>
+      <span class="file">ice-overlay-ultra-pbr.html</span>
+    </a>
+    <a class="card" href="ice-overlay-ultra-pbr-parallax.html">
+      <h3>Ultra PBR — Parallax + хроматика + живая вода</h3>
+      <p>Та же база, что Ultra PBR: параллакс по roughMap, хроматическая аберрация по R/G/B, второй слой нормалей (flowUV) для «живой воды». Иней, блики, искры, Френель без изменений.</p>
+      <span class="file">ice-overlay-ultra-pbr-parallax.html</span>
+    </a>
+    <a class="card" href="ice-overlay-ultimate-cinematic.html">
+      <h3>Ultimate Cinematic Ice — Final Edition</h3>
+      <p>Живая вода (двухслойные нормали: статичные + flowUV), параллакс по roughMap с отдельным слайдером «Глубина», хроматика (R/G/B 1.0 / 1.03 / 1.07), PBR-блики, искры, Френель. Слайдеры: преломление, глубина, иней, яркость бликов.</p>
+      <span class="file">ice-overlay-ultimate-cinematic.html</span>
+    </a>
+    <a class="card" href="ice-overlay-ultimate-light-matched.html">
+      <h3>Ultimate Cinematic Ice — Fixed & Light Matched</h3>
+      <p>Параллакс и хроматическая аберрация (R/G/B 1.05/1.1), light matching: ambient из сцены (0.5, 0.8), иней и блики подкрашены этим светом, Френель по ambient. Слайдеры: преломление, глубина фона, сила инея, блеск света.</p>
+      <span class="file">ice-overlay-ultimate-light-matched.html</span>
+    </a>
+    <a class="card" href="ice-overlay-deep-ice-architecture.html">
+      <h3>Deep Ice — Architecture Edition</h3>
+      <p>Отдельный набор: фон (nature + n1/n2/n3 — нормаль, свет, глубина города), лёд (prompt1–4). Параллакс фона по карте глубины (n3), light matching по карте света (n2), преломление и хроматика, таяние по курсору. Слайдеры: преломление, объём города, мороз.</p>
+      <span class="file">ice-overlay-deep-ice-architecture.html</span>
+    </a>
+    <a class="card" href="ice-overlay-ultimate-fusion.html">
+      <h3>Ultimate Ice & City Fusion (предфинал)</h3>
+      <p>Город (nature + n1/n2/n3) + лёд (prompt1–4) в одном: параллакс фона, преломление через лед, фонарик от мыши (пятно + диффуз по n1), таяние по курсору. Сглаживание нормали в мокрых зонах, блик на воде/льду, подсветка инея от сцены, мокрый край. Панель: свет, лёд, параллакс, таяние, переключатель набора города.</p>
+      <span class="file">ice-overlay-ultimate-fusion.html</span>
+    </a>
+    <a class="card" href="ice-overlay-ultimate-color-grade.html">
+      <h3>Ultimate Ice — Color Grade Edition</h3>
+      <p>Город + лёд с цветокоррекцией: насыщенность, контраст, экспозиция. Переключатель сетов (Nature 2 / Nature 1). Фонарик с теплотой, иней с непрозрачностью и силой фактуры, преломление, блик, таяние. Финальный проход adjustSaturation / adjustContrast в шейдере.</p>
+      <span class="file">ice-overlay-ultimate-color-grade.html</span>
+    </a>
+    <a class="card" href="ice-sandbox-ultimate.html">
+      <h3>Ice Sandbox: Ultimate Edition</h3>
+      <p>Большой «песочница»-оверлей: город (nature/nature2 + n1/n2/n3 или nn1/nn2/nn3) подо льдом (prompt1–4). Панель: фон (ambient, glow), лёд (opacity, normal, refraction, chroma, spec), фонарик (интенсивность, радиус, теплота), кисть таяния (радиус, скорость, wet edge), пост‑обработка (exposure/contrast/saturation). Toggle UI по клавише H.</p>
+      <span class="file">ice-sandbox-ultimate.html</span>
+    </a>
+    <a class="card" href="ice-sandbox-ultimate-hybrid.html">
+      <h3>Ice Sandbox: Ultimate Hybrid</h3>
+      <p>Гибрид света и физики: два режима освещения (фонарик / глобальное солнце), параллакс, глубокие нормали льда, RGB-аберрация, мокрые края, шум кисти, блур фона, плёночное зерно. Панель позволяет настраивать все параметры и переключать наборы города (nature / nature2).</p>
+      <span class="file">ice-sandbox-ultimate-hybrid.html</span>
+    </a>
+    <a class="card" href="ice-sandbox-god-mode.html">
+      <h3>Ice Sandbox: God Mode</h3>
+      <p>Максимальный «God Mode»‑оверлей: полный контроль над светом (фонарик/солнце, конус, falloff), льдом (масштаб текстуры, иней, хроматика, тень), термодинамикой таяния (шум, жёсткость, порог чистоты), жидкой фазой и цветокоррекцией. Работает с наборами города nature / nature2, панель включается клавишей H.</p>
+      <span class="file">ice-sandbox-god-mode.html</span>
+    </a>
+    <a class="card" href="ice-sandbox-creator-mode.html">
+      <h3>Ice Sandbox: Creator Mode</h3>
+      <p>Creator‑режим с киновским пайплайном: ACES tone mapping, управление экспозицией, контрастом и насыщенностью, тёплый/холодный баланс, два типа освещения (прожектор/солнце), SSS‑иней, глубина резкости, плёночное зерно и аккуратная физика таяния. Идеален, чтобы подбирать финальный «кинокадр» города под льдом.</p>
+      <span class="file">ice-sandbox-creator-mode.html</span>
+    </a>
+    <a class="card" href="ice-sandbox-maximumus.html">
+      <h3>Ice Sandbox: Maximumus</h3>
+      <p>Объединение God Mode и Creator Mode: полный набор тумблеров движка (ACES/дизеринг/гамма), света (фонарик/солнце, falloff, ambient), материала льда (нормали, иней, SSS, хроматика, тени), таяния (жёсткость/шум/скорость/радиус), жидкой фазы и пост‑обработки. Максимально жирный «финальный» контроллер для любых сцен nature/nature2.</p>
+      <span class="file">ice-sandbox-maximumus.html</span>
+    </a>
+  </section>
+
+  <section>
+    <h2>Оверлеи с картой нормалей + таяние</h2>
+    <p style="font-size: 0.8125rem; color: #94a3b8; margin: 0 0 10px;">Текстура льда задаётся картой нормалей (например Gemini_Generated_Image… или ice-normal.png). Таяние по курсору накапливается и сохраняется.</p>
+    <a class="card" href="ice-overlay-normalmap-basic.html">
+      <h3>Нормали — базовая</h3>
+      <p>Карта нормалей, преломление (одним сэмплом), иней и блики от нормали. Накопительная карта таяния, без искр и Френеля. Меньше контролов.</p>
+      <span class="file">ice-overlay-normalmap-basic.html</span>
+    </a>
+    <a class="card" href="ice-overlay-normalmap.html">
+      <h3>Нормали — полная (текущая)</h3>
+      <p>Всё то же + хроматическая аберрация, Френель, зернистость инея, анимированные искры. Максимум слайдеров: преломление, иней, блики, радиус/скорость таяния, Френель, искры, смесь инея, зернистость, резкость бликов.</p>
+      <span class="file">ice-overlay-normalmap.html</span>
+    </a>
+    <a class="card" href="ice-overlay-normalmap-full.html">
+      <h3>Нормали — полная (копия)</h3>
+      <p>Идентичная копия полной версии на момент сохранения. Удобно сравнивать после правок в ice-overlay-normalmap.html.</p>
+      <span class="file">ice-overlay-normalmap-full.html</span>
+    </a>
+  </section>
+
+  <section>
+    <h2>Другие демо</h2>
+    <a class="card" href="living-city-2.5d.html">
+      <h3>2.5D Living City</h3>
+      <p>Параллакс и динамический свет по мыши: фон (nature + n1/n2/n3). Глубина (n3) двигает сцену, нормали (n1) дают освещение от курсора, огни (n2) мерцают. Виньетка. Без льда.</p>
+      <span class="file">living-city-2.5d.html</span>
+    </a>
+  </section>
+
+  <section>
+    <h2>Ресурсы</h2>
+    <p style="font-size: 0.8125rem; color: #94a3b8; margin: 0 0 8px;">Фоны и текстуры, которые подставляются в демо:</p>
+    <ul style="font-size: 0.8125rem; color: #94a3b8; margin: 0; padding-left: 20px;">
+      <li><strong>nature.jpg</strong> — пейзаж под оверлеями (index, procedural, webgl используют другие имена при необходимости).</li>
+      <li><strong>ice.jpg</strong> — картинка льда в оригинальном index.html.</li>
+      <li><strong>real-ice-bg.jpg</strong> — фон в index-ice-webgl.html.</li>
+      <li><strong>Карта нормалей</strong> — Gemini_Generated_Image… .png или ice-normal.png в папке проекта или в assets/.</li>
+    </ul>
+  </section>
+
+</body>
+</html>
