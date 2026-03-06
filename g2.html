@@ -6,7 +6,7 @@
   <style>
     @font-face {
       font-family: "Crocnew";
-      src: url("CoFoWeather20240219-VF.ttf") format("truetype");
+      src: url("https://raw.githubusercontent.com/Artur-ershov/melt/master/CoFoWeather20240219-VF.ttf") format("truetype");
       font-weight: 100 900;
       font-stretch: 75% 125%;
       font-style: normal;
@@ -47,6 +47,7 @@
       font-variation-settings: "wdth" 125;
     }
     .ice-subtitle { font-size: 14px; color: #555758; margin: 0 0 34px; font-weight: 400; line-height: 1.5; }
+    .auth-footnote { font-size: 11px; color: #888; margin: 20px 0 0; line-height: 1.4; }
     .auth-box input[type=email] {
       display: block; width: 100%; padding: 17px 24px; border-radius: 50px;
       border: 1px solid rgba(0,0,0,0.13); background: rgba(255,255,255,0.75);
@@ -110,11 +111,11 @@
     #hud-label {
       display: flex; justify-content: space-between; align-items: center;
       font-size: 10px; letter-spacing: 2px; text-transform: uppercase;
-      color: rgba(0,0,0,0.55); font-weight: 700; margin-bottom: 8px;
+      color: #555758; font-weight: 700; margin-bottom: 8px;
     }
-    #hud-pct { font-family: monospace; color: #333; }
-    #hud-bar { width: 100%; height: 5px; border-radius: 999px; background: rgba(0,0,0,0.1); overflow: hidden; }
-    #hud-fill { height: 100%; width: 0%; border-radius: inherit; background: linear-gradient(90deg,#444,#111); transition: width 0.3s ease-out; }
+    #hud-pct { font-family: monospace; color: #555758; }
+    #hud-bar { width: 100%; height: 5px; border-radius: 999px; background: rgba(85,87,88,0.2); overflow: hidden; }
+    #hud-fill { height: 100%; width: 0%; border-radius: inherit; background: linear-gradient(90deg,#6a6c6d,#555758); transition: width 0.3s ease-out; }
 
     /* ── Prize popup ── */
     #prize-overlay {
@@ -125,7 +126,7 @@
     }
     #prize-overlay.visible { opacity: 1; pointer-events: auto; }
     .prize-box {
-      text-align: center; padding: 56px 52px 48px; border-radius: 28px; max-width: 580px; width: 92%;
+      text-align: center; padding: 30px 20px; border-radius: 28px; max-width: 580px; width: 92%;
       opacity: 0; transform: scale(0.88); filter: blur(14px);
     }
     .prize-box.reveal-in {
@@ -169,7 +170,8 @@
     .reveal-in { animation: revealZoom 1.3s cubic-bezier(0.77,0,0.175,1) forwards; }
 
     @media (max-width: 768px) {
-      #pp-title { font-size: 36px; }
+      #pp-title { font-size: 24px; }
+      #pp-desc, #pp-subtitle { font-size: 14px; }
     }
 
     /* ── Dev panel (скрыта по умолчанию, [H] для открытия) ── */
@@ -212,18 +214,24 @@
       position: fixed; inset: 0; z-index: 500;
       background: rgba(235,239,243,0.97); backdrop-filter: blur(20px);
       display: flex; flex-direction: column; align-items: center; justify-content: center;
-      color: #111; letter-spacing: 3px; transition: opacity 0.6s;
+      color: #555758; font-family: "Crocnew", system-ui, sans-serif; letter-spacing: 3px; transition: opacity 0.6s;
     }
-    #loader-text { margin-top: 14px; font-size: 11px; color: #999; letter-spacing: 2px; }
+    #loader-title { font-size: 14px; font-weight: 400; letter-spacing: 4px; text-transform: uppercase; margin-bottom: 20px; }
+    #loader-bar { width: 200px; height: 6px; border-radius: 999px; background: rgba(85,87,88,0.2); overflow: hidden; margin-bottom: 12px; }
+    #loader-bar-fill { height: 100%; width: 0%; border-radius: inherit; background: #555758; transition: width 0.25s ease-out; }
+    #loader-pct { font-size: 12px; color: #555758; letter-spacing: 2px; }
+    #loader-text { margin-top: 6px; font-size: 11px; color: #555758; letter-spacing: 2px; opacity: 0.9; }
 
-    #hint { position: fixed; bottom: 20px; left: 20px; color: rgba(0,0,0,0.3); font-size: 10px; letter-spacing: 2px; pointer-events: none; text-transform: uppercase; z-index: 10; font-weight: bold; opacity: 0; transition: opacity 0.4s; }
-    #hint.show { opacity: 1; }
+    #hint { position: fixed; bottom: 20px; left: 20px; color: #555758; font-size: 10px; letter-spacing: 2px; pointer-events: none; text-transform: uppercase; z-index: 10; font-weight: bold; opacity: 0; transition: opacity 0.4s; }
+    #hint.show { opacity: 0.7; }
   </style>
 </head>
 <body>
 
 <div id="loader">
-  <div>ЗАГРУЗКА...</div>
+  <div id="loader-title">ЗАГРУЗКА</div>
+  <div id="loader-bar"><div id="loader-bar-fill"></div></div>
+  <div id="loader-pct">0%</div>
   <div id="loader-text">Подготовка льда</div>
 </div>
 
@@ -231,7 +239,7 @@
 <div id="screen-auth">
   <div class="auth-box glass">
     <h2 class="ice-title">РАСТОПИ ЛЕД</h2>
-    <p class="ice-subtitle">Растопи лед и узнай свой подарок</p>
+    <p class="ice-subtitle">Растопи лед и узнай свой подарок*</p>
     <input type="email" id="email-field" placeholder="login@croc.ru" autocomplete="email" />
     <div id="email-error" class="field-error"></div>
     <select id="employee-type" class="employee-select" required>
@@ -241,6 +249,7 @@
       <option value="remote">Удаленный сотрудник</option>
     </select>
     <button id="btn-start">НАЧАТЬ</button>
+    <p class="auth-footnote">Учитывается только первый выигранный подарок</p>
   </div>
 </div>
 
@@ -364,6 +373,7 @@
   // ── GAME STATE ───────────────────────────────────────────────────────────────
   const REVEAL_THRESHOLD = 75;
   const GOOGLE_URL = 'https://script.google.com/macros/s/AKfycbxglNCMWE7mmWx4SXeJXUCttWKR54829vyzdEPjfdGIefJ8Pcje1WmIUOXphcJ56XpsMw/exec';
+  const ASSETS_BASE = 'https://raw.githubusercontent.com/Artur-ershov/melt/master/';
 
   let gameStarted = false;
   let prizeShown        = false;
@@ -392,7 +402,9 @@
   const urlParams   = new URLSearchParams(window.location.search);
   const isTestMode  = urlParams.get('test') === '1';
   const isSkipMode  = urlParams.get('skip') === '1';
+  const isSimulate  = urlParams.get('simulate') !== '0';  // по умолчанию вкл; отключить: ?simulate=0
   const VALID_LOCS  = ['moscow', 'regional', 'remote'];
+  if (isSimulate) console.log('[g2] Режим симуляции включён (по умолчанию). Реальные запросы отключены. Выключить: ?simulate=0');
   const testModeLoc = VALID_LOCS.includes(urlParams.get('loc') || '') ? urlParams.get('loc') : 'moscow';
 
   function validateEmail(showMessage = true) {
@@ -486,6 +498,27 @@
 
   // ── Prize fetch ───────────────────────────────────────────────────────────────
   function requestPrize() {
+    const applyResult = (res) => {
+      if (res && res.status === 'success' && res.prize) {
+        prizeData = typeof res.prize === 'object' ? res.prize : { title: res.prize };
+      } else {
+        prizeData = { title: 'Подарок', description: res?.message || '' };
+      }
+      prizeReady = true;
+      if (lastMeltPct >= REVEAL_THRESHOLD || isSkipMode) showPrize();
+    };
+    const applyFallback = () => {
+      prizeData = { title: 'Подарок', description: 'Проверь таблицу!' };
+      prizeReady = true;
+      if (lastMeltPct >= REVEAL_THRESHOLD || isSkipMode) showPrize();
+    };
+
+    if (isSimulate) {
+      const mock = { status: 'success', prize: { title: '🎁 Симуляция приза', subtitle: 'simulate', description: 'Реальные запросы отключены.' } };
+      Promise.resolve(mock).then(applyResult);
+      return;
+    }
+
     fetch(GOOGLE_URL, {
       method: 'POST',
       body: JSON.stringify({
@@ -495,20 +528,8 @@
       })
     })
     .then(r => r.json())
-    .then(res => {
-      if (res && res.status === 'success' && res.prize) {
-        prizeData = typeof res.prize === 'object' ? res.prize : { title: res.prize };
-      } else {
-        prizeData = { title: 'Подарок', description: res?.message || '' };
-      }
-      prizeReady = true;
-      if (lastMeltPct >= REVEAL_THRESHOLD || isSkipMode) showPrize();
-    })
-    .catch(() => {
-      prizeData = { title: 'Подарок', description: 'Проверь таблицу!' };
-      prizeReady = true;
-      if (lastMeltPct >= REVEAL_THRESHOLD || isSkipMode) showPrize();
-    });
+    .then(applyResult)
+    .catch(applyFallback);
   }
 
   function parseDescriptionLinks(text) {
@@ -594,7 +615,7 @@ precision highp float;
 in vec2 v_uv; out vec4 fragColor;
 uniform sampler2D u_bgTex,u_bgNorm,u_bgLight,u_bgDepth;
 uniform sampler2D u_iceNorm,u_iceFrost,u_iceOpacity,u_iceRough,u_meltMap;
-uniform vec2 u_mouse; uniform float u_ratio,u_time;
+uniform vec2 u_mouse; uniform float u_ratio,u_time,u_bgTexAspect,u_iceTexAspect;
 uniform float u_aces,u_dither,u_lightMode,u_lightInt,u_lightWarmth,u_lightRad,u_lightFalloff,u_sunX,u_sunY;
 uniform float u_texScale,u_frostOpacity,u_frostTint,u_iceNormal,u_refract,u_chroma,u_specular,u_shadowStr,u_sss;
 uniform float u_edgeDistort,u_waterShiny,u_waterOpacity;
@@ -602,10 +623,15 @@ uniform float u_blurStr,u_grain,u_ambient,u_exposure,u_gamma,u_parallax,u_emissi
 uniform float u_contrast,u_saturation,u_tintR,u_tintG,u_tintB,u_fresnelPower,u_fresnelStr,u_diffuseIceMix;
 float hash(vec2 p){return fract(sin(dot(p,vec2(12.9898,78.233)))*43758.5453);}
 vec3 aces_tm(vec3 x){return clamp((x*(2.51*x+0.03))/(x*(2.43*x+0.59)+0.14),0.,1.);}
+vec2 coverUV(vec2 uv, float viewAspect, float texAspect){
+  float su=min(1.,viewAspect/texAspect), sv=min(1.,texAspect/viewAspect);
+  return vec2(0.5*(1.-su)+uv.x*su, 0.5*(1.-sv)+uv.y*sv);
+}
 void main(){
   float melt=texture(u_meltMap,v_uv).r;
   float bgDepth=texture(u_bgDepth,v_uv).r;
-  vec2 iceUV=v_uv*u_texScale;
+  vec2 iceCoverUV=coverUV(v_uv,u_ratio,u_iceTexAspect);
+  vec2 iceUV=iceCoverUV*u_texScale;
   vec3 rawN=texture(u_iceNorm,iceUV).rgb*2.-1.;
   vec3 iceN=normalize(vec3(rawN.xy*u_iceNormal,rawN.z));
   float edge=smoothstep(0.,0.2,melt)*(1.-smoothstep(0.8,1.,melt));
@@ -613,10 +639,11 @@ void main(){
   finalN.xy+=iceN.xy*edge*u_edgeDistort; finalN=normalize(finalN);
   vec2 parallax=(u_mouse-0.5)*(1.-bgDepth)*u_parallax;
   vec2 baseUV=clamp(v_uv+parallax,0.001,0.999);
+  vec2 bgUV=coverUV(baseUV,u_ratio,u_bgTexAspect);
   float refr=u_refract*(1.-melt);
-  vec2 uvR=baseUV+finalN.xy*refr*(1.-u_chroma)+vec2(0.002)*u_shadowStr*(1.-melt);
-  vec2 uvG=baseUV+finalN.xy*refr;
-  vec2 uvB=baseUV+finalN.xy*refr*(1.+u_chroma);
+  vec2 uvR=bgUV+finalN.xy*refr*(1.-u_chroma)+vec2(0.002)*u_shadowStr*(1.-melt);
+  vec2 uvG=bgUV+finalN.xy*refr;
+  vec2 uvB=bgUV+finalN.xy*refr*(1.+u_chroma);
   vec3 bgCol=vec3(0);
   if(u_blurStr>0.){
     float b=u_blurStr*(1.-melt)*0.004;
@@ -715,7 +742,7 @@ void main(){
 
   const uNames=[
     'bgTex','bgNorm','bgLight','bgDepth','iceNorm','iceFrost','iceOpacity','iceRough','meltMap',
-    'mouse','ratio','time','aces','dither',
+    'mouse','ratio','time','bgTexAspect','iceTexAspect','aces','dither',
     'lightMode','lightInt','lightWarmth','lightRad','lightFalloff','sunX','sunY',
     'texScale','frostOpacity','frostTint','iceNormal','refract','chroma','specular','shadowStr','sss',
     'edgeDistort','waterShiny','waterOpacity',
@@ -764,7 +791,7 @@ void main(){
 
   let mouse={x:-1,y:-1}, lastMouse={x:-1,y:-1};
   let frameCount=0, running=false;
-  const textureObjs={}; let loadedCount=0;
+  const textureObjs={}; let loadedCount=0; let bgTexAspect=1, iceTexAspect=1;
 
   function createPlaceholder(key,unit){
     const t=gl.createTexture(); gl.activeTexture(gl.TEXTURE0+unit); gl.bindTexture(gl.TEXTURE_2D,t);
@@ -791,25 +818,44 @@ void main(){
     gl.activeTexture(gl.TEXTURE0); gl.bindTexture(gl.TEXTURE_2D,textureObjs['bgTex']);
     uploadTex(img,'bgTex',true);
   }
+  const LOADER_TOTAL = 8;
+  function setLoaderProgress(pct){
+    const fill=document.getElementById('loader-bar-fill'), txt=document.getElementById('loader-pct');
+    if(fill) fill.style.width=pct+'%';
+    if(txt) txt.textContent=Math.round(pct)+'%';
+  }
   function loadPreset(idx){
     const preset=PRESETS[idx]||PRESETS[0], ice=getIceAssets();
     Object.keys(textureObjs).forEach(k=>{gl.deleteTexture(textureObjs[k]);delete textureObjs[k];});
     loadedCount=0;
     const loader=document.getElementById('loader'); loader.style.opacity=1; loader.style.display='flex';
+    setLoaderProgress(0);
     if(preset.placeholders) preset.placeholders.forEach(k=>{ textureObjs[k]=createPlaceholder(k,TEX_ORDER.indexOf(k)); loadedCount++; });
+    setLoaderProgress((loadedCount/LOADER_TOTAL)*100);
     const queue={};
     if(preset.bgTex) queue.bgTex=preset.bgTex;
     TEX_ORDER.forEach(k=>{if(!textureObjs[k]&&ice[k]) queue[k]=ice[k];});
     Object.keys(queue).forEach(key=>{
       const unit=TEX_ORDER.indexOf(key), img=new Image(); img.crossOrigin='anonymous';
+      const path=queue[key];
+      const url=(path&&(path.startsWith('http')||path.startsWith('data:'))) ? path : path;
       img.onload=()=>finalizeTex(img,key,unit,true);
-      img.onerror=()=>finalizeTex(null,key,unit,false);
-      img.src=queue[key];
+      img.onerror=()=>{
+        if(url===path&&path&&!path.startsWith('http')&&!path.startsWith('data:')){
+          img.onerror=()=>finalizeTex(null,key,unit,false);
+          img.src=ASSETS_BASE+path;
+        } else finalizeTex(null,key,unit,false);
+      };
+      img.src=url;
     });
   }
   function finalizeTex(img,key,unit,ok){
     const t=gl.createTexture(); gl.activeTexture(gl.TEXTURE0+unit); gl.bindTexture(gl.TEXTURE_2D,t);
-    if(ok&&img){ uploadTex(img,key,key.startsWith('bg')); }
+    if(ok&&img){
+      if(key==='bgTex') bgTexAspect=img.naturalWidth/Math.max(1,img.naturalHeight);
+      if(['iceNorm','iceFrost','iceOpacity','iceRough'].includes(key)) iceTexAspect=img.naturalWidth/Math.max(1,img.naturalHeight);
+      uploadTex(img,key,key.startsWith('bg'));
+    }
     else{
       const px=key==='bgNorm'?new Uint8Array([128,128,255,255]):new Uint8Array([0,0,0,255]);
       gl.texImage2D(gl.TEXTURE_2D,0,gl.RGBA,1,1,0,gl.RGBA,gl.UNSIGNED_BYTE,px);
@@ -818,7 +864,8 @@ void main(){
       gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_WRAP_T,gl.CLAMP_TO_EDGE);
     }
     textureObjs[key]=t; loadedCount++;
-    if(loadedCount>=8){
+    setLoaderProgress((loadedCount/LOADER_TOTAL)*100);
+    if(loadedCount>=LOADER_TOTAL){
       const l=document.getElementById('loader'); l.style.opacity=0; setTimeout(()=>{l.style.display='none';},600);
       if(!running) startLoop();
     }
@@ -917,6 +964,8 @@ void main(){
       for(let i=0;i<NSAMP;i++) gl.uniform1i(U[uNames[i]],i);
       gl.uniform2f(U.mouse,mouse.x<0?0.5:mouse.x,mouse.y<0?0.5:mouse.y);
       gl.uniform1f(U.ratio,canvas.width/canvas.height);
+      gl.uniform1f(U.bgTexAspect,bgTexAspect);
+      gl.uniform1f(U.iceTexAspect,iceTexAspect);
       gl.uniform1f(U.time,(performance.now()-t0)*0.001);
       uNames.forEach(n=>{if(U[n]&&PARAMS[n]!==undefined) gl.uniform1f(U[n],PARAMS[n]);});
       gl.drawArrays(gl.TRIANGLES,0,6);
