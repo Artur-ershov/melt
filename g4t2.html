@@ -197,6 +197,7 @@
   var REVEAL_THRESHOLD = 75;
   var GOOGLE_URL = 'https://script.google.com/macros/s/AKfycbwgsfMC5X95pTEzmER8Y4u8Os_L_-QL1MJk8AiHZnr6ix61e_xa9BKDW1xrZE8qm-xzsQ/exec';
   var ASSETS_BASE = 'https://raw.githubusercontent.com/Artur-ershov/melt/master/';
+  var ASSETS_VER = '?v=4';
 
   var root = document.getElementById('g4t2-melt');
   if (!root) return;
@@ -958,9 +959,9 @@
       var unit = TEX_ORDER.indexOf(key);
       var img = new Image();
       var path = queue[key];
-      // Resolve relative paths to full GitHub URLs
+      // Resolve relative paths to full GitHub URLs with cache bust
       if (path && path.indexOf('http') !== 0 && path.indexOf('data:') !== 0) {
-        path = ASSETS_BASE + path;
+        path = ASSETS_BASE + path + ASSETS_VER;
       }
       if (path && path.indexOf('http') === 0) img.crossOrigin = 'anonymous';
       img.onload = function () { finalizeTex(img, key, unit, true); };
