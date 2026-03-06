@@ -424,9 +424,9 @@
     '  vec4 cBg    = texture(u_bgTex, bgUV);\n' +
     '  vec4 cRock  = texture(u_rockTex, rockUV);\n' +
     '  vec4 cFront = texture(u_frontTex, frontUV);\n' +
-    '  vec4 cHll   = texture(u_hllTex, hllUV);\n' +
-    '  vec4 cHlr   = texture(u_hlrTex, hlrUV);\n' +
-    '  vec4 cLines = texture(u_linesTex, linesUV);\n' +
+    '  vec4 cHll   = (hllUV.x<0.||hllUV.x>1.||hllUV.y<0.||hllUV.y>1.) ? vec4(0) : texture(u_hllTex, hllUV);\n' +
+    '  vec4 cHlr   = (hlrUV.x<0.||hlrUV.x>1.||hlrUV.y<0.||hlrUV.y>1.) ? vec4(0) : texture(u_hlrTex, hlrUV);\n' +
+    '  vec4 cLines = (linesUV.x<0.||linesUV.x>1.||linesUV.y<0.||linesUV.y>1.) ? vec4(0) : texture(u_linesTex, linesUV);\n' +
     '  float camYSafe = max(0.0, u_camY);\n' +
     '  float blurR = pow(1.0 - camYSafe, 2.0) * 0.025;\n' +
     '  vec4 cText;\n' +
