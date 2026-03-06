@@ -955,22 +955,20 @@
     Object.keys(queue).forEach(function (key) {
       var unit = TEX_ORDER.indexOf(key);
       var img = new Image();
-      img.crossOrigin = 'anonymous';
       var path = queue[key];
+      // Resolve relative paths to full GitHub URLs
+      if (path && path.indexOf('http') !== 0 && path.indexOf('data:') !== 0) {
+        path = ASSETS_BASE + path;
+      }
+      if (path && path.indexOf('http') === 0) img.crossOrigin = 'anonymous';
       img.onload = function () { finalizeTex(img, key, unit, true); };
-      img.onerror = function () {
-        if (path && path.indexOf('http') !== 0 && path.indexOf('data:') !== 0) {
-          img.onerror = function () { finalizeTex(null, key, unit, false); };
-          img.src = ASSETS_BASE + path;
-        } else {
-          finalizeTex(null, key, unit, false);
-        }
-      };
+      img.onerror = function () { finalizeTex(null, key, unit, false); };
       img.src = path;
     });
   }
 
   function finalizeTex(img, key, unit, ok) {
+    console.log('[g4t2] tex', key, ok ? 'OK' : 'FAIL', img && img.src ? img.src.slice(0, 80) : '');
     var t = gl.createTexture();
     gl.activeTexture(gl.TEXTURE0 + unit);
     gl.bindTexture(gl.TEXTURE_2D, t);
