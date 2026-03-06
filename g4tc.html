@@ -648,7 +648,7 @@ void main(){
 
       var vAspect = (rootW || 1) / (rootH || 1);
       var tAspect = W / 1080;
-      var visW = vAspect < tAspect ? Math.round(1080 * vAspect) : W;
+      var visW = vAspect < tAspect ? Math.round  (1080 * vAspect) : W;
 
       var isMob = rootW < 768;
       var p = function (k) { return PARAMS[isMob ? 'mob' + k.charAt(0).toUpperCase() + k.slice(1) : k]; };
@@ -1080,3 +1080,4 @@ void main(){
   validateEmail(false);
 })();
 </script>
+
