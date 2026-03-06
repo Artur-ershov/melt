@@ -27,22 +27,22 @@
 </g>
 </g>
 <defs>
-<filter id="filter0_f_124_591" x="1234.89" y="32.6371" width="1876.73" height="1876.73" filterUnits="userSpaceOnUse" color-interpolation-filters="sRGB">
+<filter id="filter0_f_124_591" x="-250" y="-250" width="3637" height="2667" filterUnits="userSpaceOnUse" color-interpolation-filters="sRGB">
 <feFlood flood-opacity="0" result="BackgroundImageFix"/>
 <feBlend mode="normal" in="SourceGraphic" in2="BackgroundImageFix" result="shape"/>
 <feGaussianBlur stdDeviation="69.66" result="effect1_foregroundBlur_124_591"/>
 </filter>
-<filter id="filter1_f_124_591" x="1243.28" y="131.063" width="1876.72" height="1874.45" filterUnits="userSpaceOnUse" color-interpolation-filters="sRGB">
+<filter id="filter1_f_124_591" x="-250" y="-250" width="3637" height="2667" filterUnits="userSpaceOnUse" color-interpolation-filters="sRGB">
 <feFlood flood-opacity="0" result="BackgroundImageFix"/>
 <feBlend mode="normal" in="SourceGraphic" in2="BackgroundImageFix" result="shape"/>
 <feGaussianBlur stdDeviation="69.66" result="effect1_foregroundBlur_124_591"/>
 </filter>
-<filter id="filter2_f_124_591" x="1290.02" y="81.4973" width="1765.28" height="1765.28" filterUnits="userSpaceOnUse" color-interpolation-filters="sRGB">
+<filter id="filter2_f_124_591" x="-250" y="-250" width="3637" height="2667" filterUnits="userSpaceOnUse" color-interpolation-filters="sRGB">
 <feFlood flood-opacity="0" result="BackgroundImageFix"/>
 <feBlend mode="normal" in="SourceGraphic" in2="BackgroundImageFix" result="shape"/>
 <feGaussianBlur stdDeviation="41.796" result="effect1_foregroundBlur_124_591"/>
 </filter>
-<filter id="filter3_f_124_591" x="1208.52" y="-3.05176e-05" width="1928.27" height="1928.27" filterUnits="userSpaceOnUse" color-interpolation-filters="sRGB">
+<filter id="filter3_f_124_591" x="-250" y="-250" width="3637" height="2667" filterUnits="userSpaceOnUse" color-interpolation-filters="sRGB">
 <feFlood flood-opacity="0" result="BackgroundImageFix"/>
 <feBlend mode="normal" in="SourceGraphic" in2="BackgroundImageFix" result="shape"/>
 <feGaussianBlur stdDeviation="82.5446" result="effect1_foregroundBlur_124_591"/>
