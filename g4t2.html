@@ -446,7 +446,7 @@
     '  }\n' +
     '  cText *= camYSafe;\n' +
     '  vec3 col = cBg.rgb;\n' +
-    '  col = col + (1.0 - cLines.rgb) * cLines.a * u_linesOpacity;\n' +
+    '  col = col + cLines.rgb * cLines.a * u_linesOpacity;\n' +
     '  col = mix(col, softlight(col, cHll.rgb), cHll.a);\n' +
     '  col = mix(col, softlight(col, cHlr.rgb), cHlr.a);\n' +
     '  col = col * (1.0 - cText.a) + cText.rgb;\n' +
