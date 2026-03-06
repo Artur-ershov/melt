@@ -1,0 +1,1175 @@
+<div id="g4t2-melt" class="g4t2-root">
+  <style>
+    @font-face {
+      font-family: "CrocExtended";
+      src: url("https://raw.githubusercontent.com/Artur-ershov/melt/master/CoFoWeather-ExtendedRegular.ttf") format("truetype");
+      font-weight: 400;
+      font-style: normal;
+      font-display: swap;
+    }
+    #g4t2-melt .g4t2-font {
+      font-family: "Croc", system-ui, sans-serif;
+    }
+    #g4t2-melt {
+      position: relative;
+      width: 100%;
+      height: 100%;
+      min-height: 100vh;
+      overflow: hidden;
+      background: #000;
+      box-sizing: border-box;
+    }
+    #g4t2-melt *, #g4t2-melt *::before, #g4t2-melt *::after { box-sizing: border-box; }
+    #g4t2-melt .g4t2-glass {
+      background: rgba(235, 239, 243, 0.52);
+      backdrop-filter: blur(26px);
+      -webkit-backdrop-filter: blur(26px);
+      border: 1px solid rgba(255,255,255,0.55);
+      box-shadow: inset 0 1px 0 rgba(255,255,255,0.65), 0 16px 48px rgba(0,0,0,0.14);
+    }
+
+    /* ── Loader ── */
+    #g4t2-melt #g4t2-loader {
+      position: absolute; inset: 0; z-index: 500;
+      background: rgba(235,239,243,0.97);
+      backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px);
+      display: flex; flex-direction: column; align-items: center; justify-content: center;
+      color: #555758; letter-spacing: 3px; transition: opacity 0.6s;
+    }
+    #g4t2-melt #g4t2-loader-title { font-size: 14px; font-weight: 400; letter-spacing: 4px; text-transform: uppercase; margin-bottom: 20px; }
+    #g4t2-melt #g4t2-loader-bar { width: 200px; height: 6px; border-radius: 999px; background: rgba(85,87,88,0.2); overflow: hidden; margin-bottom: 12px; }
+    #g4t2-melt #g4t2-loader-bar-fill { height: 100%; width: 0%; border-radius: inherit; background: #555758; transition: width 0.25s ease-out; }
+    #g4t2-melt #g4t2-loader-pct { font-size: 12px; color: #555758; letter-spacing: 2px; }
+    #g4t2-melt #g4t2-loader-text { margin-top: 6px; font-size: 11px; color: #555758; letter-spacing: 2px; opacity: 0.9; }
+
+    /* ── Auth screen ── */
+    #g4t2-melt #g4t2-screen-auth {
+      position: absolute; inset: 0; z-index: 300;
+      display: flex; align-items: center; justify-content: center;
+      transition: opacity 0.5s ease;
+    }
+    #g4t2-melt #g4t2-screen-auth.g4t2-fade-out { opacity: 0; pointer-events: none; }
+    #g4t2-melt .g4t2-auth-box {
+      text-align: center; padding: 52px 44px 44px; border-radius: 24px; width: 360px;
+    }
+    #g4t2-melt .g4t2-auth-box.g4t2-glass {
+      background: rgba(235, 239, 243, 0.4);
+      box-shadow: inset 47.7368px -47.7368px 47.7368px rgba(165, 165, 165, 0.094), inset -47.7368px 47.7368px 47.7368px rgba(255, 255, 255, 0.094);
+      backdrop-filter: blur(50px); -webkit-backdrop-filter: blur(50px);
+    }
+    #g4t2-melt .g4t2-ice-title {
+      font-size: 36px; font-weight: 400; letter-spacing: 4px; margin: 0 0 10px;
+      text-transform: uppercase; color: #555758; line-height: 1;
+      font-variation-settings: "wdth" 125;
+    }
+    #g4t2-melt .g4t2-ice-subtitle { font-size: 14px; color: #555758; margin: 0 0 34px; font-weight: 400; line-height: 1.5; }
+    #g4t2-melt .g4t2-auth-footnote { font-size: 11px; color: #888; margin: 20px 0 0; line-height: 1.4; }
+    #g4t2-melt .g4t2-auth-box input[type=email] {
+      display: block; width: 100%; padding: 17px 24px; border-radius: 50px;
+      border: 1px solid rgba(0,0,0,0.13); background: rgba(255,255,255,0.75);
+      color: #111; font-size: 16px; font-family: inherit; margin-bottom: 6px; outline: none;
+      transition: border-color 0.2s, box-shadow 0.2s;
+    }
+    #g4t2-melt .g4t2-auth-box input[type=email]:focus { border-color: rgba(0,0,0,0.3); box-shadow: 0 0 0 3px rgba(0,0,0,0.06); }
+    #g4t2-melt .g4t2-auth-box input[type=email]::placeholder { color: #bbb; }
+    #g4t2-melt .g4t2-auth-box input[type=email].g4t2-invalid { border-color: #e53935; box-shadow: 0 0 0 2px rgba(229,57,53,0.15); }
+    #g4t2-melt .g4t2-field-error { min-height: 16px; font-size: 11px; color: #e53935; text-align: left; padding: 0 4px 4px 4px; }
+    #g4t2-melt .g4t2-auth-box select.g4t2-employee-select {
+      display: block; width: 100%; padding: 17px 24px; padding-right: 44px; border-radius: 50px;
+      border: 1px solid rgba(0,0,0,0.13);
+      background: rgba(255,255,255,0.75) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%23555758' d='M6 8L1 3h10z'/%3E%3C/svg%3E") no-repeat right 18px center;
+      color: #111; font-size: 16px; font-family: inherit; margin-bottom: 14px; outline: none; cursor: pointer;
+      transition: border-color 0.2s, box-shadow 0.2s; -webkit-appearance: none; appearance: none; box-sizing: border-box;
+    }
+    #g4t2-melt .g4t2-auth-box select.g4t2-employee-select:hover,
+    #g4t2-melt .g4t2-auth-box select.g4t2-employee-select:focus { border-color: rgba(0,0,0,0.3); box-shadow: 0 0 0 3px rgba(0,0,0,0.06); }
+    #g4t2-melt .g4t2-auth-box select.g4t2-employee-select:invalid { color: #bbb; }
+    #g4t2-melt #g4t2-btn-start {
+      display: block; width: 100%; padding: 17px; border-radius: 50px; border: none;
+      background: #555758; color: #fff; font-family: inherit; font-size: 13px; font-weight: 400;
+      letter-spacing: 2.5px; text-transform: uppercase; cursor: pointer;
+      font-variation-settings: "wdth" 125; transition: background 0.2s, transform 0.15s;
+    }
+    #g4t2-melt #g4t2-btn-start:hover { background: #6a6c6d; transform: translateY(-1px); }
+    #g4t2-melt #g4t2-btn-start:active { transform: translateY(0); }
+
+    /* ── HUD ── */
+    #g4t2-melt #g4t2-game-hud {
+      position: absolute; bottom: 28px; left: 50%; transform: translateX(-50%);
+      z-index: 40; pointer-events: none; opacity: 0; transition: opacity 0.5s;
+      min-width: 280px; padding: 14px 22px 13px; border-radius: 16px;
+    }
+    #g4t2-melt #g4t2-game-hud.g4t2-visible { opacity: 1; }
+    #g4t2-melt #g4t2-hud-label { display: flex; justify-content: space-between; align-items: center; font-size: 10px; letter-spacing: 2px; text-transform: uppercase; color: #555758; font-weight: 700; margin-bottom: 8px; }
+    #g4t2-melt #g4t2-hud-pct { font-family: monospace; color: #555758; }
+    #g4t2-melt #g4t2-hud-bar { width: 100%; height: 5px; border-radius: 999px; background: rgba(85,87,88,0.2); overflow: hidden; }
+    #g4t2-melt #g4t2-hud-fill { height: 100%; width: 0%; border-radius: inherit; background: linear-gradient(90deg,#6a6c6d,#555758); transition: width 0.3s ease-out; }
+
+    /* ── Canvas ── */
+    #g4t2-melt #g4t2-gl-canvas {
+      position: absolute; top: 0; left: 0; width: 100%; height: 100%; display: block; cursor: none;
+    }
+
+    /* ── Prize overlay ── */
+    #g4t2-melt #g4t2-prize-overlay {
+      position: absolute; inset: 0; z-index: 999;
+      display: flex; align-items: center; justify-content: center;
+      background: transparent; pointer-events: none;
+    }
+    #g4t2-melt #g4t2-prize-overlay.g4t2-visible { pointer-events: auto; }
+    #g4t2-melt #g4t2-prize-inner { opacity: 0.01; }
+    #g4t2-melt .g4t2-prize-box {
+      text-align: center; padding: 30px 20px; border-radius: 28px; max-width: 580px; width: 92%;
+      background: transparent;
+    }
+    #g4t2-melt #g4t2-pp-title {
+      font-size: 52px; font-weight: 400; line-height: 1; text-transform: uppercase;
+      color: #555758; margin: 0 0 14px; font-variation-settings: "wdth" 125;
+    }
+    #g4t2-melt #g4t2-pp-subtitle {
+      font-size: 13px; color: #555758; margin: 0 0 10px; font-weight: 400; line-height: 1.3;
+    }
+    #g4t2-melt #g4t2-pp-desc {
+      font-size: 20px; color: #555758; margin: 0 0 10px; font-weight: 400; line-height: 1.4;
+    }
+    #g4t2-melt #g4t2-pp-desc a {
+      color: #2D2D2D; text-decoration: underline; text-underline-offset: 3px;
+    }
+    #g4t2-melt #g4t2-pp-desc a:hover { opacity: 0.7; }
+
+    @media (max-width: 768px) {
+      #g4t2-melt .g4t2-auth-box { padding: 30px 20px; width: 92%; }
+      #g4t2-melt #g4t2-pp-title { font-size: 24px; }
+      #g4t2-melt #g4t2-pp-desc, #g4t2-melt #g4t2-pp-subtitle { font-size: 14px; }
+    }
+  </style>
+
+  <div id="g4t2-loader" class="g4t2-font">
+    <div id="g4t2-loader-title">ЗАГРУЗКА</div>
+    <div id="g4t2-loader-bar"><div id="g4t2-loader-bar-fill"></div></div>
+    <div id="g4t2-loader-pct">0%</div>
+    <div id="g4t2-loader-text">Подготовка льда</div>
+  </div>
+
+  <div id="g4t2-screen-auth">
+    <div class="g4t2-auth-box g4t2-glass g4t2-font">
+      <h2 class="g4t2-ice-title">РАСТОПИ ЛЕД</h2>
+      <p class="g4t2-ice-subtitle">Растопи лед и узнай свой подарок*</p>
+      <input type="email" id="g4t2-email-field" placeholder="login@croc.ru" autocomplete="email" />
+      <div id="g4t2-email-error" class="g4t2-field-error"></div>
+      <select id="g4t2-employee-type" class="g4t2-employee-select" required>
+        <option value="" selected disabled hidden>Откуда ты</option>
+        <option value="moscow">Сотрудник московского офиса</option>
+        <option value="regional">Сотрудник регионального офиса</option>
+        <option value="remote">Удаленный сотрудник</option>
+      </select>
+      <button id="g4t2-btn-start">НАЧАТЬ</button>
+      <p class="g4t2-auth-footnote">Учитывается только первый выигранный подарок</p>
+    </div>
+  </div>
+
+  <div id="g4t2-game-hud" class="g4t2-glass g4t2-font">
+    <div id="g4t2-hud-label">
+      <span>Растопи лед</span>
+      <span id="g4t2-hud-pct">0%</span>
+    </div>
+    <div id="g4t2-hud-bar"><div id="g4t2-hud-fill"></div></div>
+  </div>
+
+  <!-- Prize data holders (invisible, used by JS for text texture) -->
+  <div id="g4t2-prize-overlay" style="display:none">
+    <div id="g4t2-prize-inner">
+      <h1 id="g4t2-pp-title"></h1>
+      <p id="g4t2-pp-subtitle"></p>
+      <p id="g4t2-pp-desc"></p>
+    </div>
+  </div>
+
+  <a id="g4t2-link-hotspot" style="position:absolute;z-index:50;pointer-events:none;opacity:0;display:block;" target="_blank" rel="noopener noreferrer"></a>
+
+  <canvas id="g4t2-gl-canvas"></canvas>
+</div>
+
+<script>
+(function () {
+  var REVEAL_THRESHOLD = 75;
+  var GOOGLE_URL = 'https://script.google.com/macros/s/AKfycbwgsfMC5X95pTEzmER8Y4u8Os_L_-QL1MJk8AiHZnr6ix61e_xa9BKDW1xrZE8qm-xzsQ/exec';
+  var ASSETS_BASE = 'https://raw.githubusercontent.com/Artur-ershov/melt/master/';
+
+  var root = document.getElementById('g4t2-melt');
+  if (!root) return;
+
+  var rootW = 0, rootH = 0;
+  var gameStarted = false;
+  var prizeShown = false;
+  var prizeReady = false;
+  var prizeData = null;
+  var currentEmail = '';
+  var currentEmployeeType = '';
+  var lastMeltPct = 0;
+
+  var screenAuth = document.getElementById('g4t2-screen-auth');
+  var gameHud = document.getElementById('g4t2-game-hud');
+  var hudFill = document.getElementById('g4t2-hud-fill');
+  var hudPct = document.getElementById('g4t2-hud-pct');
+  var ppTitle = document.getElementById('g4t2-pp-title');
+  var ppSubtitle = document.getElementById('g4t2-pp-subtitle');
+  var ppDesc = document.getElementById('g4t2-pp-desc');
+  var emailInput = document.getElementById('g4t2-email-field');
+  var emailErrorEl = document.getElementById('g4t2-email-error');
+  var btnStart = document.getElementById('g4t2-btn-start');
+  var employeeTypeSel = document.getElementById('g4t2-employee-type');
+
+  function validateEmail(showMessage) {
+    var value = emailInput.value.trim().toLowerCase();
+    var message = '';
+    var isValid = true;
+    if (!value) {
+      isValid = false;
+    } else {
+      var parts = value.split('@');
+      var local = parts[0] || '';
+      var hasAt = parts.length === 2 && local !== '' && parts[1] !== '';
+      if (!hasAt || /^\d+$/.test(local)) {
+        isValid = false;
+        message = 'Укажи почту в формате login@croc.ru';
+      }
+    }
+    var hasEmployeeType = employeeTypeSel.value !== '';
+    if (showMessage) {
+      emailInput.classList.toggle('g4t2-invalid', !isValid && value !== '');
+      if (!isValid) emailErrorEl.textContent = message;
+      else if (!hasEmployeeType) emailErrorEl.textContent = 'Выбери, откуда ты';
+      else emailErrorEl.textContent = '';
+    } else {
+      emailInput.classList.remove('g4t2-invalid');
+      emailErrorEl.textContent = '';
+    }
+    var canStart = isValid && hasEmployeeType;
+    btnStart.style.opacity = canStart ? '' : '0.5';
+    btnStart.style.cursor = canStart ? 'pointer' : 'default';
+    btnStart.setAttribute('aria-disabled', canStart ? 'false' : 'true');
+    return canStart;
+  }
+
+  // ── Auth ─────────────────────────────────────────────────────────────────────
+  btnStart.addEventListener('click', function () {
+    if (!validateEmail(true)) {
+      if (!employeeTypeSel.value) employeeTypeSel.focus();
+      else emailInput.focus();
+      return;
+    }
+    currentEmail = emailInput.value.trim().toLowerCase();
+    currentEmployeeType = employeeTypeSel.value;
+    screenAuth.classList.add('g4t2-fade-out');
+    setTimeout(function () { screenAuth.style.display = 'none'; }, 520);
+    gameStarted = true;
+    gameHud.classList.add('g4t2-visible');
+    requestPrize();
+  });
+  emailInput.addEventListener('keydown', function (e) {
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      if (validateEmail(true)) btnStart.click();
+    }
+  });
+  employeeTypeSel.addEventListener('change', function () { validateEmail(false); });
+  var emailValidateDebounce = null;
+  emailInput.addEventListener('input', function () {
+    validateEmail(false);
+    clearTimeout(emailValidateDebounce);
+    emailValidateDebounce = setTimeout(function () { validateEmail(true); }, 1000);
+  });
+
+  // ── Prize fetch ──────────────────────────────────────────────────────────────
+  function requestPrize() {
+    function applyResult(res) {
+      if (res && res.status === 'success' && res.prize) {
+        prizeData = typeof res.prize === 'object' ? res.prize : { title: res.prize };
+      } else {
+        prizeData = { title: 'Подарок', description: (res && res.message) ? res.message : '' };
+      }
+      prizeReady = true;
+      if (lastMeltPct >= REVEAL_THRESHOLD) { autoMelting = true; autoMeltStart = 0; showPrize(); }
+    }
+    function applyFallback() {
+      prizeData = { title: 'Подарок', description: 'Проверь таблицу!' };
+      prizeReady = true;
+      if (lastMeltPct >= REVEAL_THRESHOLD) { autoMelting = true; autoMeltStart = 0; showPrize(); }
+    }
+    fetch(GOOGLE_URL, {
+      method: 'POST',
+      body: JSON.stringify({
+        email: currentEmail,
+        employeeType: currentEmployeeType,
+        location: currentEmployeeType
+      })
+    })
+      .then(function (r) { return r.json(); })
+      .then(applyResult)
+      .catch(applyFallback);
+  }
+
+  function parseDescriptionLinks(text) {
+    if (!text || typeof text !== 'string') return '';
+    var escaped = text
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;');
+    return escaped.replace(
+      /\[([^\]]*)\]\((https?:\/\/[^)]+)\)/g,
+      function (_, label, url) {
+        var safeUrl = url.replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+        return '<a href="' + safeUrl + '" target="_blank" rel="noopener noreferrer">' + label + '</a>';
+      }
+    );
+  }
+
+  // ── WebGL2 ───────────────────────────────────────────────────────────────────
+  var canvas = document.getElementById('g4t2-gl-canvas');
+  var gl = canvas.getContext('webgl2', { alpha: false, depth: false, antialias: true, premultipliedAlpha: false });
+  if (!gl) { alert('WebGL2 не поддерживается'); return; }
+
+  var PARAMS = {
+    aces:0, dither:0, camY:0.0,
+    bgY0:-1, bgY1:0.22, rockY0:-0.03, rockY1:0.72, frontY0:0.22, frontY1:0.83,
+    hllX:0.533, hlrX:-0.283,
+    hllY0:-0.88, hllY1:0.82, hlrY0:-0.72, hlrY1:0.73, linesY0:-0.13, linesY1:0.17, linesOpacity:0.35,
+    textY0:0.97, textY1:0.17,
+    lightMode:0, lightInt:0.2, lightWarmth:1, lightRad:0.4, lightFalloff:0.35, sunX:0.2, sunY:0.5,
+    texScale:1, frostOpacity:0.09, frostTint:0.39, iceNormal:4, refract:0.119, chroma:0.01, specular:4.7, shadowStr:0, sss:0.5,
+    txtMaxW:90, txtBaseY:0.2, txtGap1:2, txtGap2:2, txtGap3:2,
+    txtSzHeader:2, txtSzTitle:4, txtSzSub:1, txtSzDesc:1.25, txtLhDesc:1.2,
+    mobTxtMaxW:90, mobTxtBaseY:0.5, mobTxtGap1:3, mobTxtGap2:2.5, mobTxtGap3:2.5,
+    mobTxtSzHeader:4, mobTxtSzTitle:5, mobTxtSzSub:3, mobTxtSzDesc:4, mobTxtLhDesc:1.2,
+    mobBgY0:-0.67, mobBgY1:-0.1, mobRockY0:-0.15, mobRockY1:0.43, mobFrontY0:-0.03, mobFrontY1:0.35,
+    mobHllY0:-0.68, mobHllY1:0.4, mobHlrY0:-0.45, mobHlrY1:0.85, mobLinesY0:-0.3, mobLinesY1:0.17,
+    mobTextY0:0.97, mobTextY1:0.08,
+    minLayerW:640,
+    meltRadius:0.08, meltSpeed:0.09, edgeDistort:1.55, brushHardness:0.75,
+    waterShiny:290, waterOpacity:0.06,
+    blurStr:0, grain:0.03, ambient:1, emissive:0, vignette:0, parallax:0.007,
+    exposure:1, gamma:1, contrast:1, saturation:1, tintR:1, tintG:1, tintB:1,
+    fresnelPower:1.1, fresnelStr:0.06, diffuseIceMix:0.45
+  };
+
+  var TEX_ORDER = ['bgTex','rockTex','frontTex','hllTex','hlrTex','linesTex','bgNorm','bgLight','bgDepth','iceNorm','iceFrost','iceOpacity','iceRough'];
+  var PRESETS = [{ name:'Meadow', bgTex:'bgp.jpg', rockTex:'rock.png', frontTex:'front.png', hllTex:'hl-l.svg', hlrTex:'hl-r.svg', linesTex:'lines.svg', placeholders:['bgNorm','bgLight','bgDepth'] }];
+
+  function getIceAssets() {
+    return { iceNorm:'prompt1.png', iceFrost:'prompt2.png', iceOpacity:'prompt3.png', iceRough:'prompt4.png' };
+  }
+
+  // ── Resize (ResizeObserver + getBoundingClientRect) ──────────────────────────
+  function resize() {
+    var rect = root.getBoundingClientRect();
+    rootW = rect.width;
+    rootH = rect.height;
+    var dpr = Math.min(window.devicePixelRatio || 1, 1.5);
+    canvas.width = rootW * dpr;
+    canvas.height = rootH * dpr;
+    gl.viewport(0, 0, canvas.width, canvas.height);
+  }
+  var ro = new ResizeObserver(function () {
+    resize();
+    regenTextTexture();
+    if (PARAMS.camY >= 1) positionLinkHotspot();
+  });
+  ro.observe(root);
+  resize();
+
+  // ── Shaders (from g4.html — full version with softlight, all layers) ────────
+  var VS = '#version 300 es\n' +
+    'in vec2 a_pos; out vec2 v_uv;\n' +
+    'void main(){ v_uv=a_pos*0.5+0.5; gl_Position=vec4(a_pos,0,1); }';
+
+  var FS = '#version 300 es\n' +
+    'precision highp float;\n' +
+    'in vec2 v_uv; out vec4 fragColor;\n' +
+    'uniform sampler2D u_bgTex,u_rockTex,u_frontTex,u_hllTex,u_hlrTex,u_linesTex,u_textTex;\n' +
+    'uniform sampler2D u_bgNorm,u_bgLight,u_bgDepth;\n' +
+    'uniform sampler2D u_iceNorm,u_iceFrost,u_iceOpacity,u_iceRough,u_meltMap;\n' +
+    'uniform vec2 u_mouse;\n' +
+    'uniform float u_ratio,u_time,u_bgTexAspect,u_iceTexAspect,u_rockTexAspect,u_frontTexAspect,u_hllTexAspect,u_hlrTexAspect,u_linesTexAspect,u_camY;\n' +
+    'uniform float u_aces,u_dither,u_lightMode,u_lightInt,u_lightWarmth,u_lightRad,u_lightFalloff,u_sunX,u_sunY;\n' +
+    'uniform float u_texScale,u_frostOpacity,u_frostTint,u_iceNormal,u_refract,u_chroma,u_specular,u_shadowStr,u_sss;\n' +
+    'uniform float u_edgeDistort,u_waterShiny,u_waterOpacity;\n' +
+    'uniform float u_blurStr,u_grain,u_ambient,u_exposure,u_gamma,u_parallax,u_emissive,u_vignette;\n' +
+    'uniform float u_contrast,u_saturation,u_tintR,u_tintG,u_tintB,u_fresnelPower,u_fresnelStr,u_diffuseIceMix;\n' +
+    'uniform float u_bgY0,u_bgY1,u_rockY0,u_rockY1,u_frontY0,u_frontY1,u_hllY0,u_hllY1,u_hlrY0,u_hlrY1,u_linesY0,u_linesY1,u_textY0,u_textY1;\n' +
+    'uniform float u_hllX,u_hlrX,u_linesOpacity;\n' +
+    'float hash(vec2 p){return fract(sin(dot(p,vec2(12.9898,78.233)))*43758.5453);}\n' +
+    'vec3 aces_tm(vec3 x){return clamp((x*(2.51*x+0.03))/(x*(2.43*x+0.59)+0.14),0.,1.);}\n' +
+    'vec2 coverUV(vec2 uv, float viewAspect, float texAspect){\n' +
+    '  float su=min(1.,viewAspect/texAspect), sv=min(1.,texAspect/viewAspect);\n' +
+    '  return vec2(0.5*(1.-su)+uv.x*su, 0.5*(1.-sv)+uv.y*sv);\n' +
+    '}\n' +
+    'vec3 softlight(vec3 base, vec3 blend){\n' +
+    '  vec3 lo = 2.0*base*blend + base*base*(1.0-2.0*blend);\n' +
+    '  vec3 hi = 2.0*base*(1.0-blend) + sqrt(base)*(2.0*blend-1.0);\n' +
+    '  return mix(lo, hi, step(0.5, blend));\n' +
+    '}\n' +
+    'vec4 getBg(vec2 uv){\n' +
+    '  vec2 bgUV    = coverUV(uv + vec2(0, mix(u_bgY0,    u_bgY1,    u_camY)), u_ratio, u_bgTexAspect);\n' +
+    '  vec2 rockUV  = coverUV(uv + vec2(0, mix(u_rockY0,  u_rockY1,  u_camY)), u_ratio, u_rockTexAspect);\n' +
+    '  vec2 frontUV = coverUV(uv + vec2(0, mix(u_frontY0, u_frontY1, u_camY)), u_ratio, u_frontTexAspect);\n' +
+    '  vec2 hllUV   = coverUV(uv + vec2(0, mix(u_hllY0,   u_hllY1,   u_camY)), u_ratio, u_hllTexAspect);\n' +
+    '  hllUV.x += u_hllX;\n' +
+    '  vec2 hlrUV   = coverUV(uv + vec2(0, mix(u_hlrY0,   u_hlrY1,   u_camY)), u_ratio, u_hlrTexAspect);\n' +
+    '  hlrUV.x += u_hlrX;\n' +
+    '  vec2 linesUV = coverUV(uv + vec2(0, mix(u_linesY0, u_linesY1, u_camY)), u_ratio, u_linesTexAspect);\n' +
+    '  const float TEXT_ASPECT = 1920.0/1080.0;\n' +
+    '  vec2 textUV  = coverUV(uv + vec2(0, mix(u_textY0,  u_textY1,  u_camY)), u_ratio, TEXT_ASPECT);\n' +
+    '  vec4 cBg    = texture(u_bgTex, bgUV);\n' +
+    '  vec4 cRock  = texture(u_rockTex, rockUV);\n' +
+    '  vec4 cFront = texture(u_frontTex, frontUV);\n' +
+    '  vec4 cHll   = texture(u_hllTex, hllUV);\n' +
+    '  vec4 cHlr   = texture(u_hlrTex, hlrUV);\n' +
+    '  vec4 cLines = texture(u_linesTex, linesUV);\n' +
+    '  float camYSafe = max(0.0, u_camY);\n' +
+    '  float blurR = pow(1.0 - camYSafe, 2.0) * 0.025;\n' +
+    '  vec4 cText;\n' +
+    '  if (blurR < 0.001) {\n' +
+    '    cText = texture(u_textTex, textUV);\n' +
+    '  } else {\n' +
+    '    cText = texture(u_textTex, textUV) * 4.0;\n' +
+    '    float tw = 4.0;\n' +
+    '    for (int i = 0; i < 6; i++) {\n' +
+    '      float a = float(i) * 6.2832 / 6.0;\n' +
+    '      vec2 off = vec2(cos(a), sin(a));\n' +
+    '      cText += texture(u_textTex, textUV + off * blurR);\n' +
+    '      cText += texture(u_textTex, textUV + off * blurR * 0.5);\n' +
+    '      tw += 2.0;\n' +
+    '    }\n' +
+    '    cText /= tw;\n' +
+    '  }\n' +
+    '  cText *= camYSafe;\n' +
+    '  vec3 col = cBg.rgb;\n' +
+    '  col = col + (1.0 - cLines.rgb) * cLines.a * u_linesOpacity;\n' +
+    '  col = mix(col, softlight(col, cHll.rgb), cHll.a);\n' +
+    '  col = mix(col, softlight(col, cHlr.rgb), cHlr.a);\n' +
+    '  col = col * (1.0 - cText.a) + cText.rgb;\n' +
+    '  col = mix(col, cRock.rgb,  cRock.a);\n' +
+    '  col = mix(col, cFront.rgb, cFront.a);\n' +
+    '  return vec4(col, 1.0);\n' +
+    '}\n' +
+    'void main(){\n' +
+    '  float melt=texture(u_meltMap,v_uv).r;\n' +
+    '  float bgDepth=texture(u_bgDepth,v_uv).r;\n' +
+    '  vec2 iceCoverUV=coverUV(v_uv,u_ratio,u_iceTexAspect);\n' +
+    '  vec2 iceUV=iceCoverUV*u_texScale;\n' +
+    '  vec3 rawN=texture(u_iceNorm,iceUV).rgb*2.-1.;\n' +
+    '  vec3 iceN=normalize(vec3(rawN.xy*u_iceNormal,rawN.z));\n' +
+    '  float edge=smoothstep(0.,0.2,melt)*(1.-smoothstep(0.8,1.,melt));\n' +
+    '  vec3 finalN=mix(iceN,vec3(0,0,1),melt);\n' +
+    '  finalN.xy+=iceN.xy*edge*u_edgeDistort; finalN=normalize(finalN);\n' +
+    '  vec2 parallax=(u_mouse-0.5)*(1.-bgDepth)*u_parallax;\n' +
+    '  vec2 baseUV=clamp(v_uv+parallax,0.001,0.999);\n' +
+    '  float refr=u_refract*(1.-melt);\n' +
+    '  vec2 uvR=baseUV+finalN.xy*refr*(1.-u_chroma)+vec2(0.002)*u_shadowStr*(1.-melt);\n' +
+    '  vec2 uvG=baseUV+finalN.xy*refr;\n' +
+    '  vec2 uvB=baseUV+finalN.xy*refr*(1.+u_chroma);\n' +
+    '  vec3 bgCol=vec3(0);\n' +
+    '  if(u_blurStr>0.){\n' +
+    '    float b=u_blurStr*(1.-melt)*0.004;\n' +
+    '    bgCol.r=(getBg(uvR).r+getBg(uvR+vec2(b,b)).r+getBg(uvR-vec2(b,b)).r+getBg(uvR+vec2(b,-b)).r+getBg(uvR+vec2(-b,b)).r)/5.;\n' +
+    '    bgCol.g=(getBg(uvG).g+getBg(uvG+vec2(b,b)).g+getBg(uvG-vec2(b,b)).g+getBg(uvG+vec2(b,-b)).g+getBg(uvG+vec2(-b,b)).g)/5.;\n' +
+    '    bgCol.b=(getBg(uvB).b+getBg(uvB+vec2(b,b)).b+getBg(uvB-vec2(b,b)).b+getBg(uvB+vec2(b,-b)).b+getBg(uvB+vec2(-b,b)).b)/5.;\n' +
+    '  } else { bgCol=vec3(getBg(uvR).r,getBg(uvG).g,getBg(uvB).b); }\n' +
+    '  float iceMask=texture(u_iceOpacity,iceUV).r;\n' +
+    '  float opacity=iceMask*(1.-melt);\n' +
+    '  bgCol*=1.-opacity*u_shadowStr*0.5;\n' +
+    '  vec2 auxUV=coverUV(uvG,u_ratio,u_bgTexAspect);\n' +
+    '  vec3 bgEmissive=texture(u_bgLight,auxUV).rgb;\n' +
+    '  vec3 lightDir; float atten=1.;\n' +
+    '  if(u_lightMode<0.5){\n' +
+    '    vec3 lPos=vec3(u_mouse.x*u_ratio,u_mouse.y,0.3);\n' +
+    '    vec3 pPos=vec3(v_uv.x*u_ratio,v_uv.y,0.);\n' +
+    '    float d=distance(lPos,pPos);\n' +
+    '    atten=1.-smoothstep(u_lightRad*u_lightFalloff,u_lightRad,d);\n' +
+    '    lightDir=normalize(lPos-pPos);\n' +
+    '  } else { lightDir=normalize(vec3(u_sunX,u_sunY,0.5)); }\n' +
+    '  vec3 lightColor=mix(vec3(0.8,0.9,1.),vec3(1.,0.9,0.55),u_lightWarmth);\n' +
+    '  vec3 bgNorm=normalize(texture(u_bgNorm,auxUV).rgb*2.-1.);\n' +
+    '  float diffBg=max(dot(bgNorm,lightDir),0.);\n' +
+    '  float diffIce=max(dot(finalN,lightDir),0.);\n' +
+    '  float bgIllum=mix(diffBg,diffIce,u_diffuseIceMix)*atten*u_lightInt;\n' +
+    '  vec3 scene=bgCol*(u_ambient+bgIllum*lightColor)+bgEmissive*u_emissive;\n' +
+    '  vec3 frostTex=texture(u_iceFrost,iceUV).rgb;\n' +
+    '  frostTex=mix(frostTex,vec3(0.75,0.88,1.),u_frostTint);\n' +
+    '  vec3 frostLit=frostTex*(scene+bgIllum*u_sss*2.*lightColor);\n' +
+    '  vec3 comp=mix(scene,frostLit,opacity*u_frostOpacity);\n' +
+    '  comp=mix(comp,vec3(0.8,0.85,0.9)*0.4,u_waterOpacity*melt*(1.-melt));\n' +
+    '  vec3 viewDir=vec3(0,0,1);\n' +
+    '  float fresnel=pow(1.-max(dot(finalN,viewDir),0.),u_fresnelPower)*u_fresnelStr;\n' +
+    '  comp+=mix(vec3(0.6,0.75,0.95),lightColor,0.4)*fresnel*min(opacity+edge,1.);\n' +
+    '  float rough=texture(u_iceRough,iceUV).r;\n' +
+    '  float shine=mix(mix(15.,5.,rough),u_waterShiny,melt);\n' +
+    '  comp+=pow(max(dot(finalN,normalize(lightDir+viewDir)),0.),shine)*u_specular*bgIllum*lightColor*(1.+edge*5.);\n' +
+    '  if(u_lightMode<0.5){\n' +
+    '    vec2 fa=vec2(v_uv.x*u_ratio,v_uv.y),fb=vec2(u_mouse.x*u_ratio,u_mouse.y);\n' +
+    '    comp+=lightColor*pow(max(0.,1.-distance(fa,fb)*1.5),2.)*0.6*u_lightInt*mix(0.4,1.,melt);\n' +
+    '  }\n' +
+    '  if(u_vignette>0.){\n' +
+    '    float dist=distance(v_uv,vec2(0.5));\n' +
+    '    comp*=smoothstep(0.8,0.8-u_vignette,dist*(1.+u_vignette));\n' +
+    '  }\n' +
+    '  comp*=vec3(u_tintR,u_tintG,u_tintB);\n' +
+    '  float gray=dot(comp,vec3(0.299,0.587,0.114));\n' +
+    '  comp=mix(vec3(gray),comp,u_saturation);\n' +
+    '  comp=(comp-0.5)*u_contrast+0.5;\n' +
+    '  comp*=u_exposure;\n' +
+    '  if(u_aces>0.5) comp=aces_tm(comp);\n' +
+    '  comp=pow(max(comp,vec3(0)),vec3(1./max(u_gamma,0.1)));\n' +
+    '  comp+=(hash(gl_FragCoord.xy+u_time)-0.5)*u_grain;\n' +
+    '  if(u_dither>0.5) comp+=(hash(gl_FragCoord.xy*0.123+u_time)-0.5)/255.;\n' +
+    '  fragColor=vec4(clamp(comp,0.,1.),1.);\n' +
+    '}';
+
+  var PAINT_FS = '#version 300 es\n' +
+    'precision highp float;\n' +
+    'in vec2 v_uv; out vec4 fragColor;\n' +
+    'uniform sampler2D u_prev;\n' +
+    'uniform vec2 u_mouseA,u_mouseB;\n' +
+    'uniform float u_radius,u_speed,u_hardness;\n' +
+    'float segDist(vec2 p,vec2 a,vec2 b){\n' +
+    '  vec2 ab=b-a,ap=p-a;\n' +
+    '  float t=clamp(dot(ap,ab)/max(dot(ab,ab),0.00001),0.,1.);\n' +
+    '  return length(ap-ab*t);\n' +
+    '}\n' +
+    'void main(){\n' +
+    '  float prev=texture(u_prev,v_uv).r;\n' +
+    '  float d=segDist(v_uv,u_mouseA,u_mouseB);\n' +
+    '  float heat=smoothstep(u_radius,u_radius*(1.-u_hardness*0.8),d)*u_speed;\n' +
+    '  fragColor=vec4(min(prev+heat,1.),0,0,1);\n' +
+    '}';
+
+  // ── Shader compilation ─────────────────────────────────────────────────────
+  function mkShader(type, src) {
+    var s = gl.createShader(type);
+    gl.shaderSource(s, src);
+    gl.compileShader(s);
+    if (!gl.getShaderParameter(s, gl.COMPILE_STATUS)) console.error(gl.getShaderInfoLog(s));
+    return s;
+  }
+  function mkProg(vs, fs) {
+    var p = gl.createProgram();
+    gl.attachShader(p, mkShader(gl.VERTEX_SHADER, vs));
+    gl.attachShader(p, mkShader(gl.FRAGMENT_SHADER, fs));
+    gl.linkProgram(p);
+    if (!gl.getProgramParameter(p, gl.LINK_STATUS)) console.error(gl.getProgramInfoLog(p));
+    return p;
+  }
+  var prog = mkProg(VS, FS);
+  var paintProg = mkProg(VS, PAINT_FS);
+
+  var vao = gl.createVertexArray();
+  gl.bindVertexArray(vao);
+  gl.bindBuffer(gl.ARRAY_BUFFER, gl.createBuffer());
+  gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([-1,-1,1,-1,-1,1,-1,1,1,-1,1,1]), gl.STATIC_DRAW);
+  var aPos = gl.getAttribLocation(prog, 'a_pos');
+  gl.enableVertexAttribArray(aPos);
+  gl.vertexAttribPointer(aPos, 2, gl.FLOAT, false, 0, 0);
+
+  // Uniforms: first NSAMP entries are samplers
+  var uNames = [
+    'bgTex','rockTex','frontTex','hllTex','hlrTex','linesTex','bgNorm','bgLight','bgDepth','iceNorm','iceFrost','iceOpacity','iceRough','meltMap',
+    'mouse','ratio','time','bgTexAspect','iceTexAspect','rockTexAspect','frontTexAspect','hllTexAspect','hlrTexAspect','linesTexAspect','camY',
+    'aces','dither',
+    'lightMode','lightInt','lightWarmth','lightRad','lightFalloff','sunX','sunY',
+    'texScale','frostOpacity','frostTint','iceNormal','refract','chroma','specular','shadowStr','sss',
+    'edgeDistort','waterShiny','waterOpacity',
+    'blurStr','grain','ambient','exposure','parallax','emissive','vignette',
+    'gamma','contrast','saturation','tintR','tintG','tintB','fresnelPower','fresnelStr','diffuseIceMix',
+    'bgY0','bgY1','rockY0','rockY1','frontY0','frontY1','hllY0','hllY1','hlrY0','hlrY1','linesY0','linesY1','textY0','textY1',
+    'hllX','hlrX','linesOpacity'
+  ];
+  var NSAMP = 14;
+  var U = {};
+  uNames.forEach(function (n) { U[n] = gl.getUniformLocation(prog, 'u_' + n); });
+  var textTexLoc = gl.getUniformLocation(prog, 'u_textTex');
+
+  var PU = {
+    prev:     gl.getUniformLocation(paintProg, 'u_prev'),
+    mouseA:   gl.getUniformLocation(paintProg, 'u_mouseA'),
+    mouseB:   gl.getUniformLocation(paintProg, 'u_mouseB'),
+    radius:   gl.getUniformLocation(paintProg, 'u_radius'),
+    speed:    gl.getUniformLocation(paintProg, 'u_speed'),
+    hardness: gl.getUniformLocation(paintProg, 'u_hardness')
+  };
+
+  var meltSize = Math.max(256, Math.min(2048, Math.max(rootW || 512, rootH || 512) * (window.devicePixelRatio || 1) | 0));
+
+  function makeFBO() {
+    var tex = gl.createTexture();
+    gl.bindTexture(gl.TEXTURE_2D, tex);
+    gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA8, meltSize, meltSize, 0, gl.RGBA, gl.UNSIGNED_BYTE, null);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+    var fbo = gl.createFramebuffer();
+    gl.bindFramebuffer(gl.FRAMEBUFFER, fbo);
+    gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, tex, 0);
+    gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+    return { tex: tex, fbo: fbo };
+  }
+  var ping = makeFBO();
+  var pong = makeFBO();
+  [ping, pong].forEach(function (b) {
+    gl.bindFramebuffer(gl.FRAMEBUFFER, b.fbo);
+    gl.clearColor(0, 0, 0, 1);
+    gl.clear(gl.COLOR_BUFFER_BIT);
+  });
+  gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+
+  var READ_SIZE = 32;
+  var readTex = gl.createTexture();
+  gl.bindTexture(gl.TEXTURE_2D, readTex);
+  gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA8, READ_SIZE, READ_SIZE, 0, gl.RGBA, gl.UNSIGNED_BYTE, null);
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
+  var readFbo = gl.createFramebuffer();
+  gl.bindFramebuffer(gl.FRAMEBUFFER, readFbo);
+  gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, readTex, 0);
+  gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+  var readBuf = new Uint8Array(READ_SIZE * READ_SIZE * 4);
+
+  var mouse = { x: -1, y: -1 };
+  var lastMouse = { x: -1, y: -1 };
+  var mouseOnCanvas = false;
+  var frameCount = 0;
+  var running = false;
+  var textureObjs = {};
+  var loadedCount = 0;
+  var bgTexAspect = 1, iceTexAspect = 1, rockTexAspect = 1, frontTexAspect = 1;
+  var hllTexAspect = 1, hlrTexAspect = 1, linesTexAspect = 1;
+
+  // ── Camera animation ─────────────────────────────────────────────────────
+  var animStartTime = 0, isCameraMoving = false;
+  var autoMelting = false, autoMeltStart = 0, autoMeltAccum = 0, lastFrameTime = 0;
+
+  function solveBezier(t, x1, y1, x2, y2) {
+    if (t <= 0) return 0;
+    if (t >= 1) return 1;
+    var cx = 3*x1, bx = 3*(x2-x1)-cx, ax = 1-cx-bx;
+    var cy = 3*y1, by = 3*(y2-y1)-cy, ay = 1-cy-by;
+    var u = t;
+    for (var i = 0; i < 5; i++) {
+      var x = ((ax*u+bx)*u+cx)*u;
+      var dx = (3*ax*u+2*bx)*u+cx;
+      if (Math.abs(dx) < 1e-6) break;
+      u -= (x-t)/dx;
+    }
+    return ((ay*u+by)*u+cy)*u;
+  }
+
+  // ── Font loading ─────────────────────────────────────────────────────────
+  document.fonts.load('400 48px "CrocExtended"').catch(function () {});
+
+  // ── Text texture (prize rendered in WebGL scene) ─────────────────────────
+  var textWebGLTexture = null;
+
+  function wrapText(ctx, text, maxWidth) {
+    var words = text.split(' ');
+    var lines = [];
+    var line = '';
+    for (var i = 0; i < words.length; i++) {
+      var word = words[i];
+      var test = line ? line + ' ' + word : word;
+      if (ctx.measureText(test).width > maxWidth && line) {
+        lines.push(line);
+        line = word;
+      } else {
+        line = test;
+      }
+    }
+    if (line) lines.push(line);
+    return lines;
+  }
+
+  var _linkBounds = null;
+
+  function updateWebGLTextTexture(title, subtitle, descHtml) {
+    try {
+      if (!textWebGLTexture) {
+        textWebGLTexture = gl.createTexture();
+        gl.bindTexture(gl.TEXTURE_2D, textWebGLTexture);
+        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
+        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
+        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+      }
+      var W = 1920;
+      var cvs = document.createElement('canvas');
+      cvs.width = W; cvs.height = 1080;
+      var ctx = cvs.getContext('2d');
+      if (!ctx) return;
+      ctx.fillStyle = '#2D2D2D';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'top';
+
+      var vAspect = (rootW || 1) / (rootH || 1);
+      var tAspect = W / 1080;
+      var visW = vAspect < tAspect ? Math.round(1080 * vAspect) : W;
+
+      var isMob = rootW < 768;
+      var p = function (k) { return PARAMS[isMob ? 'mob' + k.charAt(0).toUpperCase() + k.slice(1) : k]; };
+      var mw = p('txtMaxW') / 100 * visW;
+      var cx = W / 2;
+
+      var hdrPx  = Math.round(p('txtSzHeader') / 100 * visW);
+      var titPx  = Math.round(p('txtSzTitle')  / 100 * visW);
+      var subPx  = Math.round(p('txtSzSub')    / 100 * visW);
+      var descPx = Math.round(p('txtSzDesc')   / 100 * visW);
+
+      var curY = p('txtBaseY') / 100 * visW;
+
+      // Header
+      ctx.font = '500 ' + hdrPx + 'px "Croc", sans-serif';
+      var hdrLines = wrapText(ctx, '\u0422\u0412\u041E\u0419 \u0421\u0415\u041A\u0420\u0415\u0422\u041D\u042B\u0419 \u041F\u0420\u0418\u0417:', mw);
+      for (var hi = 0; hi < hdrLines.length; hi++) {
+        ctx.fillText(hdrLines[hi], cx, curY);
+        curY += hdrPx;
+      }
+
+      // Title (CrocExtended, uppercase)
+      var safeTitle = String(title || '');
+      if (safeTitle) {
+        curY += p('txtGap1') / 100 * visW;
+        ctx.font = '400 ' + titPx + 'px "CrocExtended", "Croc", sans-serif';
+        var titLines = wrapText(ctx, safeTitle.toUpperCase(), mw);
+        for (var ti = 0; ti < titLines.length; ti++) {
+          ctx.fillText(titLines[ti], cx, curY);
+          curY += titPx;
+        }
+      }
+
+      // Subtitle
+      var safeSub = String(subtitle || '');
+      if (safeSub) {
+        curY += p('txtGap2') / 100 * visW;
+        ctx.font = '400 ' + subPx + 'px "Croc", sans-serif';
+        var subLines = wrapText(ctx, safeSub, mw);
+        for (var si = 0; si < subLines.length; si++) {
+          ctx.fillText(subLines[si], cx, curY);
+          curY += subPx;
+        }
+      }
+
+      // Description (with link underline)
+      _linkBounds = null;
+      if (descHtml) {
+        curY += p('txtGap3') / 100 * visW;
+        var plainDesc = String(descHtml).replace(/<[^>]*>?/gm, '');
+        ctx.font = '400 ' + descPx + 'px "Croc", sans-serif';
+        var descLines = wrapText(ctx, plainDesc, mw);
+        var descLh = descPx * p('txtLhDesc');
+        var linkMatch = String(descHtml).match(/<a[^>]+href="([^"]*)"[^>]*>([^<]*)<\/a>/);
+        var linkText = linkMatch ? linkMatch[2] : null;
+        var linkHref = linkMatch ? linkMatch[1] : null;
+        for (var di = 0; di < descLines.length; di++) {
+          var ln = descLines[di];
+          ctx.fillText(ln, cx, curY);
+          if (linkText && ln.indexOf(linkText) !== -1) {
+            var idx = ln.indexOf(linkText);
+            var before = ln.substring(0, idx);
+            var lineW = ctx.measureText(ln).width;
+            var lineX = cx - lineW / 2;
+            var beforeW = ctx.measureText(before).width;
+            var linkW = ctx.measureText(linkText).width;
+            var lx = lineX + beforeW;
+            var ulY = curY + descPx * 1.15;
+            ctx.save();
+            ctx.strokeStyle = '#2D2D2D';
+            ctx.lineWidth = Math.max(1, descPx * 0.05);
+            ctx.beginPath();
+            ctx.moveTo(lx, ulY);
+            ctx.lineTo(lx + linkW, ulY);
+            ctx.stroke();
+            ctx.restore();
+            _linkBounds = {
+              x: lx, y: curY, w: linkW, h: descPx,
+              href: linkHref, text: linkText,
+              texW: W, texH: 1080
+            };
+          }
+          curY += descLh;
+        }
+      }
+
+      // Upload with FLIP_Y — textTex at TEXTURE15
+      gl.activeTexture(gl.TEXTURE15);
+      gl.bindTexture(gl.TEXTURE_2D, textWebGLTexture);
+      gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, 1);
+      gl.pixelStorei(gl.UNPACK_PREMULTIPLY_ALPHA_WEBGL, 1);
+      gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, cvs);
+      gl.pixelStorei(gl.UNPACK_PREMULTIPLY_ALPHA_WEBGL, 0);
+      gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, 0);
+    } catch (e) {
+      console.warn('[g4t2] text texture error:', e);
+    }
+  }
+
+  var lastTextArgs = null;
+  function regenTextTexture() {
+    if (lastTextArgs) updateWebGLTextTexture(lastTextArgs[0], lastTextArgs[1], lastTextArgs[2]);
+  }
+
+  // ── Link hotspot positioning ─────────────────────────────────────────────
+  function positionLinkHotspot() {
+    var hotspot = document.getElementById('g4t2-link-hotspot');
+    if (!hotspot) return;
+    var lb = _linkBounds;
+    if (!lb) { hotspot.style.pointerEvents = 'none'; return; }
+
+    var vw = rootW, vh = rootH;
+    var viewAspect = vw / vh;
+    var texAspect = lb.texW / lb.texH;
+    var su = Math.min(1, viewAspect / texAspect);
+    var sv = Math.min(1, texAspect / viewAspect);
+
+    var isMob = vw < 768;
+    var textY0Val = PARAMS[isMob ? 'mobTextY0' : 'textY0'];
+    var textY1Val = PARAMS[isMob ? 'mobTextY1' : 'textY1'];
+    var textYOff = textY0Val + (textY1Val - textY0Val) * PARAMS.camY;
+
+    var txU = lb.x / lb.texW;
+    var txV = 1.0 - lb.y / lb.texH;
+    var txU2 = (lb.x + lb.w) / lb.texW;
+    var txV2 = 1.0 - (lb.y + lb.h) / lb.texH;
+
+    var uvX1 = (txU - 0.5 * (1 - su)) / su;
+    var uvX2 = (txU2 - 0.5 * (1 - su)) / su;
+    var uvY1 = (txV - 0.5 * (1 - sv)) / sv - textYOff;
+    var uvY2 = (txV2 - 0.5 * (1 - sv)) / sv - textYOff;
+
+    var sx1 = uvX1 * vw;
+    var sx2 = uvX2 * vw;
+    var sy1 = (1 - uvY1) * vh;
+    var sy2 = (1 - uvY2) * vh;
+
+    var left = Math.min(sx1, sx2);
+    var top = Math.min(sy1, sy2);
+    var width = Math.abs(sx2 - sx1);
+    var height = Math.abs(sy2 - sy1);
+
+    var minTap = 44;
+    if (height < minTap) { top -= (minTap - height) / 2; height = minTap; }
+    if (width < minTap) { left -= (minTap - width) / 2; width = minTap; }
+
+    hotspot.href = lb.href;
+    hotspot.textContent = lb.text;
+    hotspot.style.left = left + 'px';
+    hotspot.style.top = top + 'px';
+    hotspot.style.width = width + 'px';
+    hotspot.style.height = height + 'px';
+    hotspot.style.pointerEvents = 'auto';
+    hotspot.style.opacity = '0';
+    hotspot.style.cursor = 'pointer';
+  }
+
+  // ── Prize display ────────────────────────────────────────────────────────
+  function showPrize() {
+    if (prizeShown || !prizeData) return;
+    prizeShown = true;
+    var titleText = prizeData.title || '\uD83C\uDF81';
+    var subText = String(prizeData.subtitle || '').trim();
+    var descHtml = parseDescriptionLinks(prizeData.description || '');
+
+    // Write to hidden DOM elements (for accessibility / link extraction)
+    ppTitle.textContent = titleText;
+    ppSubtitle.textContent = subText;
+    ppSubtitle.style.display = subText ? '' : 'none';
+    ppDesc.innerHTML = descHtml;
+
+    document.fonts.load('400 48px "CrocExtended"').catch(function () {}).then(function () {
+      lastTextArgs = [titleText, subText, descHtml];
+      updateWebGLTextTexture(titleText, subText, descHtml);
+      isCameraMoving = true;
+      animStartTime = performance.now();
+    });
+  }
+
+  // ── Texture loading ──────────────────────────────────────────────────────
+  function createPlaceholder(key, unit) {
+    var t = gl.createTexture();
+    gl.activeTexture(gl.TEXTURE0 + unit);
+    gl.bindTexture(gl.TEXTURE_2D, t);
+    var px = key === 'bgNorm' ? new Uint8Array([128, 128, 255, 255]) : new Uint8Array([0, 0, 0, 255]);
+    gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, 1, 1, 0, gl.RGBA, gl.UNSIGNED_BYTE, px);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+    return t;
+  }
+  function uploadTex(img, key, isBg) {
+    var wrap = isBg ? gl.CLAMP_TO_EDGE : gl.REPEAT;
+    gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, isBg ? 1 : 0);
+    gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, img);
+    gl.generateMipmap(gl.TEXTURE_2D);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR_MIPMAP_LINEAR);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, wrap);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, wrap);
+    gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, 0);
+  }
+
+  var LOADER_TOTAL = 13;
+  function setLoaderProgress(pct) {
+    var fill = document.getElementById('g4t2-loader-bar-fill');
+    var txt = document.getElementById('g4t2-loader-pct');
+    if (fill) fill.style.width = pct + '%';
+    if (txt) txt.textContent = Math.round(pct) + '%';
+  }
+
+  function loadPreset(idx) {
+    var preset = PRESETS[idx] || PRESETS[0];
+    var ice = getIceAssets();
+    Object.keys(textureObjs).forEach(function (k) {
+      gl.deleteTexture(textureObjs[k]);
+      delete textureObjs[k];
+    });
+    loadedCount = 0;
+    var loader = document.getElementById('g4t2-loader');
+    loader.style.opacity = 1;
+    loader.style.display = 'flex';
+    setLoaderProgress(0);
+    if (preset.placeholders) {
+      preset.placeholders.forEach(function (k) {
+        textureObjs[k] = createPlaceholder(k, TEX_ORDER.indexOf(k));
+        loadedCount++;
+      });
+    }
+    setLoaderProgress((loadedCount / LOADER_TOTAL) * 100);
+    var queue = {};
+    if (preset.bgTex) queue.bgTex = preset.bgTex;
+    if (preset.rockTex) queue.rockTex = preset.rockTex;
+    if (preset.frontTex) queue.frontTex = preset.frontTex;
+    if (preset.hllTex) queue.hllTex = preset.hllTex;
+    if (preset.hlrTex) queue.hlrTex = preset.hlrTex;
+    if (preset.linesTex) queue.linesTex = preset.linesTex;
+    TEX_ORDER.forEach(function (k) {
+      if (!textureObjs[k] && ice[k]) queue[k] = ice[k];
+    });
+    Object.keys(queue).forEach(function (key) {
+      var unit = TEX_ORDER.indexOf(key);
+      var img = new Image();
+      img.crossOrigin = 'anonymous';
+      var path = queue[key];
+      img.onload = function () { finalizeTex(img, key, unit, true); };
+      img.onerror = function () {
+        if (path && path.indexOf('http') !== 0 && path.indexOf('data:') !== 0) {
+          img.onerror = function () { finalizeTex(null, key, unit, false); };
+          img.src = ASSETS_BASE + path;
+        } else {
+          finalizeTex(null, key, unit, false);
+        }
+      };
+      img.src = path;
+    });
+  }
+
+  function finalizeTex(img, key, unit, ok) {
+    var t = gl.createTexture();
+    gl.activeTexture(gl.TEXTURE0 + unit);
+    gl.bindTexture(gl.TEXTURE_2D, t);
+    if (ok && img) {
+      var w = img.naturalWidth, h = Math.max(1, img.naturalHeight), aspect = w / h;
+      if (key === 'bgTex') bgTexAspect = aspect;
+      if (key === 'rockTex') rockTexAspect = aspect;
+      if (key === 'frontTex') frontTexAspect = aspect;
+      if (key === 'hllTex') hllTexAspect = aspect;
+      if (key === 'hlrTex') hlrTexAspect = aspect;
+      if (key === 'linesTex') linesTexAspect = aspect;
+      if (['iceNorm','iceFrost','iceOpacity','iceRough'].indexOf(key) !== -1) iceTexAspect = aspect;
+      var isBg = key === 'bgTex' || key === 'rockTex' || key === 'frontTex' || key === 'hllTex' || key === 'hlrTex' || key === 'linesTex';
+      uploadTex(img, key, isBg);
+    } else {
+      var px = (key === 'rockTex' || key === 'frontTex' || key === 'hllTex' || key === 'hlrTex' || key === 'linesTex') ? new Uint8Array([0,0,0,0])
+             : key === 'bgNorm' ? new Uint8Array([128,128,255,255])
+             : new Uint8Array([0,0,0,255]);
+      gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, 1, 1, 0, gl.RGBA, gl.UNSIGNED_BYTE, px);
+      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
+      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+    }
+    textureObjs[key] = t;
+    loadedCount++;
+    setLoaderProgress((loadedCount / LOADER_TOTAL) * 100);
+    if (loadedCount >= LOADER_TOTAL) {
+      var l = document.getElementById('g4t2-loader');
+      l.style.opacity = 0;
+      setTimeout(function () { l.style.display = 'none'; }, 600);
+      if (!running) startLoop();
+    }
+  }
+
+  // ── Mouse / Touch ────────────────────────────────────────────────────────
+  canvas.addEventListener('mousemove', function (e) {
+    if (!gameStarted) return;
+    mouseOnCanvas = true;
+    var rect = root.getBoundingClientRect();
+    mouse.x = (e.clientX - rect.left) / rect.width;
+    mouse.y = 1 - (e.clientY - rect.top) / rect.height;
+  });
+  canvas.addEventListener('touchstart', function (e) {
+    if (!gameStarted) return;
+    mouseOnCanvas = true;
+    e.preventDefault();
+    var t = e.touches[0];
+    var rect = root.getBoundingClientRect();
+    mouse.x = (t.clientX - rect.left) / rect.width;
+    mouse.y = 1 - (t.clientY - rect.top) / rect.height;
+  }, { passive: false });
+  canvas.addEventListener('touchmove', function (e) {
+    if (!gameStarted) return;
+    mouseOnCanvas = true;
+    e.preventDefault();
+    var t = e.touches[0];
+    var rect = root.getBoundingClientRect();
+    mouse.x = (t.clientX - rect.left) / rect.width;
+    mouse.y = 1 - (t.clientY - rect.top) / rect.height;
+  }, { passive: false });
+  canvas.addEventListener('touchend', function () { mouseOnCanvas = false; lastMouse.x = -1; lastMouse.y = -1; });
+  canvas.addEventListener('touchcancel', function () { mouseOnCanvas = false; lastMouse.x = -1; lastMouse.y = -1; });
+  canvas.addEventListener('mouseleave', function () { mouseOnCanvas = false; lastMouse.x = -1; lastMouse.y = -1; });
+
+  // ── Render loop ──────────────────────────────────────────────────────────
+  var renderT0 = 0;
+  function renderScene() {
+    gl.viewport(0, 0, canvas.width, canvas.height);
+    gl.useProgram(prog);
+    gl.bindVertexArray(vao);
+    for (var i = 0; i < TEX_ORDER.length; i++) {
+      var tex = textureObjs[TEX_ORDER[i]];
+      if (tex) { gl.activeTexture(gl.TEXTURE0 + i); gl.bindTexture(gl.TEXTURE_2D, tex); }
+    }
+    // meltMap at TEXTURE13
+    gl.activeTexture(gl.TEXTURE13);
+    gl.bindTexture(gl.TEXTURE_2D, ping.tex);
+    gl.clear(gl.COLOR_BUFFER_BIT);
+    for (var j = 0; j < NSAMP; j++) gl.uniform1i(U[uNames[j]], j);
+    gl.uniform2f(U.mouse, mouse.x < 0 ? 0.5 : mouse.x, mouse.y < 0 ? 0.5 : mouse.y);
+    gl.uniform1f(U.ratio, canvas.width / canvas.height);
+    gl.uniform1f(U.bgTexAspect, bgTexAspect);
+    gl.uniform1f(U.iceTexAspect, iceTexAspect);
+    gl.uniform1f(U.rockTexAspect, rockTexAspect);
+    gl.uniform1f(U.frontTexAspect, frontTexAspect);
+    gl.uniform1f(U.hllTexAspect, hllTexAspect);
+    gl.uniform1f(U.hlrTexAspect, hlrTexAspect);
+    gl.uniform1f(U.linesTexAspect, linesTexAspect);
+    gl.uniform1f(U.time, (performance.now() - renderT0) * 0.001);
+    uNames.forEach(function (n) { if (U[n] && PARAMS[n] !== undefined) gl.uniform1f(U[n], PARAMS[n]); });
+    // Override layer positions on mobile
+    if (rootW < 768) {
+      var ml = ['bgY0','bgY1','rockY0','rockY1','frontY0','frontY1','hllY0','hllY1','hlrY0','hlrY1','linesY0','linesY1','textY0','textY1'];
+      ml.forEach(function (n) {
+        var mv = PARAMS['mob' + n.charAt(0).toUpperCase() + n.slice(1)];
+        if (U[n] && mv !== undefined) gl.uniform1f(U[n], mv);
+      });
+    }
+    // textTex at TEXTURE15
+    if (textWebGLTexture) {
+      gl.activeTexture(gl.TEXTURE15);
+      gl.bindTexture(gl.TEXTURE_2D, textWebGLTexture);
+      if (textTexLoc) gl.uniform1i(textTexLoc, 15);
+    }
+    gl.drawArrays(gl.TRIANGLES, 0, 6);
+  }
+
+  function startLoop() {
+    running = true;
+    renderT0 = performance.now();
+    function frame() {
+      // PASS 1: paint melt map
+      if (gameStarted && mouseOnCanvas) {
+        if (lastMouse.x < 0) { lastMouse.x = mouse.x; lastMouse.y = mouse.y; }
+        gl.bindFramebuffer(gl.FRAMEBUFFER, pong.fbo);
+        gl.viewport(0, 0, meltSize, meltSize);
+        gl.useProgram(paintProg);
+        gl.bindVertexArray(vao);
+        gl.activeTexture(gl.TEXTURE11);
+        gl.bindTexture(gl.TEXTURE_2D, ping.tex);
+        gl.uniform1i(PU.prev, 11);
+        gl.uniform2f(PU.mouseA, lastMouse.x, lastMouse.y);
+        gl.uniform2f(PU.mouseB, mouse.x, mouse.y);
+        gl.uniform1f(PU.radius, PARAMS.meltRadius);
+        gl.uniform1f(PU.speed, PARAMS.meltSpeed * 1.8);
+        gl.uniform1f(PU.hardness, PARAMS.brushHardness);
+        gl.drawArrays(gl.TRIANGLES, 0, 6);
+        gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+        var tmp = ping; ping = pong; pong = tmp;
+        lastMouse.x = mouse.x;
+        lastMouse.y = mouse.y;
+      }
+
+      // Auto-melt: frame-rate independent, ~10s
+      if (autoMelting) {
+        if (!autoMeltStart) { autoMeltStart = performance.now(); lastFrameTime = autoMeltStart; }
+        var now = performance.now();
+        var dt = (now - lastFrameTime) / 1000;
+        lastFrameTime = now;
+        autoMeltAccum += dt;
+        var MELT_RATE = 0.1;
+        var STEP = 1 / 255;
+        var needed = STEP / MELT_RATE;
+        if (autoMeltAccum >= needed) {
+          var steps = Math.min(Math.floor(autoMeltAccum / needed), 20);
+          autoMeltAccum -= steps * needed;
+          gl.bindFramebuffer(gl.FRAMEBUFFER, pong.fbo);
+          gl.viewport(0, 0, meltSize, meltSize);
+          gl.useProgram(paintProg);
+          gl.bindVertexArray(vao);
+          gl.activeTexture(gl.TEXTURE11);
+          gl.bindTexture(gl.TEXTURE_2D, ping.tex);
+          gl.uniform1i(PU.prev, 11);
+          gl.uniform2f(PU.mouseA, 0.5, 0.5);
+          gl.uniform2f(PU.mouseB, 0.5, 0.5);
+          gl.uniform1f(PU.radius, 3.0);
+          gl.uniform1f(PU.speed, steps * STEP);
+          gl.uniform1f(PU.hardness, 1.0);
+          gl.drawArrays(gl.TRIANGLES, 0, 6);
+          gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+          var tmp2 = ping; ping = pong; pong = tmp2;
+        }
+      }
+
+      // Camera animation
+      if (isCameraMoving) {
+        var t = (performance.now() - animStartTime) / 2000;
+        if (t >= 1) { t = 1; isCameraMoving = false; positionLinkHotspot(); }
+        PARAMS.camY = solveBezier(t, 0.95, 0.03, 0.34, 0.98);
+      }
+
+      renderScene();
+
+      // Readback every 30 frames
+      frameCount++;
+      if (frameCount % 30 === 0) {
+        gl.bindFramebuffer(gl.READ_FRAMEBUFFER, ping.fbo);
+        gl.bindFramebuffer(gl.DRAW_FRAMEBUFFER, readFbo);
+        gl.blitFramebuffer(0, 0, meltSize, meltSize, 0, 0, READ_SIZE, READ_SIZE, gl.COLOR_BUFFER_BIT, gl.LINEAR);
+        gl.bindFramebuffer(gl.READ_FRAMEBUFFER, readFbo);
+        gl.readPixels(0, 0, READ_SIZE, READ_SIZE, gl.RGBA, gl.UNSIGNED_BYTE, readBuf);
+        gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+        var melted = 0;
+        for (var ri = 0; ri < readBuf.length; ri += 4) if (readBuf[ri] > 128) melted++;
+        lastMeltPct = Math.round(melted / (READ_SIZE * READ_SIZE) * 100);
+        if (autoMelting && (performance.now() - autoMeltStart) > 13000) autoMelting = false;
+        if (gameStarted) {
+          hudFill.style.width = lastMeltPct + '%';
+          hudPct.textContent = lastMeltPct + '%';
+          if (lastMeltPct >= REVEAL_THRESHOLD && prizeReady && !prizeShown) { autoMelting = true; autoMeltStart = 0; showPrize(); }
+        }
+      }
+      requestAnimationFrame(frame);
+    }
+    frame();
+  }
+
+  // ── Init ─────────────────────────────────────────────────────────────────
+  loadPreset(0);
+  validateEmail(false);
+})();
+</script>
