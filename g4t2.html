@@ -197,7 +197,7 @@
   var REVEAL_THRESHOLD = 75;
   var GOOGLE_URL = 'https://script.google.com/macros/s/AKfycbwgsfMC5X95pTEzmER8Y4u8Os_L_-QL1MJk8AiHZnr6ix61e_xa9BKDW1xrZE8qm-xzsQ/exec';
   var ASSETS_BASE = 'https://raw.githubusercontent.com/Artur-ershov/melt/master/';
-  var ASSETS_VER = '?v=4';
+  var ASSETS_VER = '?v=5';
 
   var root = document.getElementById('g4t2-melt');
   if (!root) return;
@@ -338,7 +338,7 @@
     aces:0, dither:0, camY:0.0,
     bgY0:-1, bgY1:0.22, rockY0:-0.03, rockY1:0.72, frontY0:0.22, frontY1:0.83,
     hllX:0.533, hlrX:-0.283,
-    hllY0:-0.88, hllY1:0.82, hlrY0:-0.72, hlrY1:0.73, linesY0:-0.13, linesY1:0.17, linesOpacity:0.35,
+    hllY0:-0.88, hllY1:0.82, hlrY0:-0.72, hlrY1:0.73, linesY0:-0.13, linesY1:0.17, linesOpacity:0.35, layerParallax:0.03,
     textY0:0.97, textY1:0.17,
     lightMode:0, lightInt:0.2, lightWarmth:1, lightRad:0.4, lightFalloff:0.35, sunX:0.2, sunY:0.5,
     texScale:1, frostOpacity:0.09, frostTint:0.39, iceNormal:4, refract:0.119, chroma:0.01, specular:4.7, shadowStr:0, sss:0.5,
@@ -401,7 +401,7 @@
     'uniform float u_blurStr,u_grain,u_ambient,u_exposure,u_gamma,u_parallax,u_emissive,u_vignette;\n' +
     'uniform float u_contrast,u_saturation,u_tintR,u_tintG,u_tintB,u_fresnelPower,u_fresnelStr,u_diffuseIceMix;\n' +
     'uniform float u_bgY0,u_bgY1,u_rockY0,u_rockY1,u_frontY0,u_frontY1,u_hllY0,u_hllY1,u_hlrY0,u_hlrY1,u_linesY0,u_linesY1,u_textY0,u_textY1;\n' +
-    'uniform float u_hllX,u_hlrX,u_linesOpacity;\n' +
+    'uniform float u_hllX,u_hlrX,u_linesOpacity,u_layerParallax;\n' +
     'float hash(vec2 p){return fract(sin(dot(p,vec2(12.9898,78.233)))*43758.5453);}\n' +
     'vec3 aces_tm(vec3 x){return clamp((x*(2.51*x+0.03))/(x*(2.43*x+0.59)+0.14),0.,1.);}\n' +
     'vec2 coverUV(vec2 uv, float viewAspect, float texAspect){\n' +
@@ -414,14 +414,15 @@
     '  return mix(lo, hi, step(0.5, blend));\n' +
     '}\n' +
     'vec4 getBg(vec2 uv){\n' +
+    '  vec2 mOff = (u_mouse - 0.5) * u_layerParallax;\n' +
     '  vec2 bgUV    = coverUV(uv + vec2(0, mix(u_bgY0,    u_bgY1,    u_camY)), u_ratio, u_bgTexAspect);\n' +
     '  vec2 rockUV  = coverUV(uv + vec2(0, mix(u_rockY0,  u_rockY1,  u_camY)), u_ratio, u_rockTexAspect);\n' +
     '  vec2 frontUV = coverUV(uv + vec2(0, mix(u_frontY0, u_frontY1, u_camY)), u_ratio, u_frontTexAspect);\n' +
-    '  vec2 hllUV   = coverUV(uv + vec2(0, mix(u_hllY0,   u_hllY1,   u_camY)), u_ratio, u_hllTexAspect);\n' +
+    '  vec2 hllUV   = coverUV(uv + mOff*1.2 + vec2(0, mix(u_hllY0,   u_hllY1,   u_camY)), u_ratio, u_hllTexAspect);\n' +
     '  hllUV.x += u_hllX;\n' +
-    '  vec2 hlrUV   = coverUV(uv + vec2(0, mix(u_hlrY0,   u_hlrY1,   u_camY)), u_ratio, u_hlrTexAspect);\n' +
+    '  vec2 hlrUV   = coverUV(uv + mOff*1.0 + vec2(0, mix(u_hlrY0,   u_hlrY1,   u_camY)), u_ratio, u_hlrTexAspect);\n' +
     '  hlrUV.x += u_hlrX;\n' +
-    '  vec2 linesUV = coverUV(uv + vec2(0, mix(u_linesY0, u_linesY1, u_camY)), u_ratio, u_linesTexAspect);\n' +
+    '  vec2 linesUV = coverUV(uv + mOff*0.6 + vec2(0, mix(u_linesY0, u_linesY1, u_camY)), u_ratio, u_linesTexAspect);\n' +
     '  const float TEXT_ASPECT = 1920.0/1080.0;\n' +
     '  vec2 textUV  = coverUV(uv + vec2(0, mix(u_textY0,  u_textY1,  u_camY)), u_ratio, TEXT_ASPECT);\n' +
     '  vec4 cBg    = texture(u_bgTex, bgUV);\n' +
@@ -586,7 +587,7 @@
     'blurStr','grain','ambient','exposure','parallax','emissive','vignette',
     'gamma','contrast','saturation','tintR','tintG','tintB','fresnelPower','fresnelStr','diffuseIceMix',
     'bgY0','bgY1','rockY0','rockY1','frontY0','frontY1','hllY0','hllY1','hlrY0','hlrY1','linesY0','linesY1','textY0','textY1',
-    'hllX','hlrX','linesOpacity'
+    'hllX','hlrX','linesOpacity','layerParallax'
   ];
   var NSAMP = 14;
   var U = {};
