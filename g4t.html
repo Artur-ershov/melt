@@ -1,11 +1,17 @@
 <div id="g4t-melt" class="g4t-root">
   <style>
     @font-face {
+      font-family: "Croc";
+      src: url("https://raw.githubusercontent.com/Artur-ershov/melt/master/CoFoWeather20240219-VF.ttf") format("truetype");
+      font-weight: 100 900;
+      font-stretch: 75% 125%;
+      font-style: normal;
+    }
+    @font-face {
       font-family: "CrocExtended";
       src: url("https://raw.githubusercontent.com/Artur-ershov/melt/master/CoFoWeather-ExtendedRegular.ttf") format("truetype");
       font-weight: 400;
       font-style: normal;
-      font-display: swap;
     }
     #g4t-melt .g4t-font {
       font-family: "Croc", system-ui, sans-serif;
@@ -669,9 +675,10 @@ void main(){
         curY += hdrPx;
       }
 
+      curY += p('txtGap1') / 100 * visW;
+
       var safeTitle = String(title || '');
       if (safeTitle) {
-        curY += p('txtGap1') / 100 * visW;
         ctx.font = '400 ' + titPx + 'px "CrocExtended", "Croc", sans-serif';
         var titLines = wrapText(ctx, safeTitle.toUpperCase(), mw);
         for (var ti = 0; ti < titLines.length; ti++) {
@@ -680,9 +687,10 @@ void main(){
         }
       }
 
+      curY += p('txtGap2') / 100 * visW;
+
       var safeSub = String(subtitle || '');
       if (safeSub) {
-        curY += p('txtGap2') / 100 * visW;
         ctx.font = '400 ' + subPx + 'px "Croc", sans-serif';
         var subLines = wrapText(ctx, safeSub, mw);
         for (var si = 0; si < subLines.length; si++) {
@@ -691,9 +699,10 @@ void main(){
         }
       }
 
+      curY += p('txtGap3') / 100 * visW;
+
       _linkBounds = null;
       if (descHtml) {
-        curY += p('txtGap3') / 100 * visW;
         var plainDesc = String(descHtml).replace(/<[^>]*>?/gm, '');
         ctx.font = '400 ' + descPx + 'px "Croc", sans-serif';
         var descLines = wrapText(ctx, plainDesc, mw);
@@ -712,7 +721,7 @@ void main(){
             var beforeW = ctx.measureText(before).width;
             var linkW = ctx.measureText(linkText).width;
             var lx = lineX + beforeW;
-            var ulY = curY + descPx * 1.15;
+            var ulY = curY + descPx * 0.9;
             ctx.save();
             ctx.strokeStyle = '#2D2D2D';
             ctx.lineWidth = Math.max(1, descPx * 0.05);
@@ -808,7 +817,7 @@ void main(){
     var titleText = prizeData.title || '🎁';
     var subText = String(prizeData.subtitle || '').trim();
     var descHtml = parseDescriptionLinks(prizeData.description || '');
-    document.fonts.load('400 48px "CrocExtended"').catch(function () {}).then(function () {
+    document.fonts.ready.then(function () {
       lastTextArgs = [titleText, subText, descHtml];
       updateWebGLTextTexture(titleText, subText, descHtml);
       isCameraMoving = true;

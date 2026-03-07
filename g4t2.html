@@ -416,14 +416,16 @@
     'vec4 getBg(vec2 uv){\n' +
     '  vec2 mBase = (u_mouse - 0.5) * u_layerParallax;\n' +
     '  float bgRange = max(abs(u_bgY1 - u_bgY0), 0.001);\n' +
-    '  vec2 bgUV    = coverUV(uv + mBase + vec2(0, mix(u_bgY0,    u_bgY1,    u_camY)), u_ratio, u_bgTexAspect);\n' +
-    '  vec2 rockUV  = coverUV(uv + mBase*abs(u_rockY1-u_rockY0)/bgRange + vec2(0, mix(u_rockY0,  u_rockY1,  u_camY)), u_ratio, u_rockTexAspect);\n' +
-    '  vec2 frontUV = coverUV(uv + mBase*abs(u_frontY1-u_frontY0)/bgRange + vec2(0, mix(u_frontY0, u_frontY1, u_camY)), u_ratio, u_frontTexAspect);\n' +
-    '  vec2 hllUV   = coverUV(uv + mBase*abs(u_hllY1-u_hllY0)/bgRange + vec2(0, mix(u_hllY0,   u_hllY1,   u_camY)), u_ratio, u_hllTexAspect);\n' +
+    '  float zoom = 1.0 - u_layerParallax * 2.0;\n' +
+    '  vec2 uvZ = 0.5 + (uv - 0.5) * zoom;\n' +
+    '  vec2 bgUV    = coverUV(uvZ + mBase + vec2(0, mix(u_bgY0,    u_bgY1,    u_camY)), u_ratio, u_bgTexAspect);\n' +
+    '  vec2 rockUV  = coverUV(uvZ + mBase*abs(u_rockY1-u_rockY0)/bgRange + vec2(0, mix(u_rockY0,  u_rockY1,  u_camY)), u_ratio, u_rockTexAspect);\n' +
+    '  vec2 frontUV = coverUV(uvZ + mBase*abs(u_frontY1-u_frontY0)/bgRange + vec2(0, mix(u_frontY0, u_frontY1, u_camY)), u_ratio, u_frontTexAspect);\n' +
+    '  vec2 hllUV   = coverUV(uvZ + mBase*abs(u_hllY1-u_hllY0)/bgRange + vec2(0, mix(u_hllY0,   u_hllY1,   u_camY)), u_ratio, u_hllTexAspect);\n' +
     '  hllUV.x += u_hllX;\n' +
-    '  vec2 hlrUV   = coverUV(uv + mBase*abs(u_hlrY1-u_hlrY0)/bgRange + vec2(0, mix(u_hlrY0,   u_hlrY1,   u_camY)), u_ratio, u_hlrTexAspect);\n' +
+    '  vec2 hlrUV   = coverUV(uvZ + mBase*abs(u_hlrY1-u_hlrY0)/bgRange + vec2(0, mix(u_hlrY0,   u_hlrY1,   u_camY)), u_ratio, u_hlrTexAspect);\n' +
     '  hlrUV.x += u_hlrX;\n' +
-    '  vec2 linesUV = coverUV(uv + mBase*abs(u_linesY1-u_linesY0)/bgRange + vec2(0, mix(u_linesY0, u_linesY1, u_camY)), u_ratio, u_linesTexAspect);\n' +
+    '  vec2 linesUV = coverUV(uvZ + mBase*abs(u_linesY1-u_linesY0)/bgRange + vec2(0, mix(u_linesY0, u_linesY1, u_camY)), u_ratio, u_linesTexAspect);\n' +
     '  const float TEXT_ASPECT = 1920.0/1080.0;\n' +
     '  vec2 textUV  = coverUV(uv + vec2(0, mix(u_textY0,  u_textY1,  u_camY)), u_ratio, TEXT_ASPECT);\n' +
     '  vec4 cBg    = texture(u_bgTex, bgUV);\n' +

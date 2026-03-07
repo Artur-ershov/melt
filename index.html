@@ -1,569 +1,1452 @@
 <!DOCTYPE html>
 <html lang="ru">
-  <head>
-    <meta charset="UTF-8" />
-    <title>Растопи лёд</title>
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover" />
+  <title>Растопи лед (g4 — parallax)</title>
+  <style>
+    @font-face {
+      font-family: "Croc";
+      src: url("https://raw.githubusercontent.com/Artur-ershov/melt/master/CoFoWeather20240219-VF.ttf") format("truetype");
+      font-weight: 100 900;
+      font-stretch: 75% 125%;
+      font-style: normal;
+    }
+    @font-face {
+      font-family: "CrocExtended";
+      src: url("CoFoWeather-ExtendedRegular.ttf") format("truetype");
+      font-weight: 400;
+      font-style: normal;
+      font-display: swap;
+    }
 
-    <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
+    *, *::before, *::after { box-sizing: border-box; }
+    body { margin: 0; overflow: hidden; background: #000; font-family: "Croc", system-ui, sans-serif; }
+    canvas { width: 100vw; height: 100vh; display: block; cursor: none; }
 
-    <style>
-      @font-face {
-        font-family: "Crocnew";
-        src: url("CoFoWeather20240219-VF.ttf") format("truetype");
-        font-weight: 100 900;
-        font-stretch: 75% 125%;
-        font-style: normal;
-      }
+    .glass {
+      background: rgba(235, 239, 243, 0.52);
+      backdrop-filter: blur(26px);
+      -webkit-backdrop-filter: blur(26px);
+      border: 1px solid rgba(255,255,255,0.55);
+      box-shadow: inset 0 1px 0 rgba(255,255,255,0.65), 0 16px 48px rgba(0,0,0,0.14);
+    }
 
-      /* Стилизация полноэкранного интерфейса */
-      #ice-app-wrapper {
-        position: fixed;
-        top: 0;
-        left: 0;
-        width: 100vw;
-        height: 100vh;
-        z-index: 99999;
-        background: #0a0a0a;
-        color: #fff;
-        font-family: "Crocnew", sans-serif;
-      }
+    /* ── Auth screen ── */
+    #screen-auth {
+      position: fixed; inset: 0; z-index: 300;
+      display: flex; align-items: center; justify-content: center;
+      transition: opacity 0.5s ease;
+    }
+    #screen-auth.fade-out { opacity: 0; pointer-events: none; }
+    .auth-footnote { font-size: 11px; color: #888; margin: 20px 0 0; line-height: 1.4; }
 
-      .fs-screen {
-        position: absolute;
-        width: 100%;
-        height: 100%;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-      }
+    .auth-box { text-align: center; padding: 52px 44px 44px; border-radius: 24px; width: 360px; }
+    .auth-box.glass {
+      background: rgba(235, 239, 243, 0.4);
+      box-shadow:
+        inset 47.7368px -47.7368px 47.7368px rgba(165, 165, 165, 0.094),
+        inset -47.7368px 47.7368px 47.7368px rgba(255, 255, 255, 0.094);
+      backdrop-filter: blur(50px);
+      -webkit-backdrop-filter: blur(50px);
+    }
+    .ice-title {
+      font-size: 36px; font-weight: 400; letter-spacing: 4px; margin: 0 0 10px;
+      text-transform: uppercase; color: #555758; line-height: 1;
+      font-variation-settings: "wdth" 125;
+    }
+    .ice-subtitle { font-size: 14px; color: #555758; margin: 0 0 34px; font-weight: 400; line-height: 1.5; }
+    .auth-footnote { font-size: 11px; color: #888; margin: 20px 0 0; line-height: 1.4; }
+    .auth-box input[type=email] {
+      display: block; width: 100%; padding: 17px 24px; border-radius: 50px;
+      border: 1px solid rgba(0,0,0,0.13); background: rgba(255,255,255,0.75);
+      color: #111; font-size: 16px; font-family: inherit; margin-bottom: 6px; outline: none;
+      transition: border-color 0.2s, box-shadow 0.2s;
+    }
+    .auth-box input[type=email]:focus { border-color: rgba(0,0,0,0.3); box-shadow: 0 0 0 3px rgba(0,0,0,0.06); }
+    .auth-box input[type=email]::placeholder { color: #bbb; }
+    .auth-box input[type=email].invalid { border-color: #e53935; box-shadow: 0 0 0 2px rgba(229,57,53,0.15); }
+    .field-error {
+      min-height: 16px; font-size: 11px; color: #e53935;
+      text-align: left; padding: 0 4px 4px 4px;
+    }
+    .auth-box select.employee-select {
+      display: block; width: 100%; padding: 17px 24px; padding-right: 44px;
+      border-radius: 50px; border: 1px solid rgba(0,0,0,0.13);
+      background: rgba(255,255,255,0.75) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%23555758' d='M6 8L1 3h10z'/%3E%3C/svg%3E") no-repeat right 18px center;
+      color: #111; font-size: 16px; font-family: inherit; margin-bottom: 14px; outline: none;
+      cursor: pointer; transition: border-color 0.2s, box-shadow 0.2s;
+      -webkit-appearance: none; appearance: none; box-sizing: border-box;
+    }
+    .auth-box select.employee-select:hover,
+    .auth-box select.employee-select:focus {
+      border-color: rgba(0,0,0,0.3); box-shadow: 0 0 0 3px rgba(0,0,0,0.06);
+    }
+    .auth-box select.employee-select:invalid { color: #bbb; }
+    #btn-start {
+      display: block; width: 100%; padding: 17px; border-radius: 50px; border: none;
+      background: #555758; color: #fff; font-family: inherit; font-size: 13px; font-weight: 400;
+      letter-spacing: 2.5px; text-transform: uppercase; cursor: pointer;
+      font-variation-settings: "wdth" 125;
+      transition: background 0.2s, transform 0.15s;
+    }
+    #btn-start:hover { background: #6a6c6d; transform: translateY(-1px); }
+    #btn-start:active { transform: translateY(0); }
 
-      .auth-box {
-        text-align: center;
-        padding: 20px;
-      }
+    /* ── HUD прогресс ── */
+    #game-hud {
+      position: fixed; bottom: 28px; left: 50%; transform: translateX(-50%);
+      z-index: 40; pointer-events: none; opacity: 0; transition: opacity 0.5s;
+      min-width: 280px; padding: 14px 22px 13px; border-radius: 16px;
+    }
+    #game-hud.visible { opacity: 1; }
+    #hud-label {
+      display: flex; justify-content: space-between; align-items: center;
+      font-size: 10px; letter-spacing: 2px; text-transform: uppercase;
+      color: #555758; font-weight: 700; margin-bottom: 8px;
+    }
+    #hud-pct { font-family: monospace; color: #555758; }
+    #hud-bar { width: 100%; height: 5px; border-radius: 999px; background: rgba(85,87,88,0.2); overflow: hidden; }
+    #hud-fill { height: 100%; width: 0%; border-radius: inherit; background: linear-gradient(90deg,#6a6c6d,#555758); transition: width 0.3s ease-out; }
 
-      .ice-title {
-        font-size: 36px;
-        font-weight: 900;
-        letter-spacing: 5px;
-        margin-bottom: 10px;
-        font-variation-settings: "wdth" 125;
-      }
+    /* ── Prize overlay (WebGL renders text; HTML invisible but clickable) ── */
+    #prize-overlay {
+      position: fixed; inset: 0; z-index: 999;
+      display: flex; align-items: center; justify-content: center;
+      background: transparent;
+      pointer-events: none;
+    }
+    #prize-overlay.visible { pointer-events: auto; }
+    #prize-inner { opacity: 0.01; }
+    .prize-box {
+      text-align: center; padding: 30px 20px; border-radius: 28px; max-width: 580px; width: 92%;
+      background: transparent;
+    }
+    .prize-eyebrow {
+      font-size: 11px; letter-spacing: 3px; text-transform: uppercase;
+      color: #555758; margin: 0 0 22px; font-weight: 400;
+    }
+    #pp-title {
+      font-size: 52px; font-weight: 400; line-height: 1; text-transform: uppercase;
+      color: #555758; margin: 0 0 14px; font-variation-settings: "wdth" 125;
+    }
+    #pp-subtitle {
+      font-size: 13px; color: #555758; margin: 0 0 10px; font-weight: 400; line-height: 1.3;
+    }
+    #pp-desc {
+      font-size: 20px; color: #555758; margin: 0 0 10px; font-weight: 400; line-height: 1.4;
+    }
+    #pp-desc a {
+      color: #2D2D2D; text-decoration: underline; text-underline-offset: 3px;
+    }
+    #pp-desc a:hover { opacity: 0.7; }
+    .prize-close {
+      display: inline-block; padding: 14px 38px; border-radius: 50px;
+      border: 1.5px solid rgba(0,0,0,0.18); background: transparent; color: #555758;
+      font-family: inherit; font-size: 11px; font-weight: 400; letter-spacing: 2px;
+      text-transform: uppercase; cursor: pointer;
+      transition: opacity 2s ease, background 0.2s, color 0.2s;
+      opacity: 0;
+    }
+    #prize-overlay.visible .prize-close { opacity: 1; }
+    .prize-close:hover { background: #555758; color: #fff; }
 
-      .ice-subtitle {
-        opacity: 0.5;
-        font-size: 14px;
-        margin-bottom: 30px;
-      }
+    @media (max-width: 768px) {
+      #pp-title { font-size: 24px; }
+      #pp-desc, #pp-subtitle { font-size: 14px; }
+    }
 
-      #user-email-field {
-        width: 280px;
-        padding: 18px 25px;
-        border-radius: 50px;
-        border: 1px solid #333;
-        background: #111;
-        color: #fff;
-        font-size: 16px;
-        margin-bottom: 15px;
-        outline: none;
-      }
+    /* ── Dev panel (скрыта по умолчанию, [H] для открытия) ── */
+    #ui-container {
+      position: fixed; top: 0; right: 0; bottom: 0; width: 380px;
+      background: rgba(235,239,243,0.72); backdrop-filter: blur(24px); -webkit-backdrop-filter: blur(24px);
+      border-left: 1px solid rgba(255,255,255,0.5); box-shadow: -10px 0 40px rgba(0,0,0,0.1);
+      overflow-y: auto; z-index: 200; transform: translateX(100%);
+      transition: transform 0.4s cubic-bezier(0.16,1,0.3,1); display: flex; flex-direction: column;
+    }
+    #ui-container.open { transform: translateX(0); }
+    .panel-header { padding: 24px; border-bottom: 1px solid rgba(0,0,0,0.07); background: rgba(255,255,255,0.35); flex-shrink: 0; }
+    .panel-header h1 { margin: 0; font-size: 13px; color: #111; text-transform: uppercase; letter-spacing: 4px; font-weight: 900; }
+    .panel-header .sub { font-size: 9px; color: #4facfe; margin-top: 5px; letter-spacing: 1.5px; font-family: monospace; }
+    .controls-area { flex: 1; padding: 18px; scrollbar-width: thin; scrollbar-color: #ccc #f0f4f8; }
+    .section { margin-bottom: 26px; border-left: 2px solid rgba(79,172,254,0.3); padding-left: 14px; }
+    .section-title { font-size: 10px; font-weight: 800; color: #4facfe; text-transform: uppercase; margin-bottom: 14px; letter-spacing: 1px; }
+    .control-row { display: flex; justify-content: space-between; align-items: center; margin-bottom: 9px; font-size: 11px; color: #445; }
+    .control-row label { flex: 1; padding-right: 12px; cursor: default; }
+    .control-row:hover label { color: #111; }
+    input[type=range] { width: 130px; height: 3px; -webkit-appearance: none; background: rgba(0,0,0,0.12); border-radius: 2px; outline: none; }
+    input[type=range]::-webkit-slider-thumb { -webkit-appearance: none; width: 10px; height: 10px; border-radius: 50%; background: #333; cursor: pointer; border: 1px solid #fff; transition: 0.2s; }
+    input[type=range]::-webkit-slider-thumb:hover { transform: scale(1.4); background: #000; }
+    .val { width: 35px; text-align: right; color: #4facfe; font-family: monospace; font-size: 10px; font-weight: bold; }
+    select { width: 100%; padding: 8px; background: rgba(255,255,255,0.6); color: #111; border: 1px solid rgba(0,0,0,0.14); border-radius: 4px; font-size: 11px; outline: none; cursor: pointer; margin-bottom: 10px; }
+    select:hover { border-color: #4facfe; }
+    .toggle-row { display: flex; background: rgba(0,0,0,0.06); border-radius: 4px; padding: 3px; margin-bottom: 10px; border: 1px solid rgba(0,0,0,0.1); }
+    .tb { flex: 1; text-align: center; padding: 7px; font-size: 10px; cursor: pointer; color: #888; transition: 0.2s; font-weight: 800; text-transform: uppercase; border-radius: 2px; }
+    .tb.active { background: #4facfe; color: #fff; }
+    .check-row { display: flex; align-items: center; margin-bottom: 9px; cursor: pointer; font-size: 11px; color: #333; }
+    .check-row input { margin-right: 10px; width: 14px; height: 14px; accent-color: #4facfe; }
+    .lbl-r { color: #d03030; } .lbl-g { color: #1a8a3a; } .lbl-b { color: #1a5fc0; }
+    .act-group { display: flex; gap: 8px; margin-bottom: 14px; }
+    .act-btn { flex: 1; padding: 8px; background: rgba(255,255,255,0.5); color: #4facfe; border: 1px solid rgba(0,0,0,0.1); border-radius: 4px; font-size: 10px; font-weight: bold; text-transform: uppercase; cursor: pointer; transition: 0.2s; font-family: inherit; }
+    .act-btn:hover { background: #4facfe; color: #fff; }
+    .mode-1 { display: none; }
 
-      #btn-start-ice {
-        width: 280px;
-        padding: 18px;
-        border-radius: 50px;
-        border: none;
-        background: #fff;
-        color: #000;
-        font-weight: bold;
-        cursor: pointer;
-        transition: 0.3s;
-      }
+    /* ── Loader ── */
+    #loader {
+      position: fixed; inset: 0; z-index: 500;
+      background: rgba(235,239,243,0.97); backdrop-filter: blur(20px);
+      display: flex; flex-direction: column; align-items: center; justify-content: center;
+      color: #555758; font-family: "Croc", system-ui, sans-serif; letter-spacing: 3px; transition: opacity 0.6s;
+    }
+    #loader-title { font-size: 14px; font-weight: 400; letter-spacing: 4px; text-transform: uppercase; margin-bottom: 20px; }
+    #loader-bar { width: 200px; height: 6px; border-radius: 999px; background: rgba(85,87,88,0.2); overflow: hidden; margin-bottom: 12px; }
+    #loader-bar-fill { height: 100%; width: 0%; border-radius: inherit; background: #555758; transition: width 0.25s ease-out; }
+    #loader-pct { font-size: 12px; color: #555758; letter-spacing: 2px; }
+    #loader-text { margin-top: 6px; font-size: 11px; color: #555758; letter-spacing: 2px; opacity: 0.9; }
 
-      /* Оформление приза под льдом */
-      #prize-underlayer {
-        position: absolute;
-        width: 100%;
-        height: 100%;
-        background: url("bg.svg") center center / cover no-repeat,
-          radial-gradient(circle at center, #1e3a8a 0%, #000 100%);
-        color: #555758;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-      }
+    #hint { position: fixed; bottom: 20px; left: 20px; color: #555758; font-size: 10px; letter-spacing: 2px; pointer-events: none; text-transform: uppercase; z-index: 10; font-weight: bold; opacity: 0; transition: opacity 0.4s; }
+    #hint.show { opacity: 0.7; }
+  </style>
+</head>
+<body>
 
-      .prize-container {
-        text-align: center;
-      }
+<div id="loader">
+  <div id="loader-title">ЗАГРУЗКА</div>
+  <div id="loader-bar"><div id="loader-bar-fill"></div></div>
+  <div id="loader-pct">0%</div>
+  <div id="loader-text">Подготовка льда</div>
+</div>
 
-      .prize-label {
-        font-size: 12px;
-        letter-spacing: 3px;
-        opacity: 0;
-        text-transform: uppercase;
-        margin-bottom: 10px;
-        filter: blur(10px);
-        transform: scale(0.96);
-      }
+<!-- Экран почты -->
+<div id="screen-auth">
+  <div class="auth-box glass">
+    <h2 class="ice-title">РАСТОПИ ЛЕД</h2>
+    <p class="ice-subtitle">Растопи лед и узнай свой подарок*</p>
+    <input type="email" id="email-field" placeholder="login@croc.ru" autocomplete="email" />
+    <div id="email-error" class="field-error"></div>
+    <select id="employee-type" class="employee-select" required>
+      <option value="" selected disabled hidden>Откуда ты</option>
+      <option value="moscow">Сотрудник московского офиса</option>
+      <option value="regional">Сотрудник регионального офиса</option>
+      <option value="remote">Удаленный сотрудник</option>
+    </select>
+    <button id="btn-start">НАЧАТЬ</button>
+    <p class="auth-footnote">Учитывается только первый выигранный подарок</p>
+  </div>
+</div>
 
-      .prize-rarity {
-        display: inline-block;
-        padding: 4px 10px;
-        border-radius: 999px;
-        font-size: 11px;
-        letter-spacing: 2px;
-        text-transform: uppercase;
-        opacity: 0.7;
-        margin-bottom: 6px;
-      }
+<!-- HUD -->
+<div id="game-hud" class="glass">
+  <div id="hud-label">
+    <span>Растопи лед</span>
+    <span id="hud-pct">0%</span>
+  </div>
+  <div id="hud-bar"><div id="hud-fill"></div></div>
+</div>
 
-      #prize-content {
-        opacity: 0;
-        filter: blur(10px);
-        transform: scale(0.96);
-      }
+<!-- Prize data holders (invisible, used by JS) -->
+<div id="prize-overlay" style="display:none">
+  <div id="prize-inner">
+    <h1 id="pp-title"></h1>
+    <p id="pp-subtitle"></p>
+    <p id="pp-desc"></p>
+  </div>
+</div>
+<a id="link-hotspot" style="position:fixed;z-index:50;pointer-events:none;opacity:0;display:block;" target="_blank" rel="noopener noreferrer"></a>
 
-      #prize-title {
-        font-family: "Crocnew", sans-serif;
-        font-style: normal;
-        font-weight: 400;
-        font-size: 72px;
-        line-height: 1;
-        font-stretch: 125%;
-        font-variation-settings: "wdth" 125;
-        text-align: center;
-        text-transform: uppercase;
-        color: #555758;
-        letter-spacing: 0;
-        margin: 6px 0;
-      }
-
-      #prize-nominal {
-        font-size: 14px;
-        opacity: 0.8;
-        margin-top: 4px;
-      }
-
-      #prize-description {
-        font-family: "Crocnew", sans-serif;
-        font-weight: 500;
-        font-style: normal;
-        font-size: 48px;
-        line-height: 1.12;
-        letter-spacing: 0;
-        text-align: center;
-        opacity: 0.8;
-        margin-top: 12px;
-      }
-
-      /* Канвас льда */
-      #ice-canvas {
-        position: absolute;
-        top: 0;
-        left: 0;
-        touch-action: none;
-        cursor: crosshair;
-      }
-
-      #game-instruction {
-        position: absolute;
-        bottom: 40px;
-        width: 100%;
-        display: flex;
-        justify-content: center;
-        pointer-events: none;
-      }
-
-      #progress-panel {
-        pointer-events: auto;
-        padding: 14px 20px 12px 20px;
-        min-width: 280px;
-        max-width: 360px;
-        background: rgba(235, 239, 243, 0.4);
-        box-shadow:
-          inset 47.7368px -47.7368px 47.7368px rgba(165, 165, 165, 0.094),
-          inset -47.7368px 47.7368px 47.7368px rgba(255, 255, 255, 0.094);
-        backdrop-filter: blur(50px);
-        border-radius: 16px;
-        text-align: center;
-        color: hsla(200, 2%, 34%, 1);
-      }
-
-      #progress-bar {
-        position: relative;
-        width: 100%;
-        height: 6px;
-        margin: 0 auto 6px auto;
-        border-radius: 999px;
-        background: rgba(255, 255, 255, 0.3);
-        overflow: hidden;
-      }
-
-      #progress-bar-fill {
-        height: 100%;
-        width: 0;
-        background: hsla(200, 2%, 34%, 1);
-        border-radius: 999px;
-        transform-origin: left center;
-        transition: width 0.25s ease-out;
-      }
-
-      #progress-text {
-        font-size: 11px;
-        letter-spacing: 2px;
-        text-transform: uppercase;
-        color: hsla(200, 2%, 34%, 1);
-      }
-
-      .reveal-zoom {
-        animation: revealZoom 2s cubic-bezier(0.77, 0, 0.175, 1) forwards;
-      }
-
-      @keyframes revealZoom {
-        0% {
-          opacity: 0;
-          transform: scale(0.9);
-          filter: blur(10px);
-        }
-        40% {
-          opacity: 0.3;
-          transform: scale(0.94);
-          filter: blur(6px);
-        }
-        100% {
-          opacity: 1;
-          transform: scale(1);
-          filter: blur(0);
-        }
-      }
-    </style>
-  </head>
-
-  <body>
-    <div id="ice-app-wrapper">
-      <div id="screen-auth" class="fs-screen">
-        <div class="auth-box">
-          <h2 class="ice-title">РАСТОПИ ЛЕД</h2>
-          <p class="ice-subtitle">Растопи лёд и узнай свой подарок</p>
-
-          <div class="ice-form">
-            <input
-              type="email"
-              id="user-email-field"
-              placeholder="name@company.com"
-            />
-            <button id="btn-start-ice">НАЧАТЬ</button>
-          </div>
-        </div>
-      </div>
-
-      <div id="screen-game" class="fs-screen" style="display: none">
-        <div id="prize-underlayer">
-          <div class="prize-container">
-            <p class="prize-label">Твой секретный приз:</p>
-
-            <div id="prize-content">
-              <span id="prize-rarity" class="prize-rarity"></span>
-              <h1 id="prize-title"></h1>
-              <div id="prize-nominal"></div>
-              <p id="prize-description"></p>
-            </div>
-          </div>
-        </div>
-
-        <canvas id="ice-canvas"></canvas>
-
-        <div id="game-instruction">
-          <div id="progress-panel">
-            <div id="progress-bar">
-              <div id="progress-bar-fill"></div>
-            </div>
-            <div id="progress-text">Растопи лёд, чтобы увидеть приз</div>
-          </div>
-        </div>
+<!-- Dev panel -->
+<div id="ui-container">
+  <div class="panel-header">
+    <h1>Dev Console</h1>
+    <div class="sub">G4 · PARALLAX · [H] ЗАКРЫТЬ</div>
+  </div>
+  <div class="controls-area">
+    <div class="section">
+      <div class="section-title">Configuration</div>
+      <div class="act-group">
+        <button class="act-btn" id="btn-export">Copy JSON</button>
+        <button class="act-btn" id="btn-import">Paste JSON</button>
       </div>
     </div>
+    <div class="section">
+      <div class="section-title">Environment</div>
+      <select id="preset-selector"><option value="0">Фон: bg / rock / front (3 слоя)</option></select>
+      <input type="file" id="bg-file-input" accept="image/*" style="display:none">
+      <div class="act-group" style="margin-top:6px">
+        <button type="button" class="act-btn" id="btn-bg-upload">Загрузить свой фон</button>
+      </div>
+      <div class="control-row"><label>Parallax Power</label><input id="p-parallax" type="range" min="0" max="0.1" step="0.001" value="0.007"><span class="val">0.007</span></div>
+      <div class="control-row"><label>Window Glow</label><input id="p-emissive" type="range" min="0" max="5" step="0.1" value="0"><span class="val">0.00</span></div>
+    </div>
+    <div class="section">
+      <div class="section-title">Layers</div>
+      <div class="control-row"><label>Camera Y</label><input id="p-camY" type="range" min="0" max="1" step="0.01" value="0"><span class="val">0.00</span></div>
+      <div class="control-row"><label>Min Width</label><input id="p-minLayerW" type="range" min="320" max="1920" step="10" value="640"><span class="val">640</span></div>
+      <div style="font-size:9px;color:#4facfe;font-weight:800;text-transform:uppercase;letter-spacing:1px;margin:10px 0 6px">BG</div>
+      <div class="control-row"><label>Start Y</label><input id="p-bgY0" type="range" min="-1" max="1" step="0.01" value="-1"><span class="val">-1.00</span></div>
+      <div class="control-row"><label>End Y</label><input id="p-bgY1" type="range" min="-1" max="1" step="0.01" value="0.22"><span class="val">0.22</span></div>
+      <div style="font-size:9px;color:#4facfe;font-weight:800;text-transform:uppercase;letter-spacing:1px;margin:10px 0 6px">Rock</div>
+      <div class="control-row"><label>Start Y</label><input id="p-rockY0" type="range" min="-1" max="1" step="0.01" value="-0.03"><span class="val">-0.03</span></div>
+      <div class="control-row"><label>End Y</label><input id="p-rockY1" type="range" min="-1" max="1" step="0.01" value="0.72"><span class="val">0.72</span></div>
+      <div style="font-size:9px;color:#4facfe;font-weight:800;text-transform:uppercase;letter-spacing:1px;margin:10px 0 6px">Front</div>
+      <div class="control-row"><label>Start Y</label><input id="p-frontY0" type="range" min="-1" max="1" step="0.01" value="0.22"><span class="val">0.22</span></div>
+      <div class="control-row"><label>End Y</label><input id="p-frontY1" type="range" min="-1" max="1" step="0.01" value="0.83"><span class="val">0.83</span></div>
+      <div style="font-size:9px;color:#4facfe;font-weight:800;text-transform:uppercase;letter-spacing:1px;margin:10px 0 6px">Highlight Left (softlight)</div>
+      <div class="control-row"><label>Offset X</label><input id="p-hllX" type="range" min="-1" max="1" step="0.001" value="-0.521"><span class="val">-0.521</span></div>
+      <div class="control-row"><label>Start Y</label><input id="p-hllY0" type="range" min="-1" max="1" step="0.01" value="0"><span class="val">0.00</span></div>
+      <div class="control-row"><label>End Y</label><input id="p-hllY1" type="range" min="-1" max="1" step="0.01" value="0.5"><span class="val">0.50</span></div>
+      <div style="font-size:9px;color:#4facfe;font-weight:800;text-transform:uppercase;letter-spacing:1px;margin:10px 0 6px">Highlight Right (softlight)</div>
+      <div class="control-row"><label>Offset X</label><input id="p-hlrX" type="range" min="-1" max="1" step="0.001" value="0.521"><span class="val">0.521</span></div>
+      <div class="control-row"><label>Start Y</label><input id="p-hlrY0" type="range" min="-1" max="1" step="0.01" value="0"><span class="val">0.00</span></div>
+      <div class="control-row"><label>End Y</label><input id="p-hlrY1" type="range" min="-1" max="1" step="0.01" value="0.5"><span class="val">0.50</span></div>
+      <div style="font-size:9px;color:#4facfe;font-weight:800;text-transform:uppercase;letter-spacing:1px;margin:10px 0 6px">Lines</div>
+      <div class="control-row"><label>Opacity</label><input id="p-linesOpacity" type="range" min="0" max="1" step="0.01" value="0.35"><span class="val">0.35</span></div>
+      <div class="control-row"><label>Start Y</label><input id="p-linesY0" type="range" min="-1" max="1" step="0.01" value="-0.13"><span class="val">-0.13</span></div>
+      <div class="control-row"><label>End Y</label><input id="p-linesY1" type="range" min="-1" max="1" step="0.01" value="0.17"><span class="val">0.17</span></div>
+      <div style="font-size:9px;color:#4facfe;font-weight:800;text-transform:uppercase;letter-spacing:1px;margin:10px 0 6px">Text</div>
+      <div class="control-row"><label>Start Y</label><input id="p-textY0" type="range" min="-1" max="1" step="0.01" value="0.97"><span class="val">0.97</span></div>
+      <div class="control-row"><label>End Y</label><input id="p-textY1" type="range" min="-1" max="1" step="0.01" value="0.17"><span class="val">0.17</span></div>
+      <div style="font-size:9px;color:#ff6b6b;font-weight:800;text-transform:uppercase;letter-spacing:1px;margin:10px 0 6px">Text Layout</div>
+      <div class="control-row"><label>Max W %</label><input id="p-txtMaxW" type="range" min="30" max="100" step="1" value="90"><span class="val">90</span></div>
+      <div class="control-row"><label>Header Y %</label><input id="p-txtBaseY" type="range" min="0" max="30" step="0.1" value="0.2"><span class="val">0.2</span></div>
+      <div class="control-row"><label>→ Title %</label><input id="p-txtGap1" type="range" min="0" max="20" step="0.1" value="2"><span class="val">2.0</span></div>
+      <div class="control-row"><label>→ Subtitle %</label><input id="p-txtGap2" type="range" min="0" max="20" step="0.1" value="2"><span class="val">2.0</span></div>
+      <div class="control-row"><label>→ Desc %</label><input id="p-txtGap3" type="range" min="0" max="20" step="0.1" value="2"><span class="val">2.0</span></div>
+      <div style="font-size:9px;color:#ff6b6b;font-weight:800;text-transform:uppercase;letter-spacing:1px;margin:10px 0 6px">Font Sizes (%W)</div>
+      <div class="control-row"><label>Header %</label><input id="p-txtSzHeader" type="range" min="0.5" max="5" step="0.1" value="2"><span class="val">2.0</span></div>
+      <div class="control-row"><label>Title %</label><input id="p-txtSzTitle" type="range" min="1" max="10" step="0.1" value="4"><span class="val">4.0</span></div>
+      <div class="control-row"><label>Subtitle %</label><input id="p-txtSzSub" type="range" min="0.5" max="3" step="0.1" value="1"><span class="val">1.0</span></div>
+      <div class="control-row"><label>Desc %</label><input id="p-txtSzDesc" type="range" min="0.5" max="3" step="0.1" value="1.25"><span class="val">1.25</span></div>
+      <div class="control-row"><label>Desc LH</label><input id="p-txtLhDesc" type="range" min="1" max="2" step="0.05" value="1.2"><span class="val">1.20</span></div>
+      <div style="font-size:9px;color:#f0a;font-weight:800;text-transform:uppercase;letter-spacing:1px;margin:10px 0 6px">Mobile (&lt;768px)</div>
+      <div class="control-row"><label>Max W %</label><input id="p-mobTxtMaxW" type="range" min="30" max="100" step="1" value="90"><span class="val">90</span></div>
+      <div class="control-row"><label>Header Y %</label><input id="p-mobTxtBaseY" type="range" min="0" max="30" step="0.1" value="0.5"><span class="val">0.5</span></div>
+      <div class="control-row"><label>→ Title %</label><input id="p-mobTxtGap1" type="range" min="0" max="20" step="0.1" value="3"><span class="val">3.0</span></div>
+      <div class="control-row"><label>→ Subtitle %</label><input id="p-mobTxtGap2" type="range" min="0" max="20" step="0.1" value="2.5"><span class="val">2.5</span></div>
+      <div class="control-row"><label>→ Desc %</label><input id="p-mobTxtGap3" type="range" min="0" max="20" step="0.1" value="2.5"><span class="val">2.5</span></div>
+      <div class="control-row"><label>Header %</label><input id="p-mobTxtSzHeader" type="range" min="0.5" max="8" step="0.1" value="4"><span class="val">4.0</span></div>
+      <div class="control-row"><label>Title %</label><input id="p-mobTxtSzTitle" type="range" min="1" max="15" step="0.1" value="5"><span class="val">5.0</span></div>
+      <div class="control-row"><label>Subtitle %</label><input id="p-mobTxtSzSub" type="range" min="0.5" max="5" step="0.1" value="3"><span class="val">3.0</span></div>
+      <div class="control-row"><label>Desc %</label><input id="p-mobTxtSzDesc" type="range" min="0.5" max="5" step="0.1" value="2.5"><span class="val">2.5</span></div>
+      <div class="control-row"><label>Desc LH</label><input id="p-mobTxtLhDesc" type="range" min="1" max="2" step="0.05" value="1.2"><span class="val">1.20</span></div>
+      <div style="font-size:9px;color:#f0a;font-weight:800;text-transform:uppercase;letter-spacing:1px;margin:10px 0 6px">Mobile Layers</div>
+      <div style="font-size:9px;color:#4facfe;font-weight:800;text-transform:uppercase;letter-spacing:1px;margin:6px 0 4px">BG</div>
+      <div class="control-row"><label>Start Y</label><input id="p-mobBgY0" type="range" min="-1" max="1" step="0.01" value="-0.67"><span class="val">-0.67</span></div>
+      <div class="control-row"><label>End Y</label><input id="p-mobBgY1" type="range" min="-1" max="1" step="0.01" value="-0.1"><span class="val">-0.10</span></div>
+      <div style="font-size:9px;color:#4facfe;font-weight:800;text-transform:uppercase;letter-spacing:1px;margin:6px 0 4px">Rock</div>
+      <div class="control-row"><label>Start Y</label><input id="p-mobRockY0" type="range" min="-1" max="1" step="0.01" value="-0.15"><span class="val">-0.15</span></div>
+      <div class="control-row"><label>End Y</label><input id="p-mobRockY1" type="range" min="-1" max="1" step="0.01" value="0.43"><span class="val">0.43</span></div>
+      <div style="font-size:9px;color:#4facfe;font-weight:800;text-transform:uppercase;letter-spacing:1px;margin:6px 0 4px">Front</div>
+      <div class="control-row"><label>Start Y</label><input id="p-mobFrontY0" type="range" min="-1" max="1" step="0.01" value="-0.03"><span class="val">-0.03</span></div>
+      <div class="control-row"><label>End Y</label><input id="p-mobFrontY1" type="range" min="-1" max="1" step="0.01" value="0.35"><span class="val">0.35</span></div>
+      <div style="font-size:9px;color:#4facfe;font-weight:800;text-transform:uppercase;letter-spacing:1px;margin:6px 0 4px">Highlight Left</div>
+      <div class="control-row"><label>Start Y</label><input id="p-mobHllY0" type="range" min="-1" max="1" step="0.01" value="0"><span class="val">0.00</span></div>
+      <div class="control-row"><label>End Y</label><input id="p-mobHllY1" type="range" min="-1" max="1" step="0.01" value="0.5"><span class="val">0.50</span></div>
+      <div style="font-size:9px;color:#4facfe;font-weight:800;text-transform:uppercase;letter-spacing:1px;margin:6px 0 4px">Highlight Right</div>
+      <div class="control-row"><label>Start Y</label><input id="p-mobHlrY0" type="range" min="-1" max="1" step="0.01" value="0"><span class="val">0.00</span></div>
+      <div class="control-row"><label>End Y</label><input id="p-mobHlrY1" type="range" min="-1" max="1" step="0.01" value="0.5"><span class="val">0.50</span></div>
+      <div style="font-size:9px;color:#4facfe;font-weight:800;text-transform:uppercase;letter-spacing:1px;margin:6px 0 4px">Lines</div>
+      <div class="control-row"><label>Start Y</label><input id="p-mobLinesY0" type="range" min="-1" max="1" step="0.01" value="0"><span class="val">0.00</span></div>
+      <div class="control-row"><label>End Y</label><input id="p-mobLinesY1" type="range" min="-1" max="1" step="0.01" value="0.5"><span class="val">0.50</span></div>
+      <div style="font-size:9px;color:#4facfe;font-weight:800;text-transform:uppercase;letter-spacing:1px;margin:6px 0 4px">Text</div>
+      <div class="control-row"><label>Start Y</label><input id="p-mobTextY0" type="range" min="-1" max="1" step="0.01" value="0.97"><span class="val">0.97</span></div>
+      <div class="control-row"><label>End Y</label><input id="p-mobTextY1" type="range" min="-1" max="1" step="0.01" value="0.08"><span class="val">0.08</span></div>
+    </div>
+    <div class="section">
+      <div class="section-title">Engine</div>
+      <div class="check-row"><label><input type="checkbox" id="c-aces"> ACES Tone Mapping</label></div>
+      <div class="check-row"><label><input type="checkbox" id="c-dither"> Blue Noise Dithering</label></div>
+      <div class="control-row"><label>Gamma</label><input id="p-gamma" type="range" min="1.0" max="3.0" step="0.1" value="1"><span class="val">1.00</span></div>
+    </div>
+    <div class="section">
+      <div class="section-title">Lighting</div>
+      <div class="toggle-row" id="light-mode-toggle">
+        <div class="tb active" data-val="0">Flashlight</div>
+        <div class="tb" data-val="1">Static Sun</div>
+      </div>
+      <div class="control-row"><label>Intensity</label><input id="p-lightInt" type="range" min="0" max="5" step="0.1" value="0.2"><span class="val">0.20</span></div>
+      <div class="control-row"><label>Color Temp</label><input id="p-lightWarmth" type="range" min="0" max="1" step="0.05" value="1"><span class="val">1.00</span></div>
+      <div class="mode-0">
+        <div class="control-row"><label>Spot Radius</label><input id="p-lightRad" type="range" min="0.1" max="1.5" step="0.01" value="0.4"><span class="val">0.40</span></div>
+        <div class="control-row"><label>Falloff</label><input id="p-lightFalloff" type="range" min="0.01" max="1.0" step="0.01" value="0.35"><span class="val">0.35</span></div>
+      </div>
+      <div class="mode-1">
+        <div class="control-row"><label>Sun X</label><input id="p-sunX" type="range" min="-1" max="1" step="0.01" value="0.2"><span class="val">0.20</span></div>
+        <div class="control-row"><label>Sun Y</label><input id="p-sunY" type="range" min="-1" max="1" step="0.01" value="0.5"><span class="val">0.50</span></div>
+      </div>
+    </div>
+    <div class="section">
+      <div class="section-title">Ice Properties</div>
+      <div class="control-row"><label>Texture Scale</label><input id="p-texScale" type="range" min="0.5" max="4.0" step="0.1" value="1"><span class="val">1.00</span></div>
+      <div class="control-row"><label>Frost Density</label><input id="p-frostOpacity" type="range" min="0" max="1" step="0.01" value="0.09"><span class="val">0.09</span></div>
+      <div class="control-row"><label>Frost Tint</label><input id="p-frostTint" type="range" min="0" max="1" step="0.01" value="0.39"><span class="val">0.39</span></div>
+      <div class="control-row"><label>Normal Depth</label><input id="p-iceNormal" type="range" min="0" max="4" step="0.1" value="4"><span class="val">4.00</span></div>
+      <div class="control-row"><label>Refraction</label><input id="p-refract" type="range" min="0" max="0.15" step="0.001" value="0.119"><span class="val">0.119</span></div>
+      <div class="control-row"><label>Chromatic Ab.</label><input id="p-chroma" type="range" min="0" max="0.1" step="0.001" value="0.01"><span class="val">0.010</span></div>
+      <div class="control-row"><label>Ambient Shadow</label><input id="p-shadowStr" type="range" min="0" max="1" step="0.01" value="0"><span class="val">0.00</span></div>
+      <div class="control-row"><label>SSS</label><input id="p-sss" type="range" min="0" max="0.5" step="0.01" value="0.5"><span class="val">0.50</span></div>
+      <div class="control-row"><label>Diffuse Mix</label><input id="p-diffuseIceMix" type="range" min="0" max="1" step="0.05" value="0.45"><span class="val">0.45</span></div>
+      <div class="control-row"><label>Fresnel Power</label><input id="p-fresnelPower" type="range" min="1" max="8" step="0.1" value="1.1"><span class="val">1.1</span></div>
+      <div class="control-row"><label>Fresnel Str</label><input id="p-fresnelStr" type="range" min="0" max="0.5" step="0.01" value="0.06"><span class="val">0.06</span></div>
+    </div>
+    <div class="section">
+      <div class="section-title">Thermodynamics</div>
+      <div class="control-row"><label>Brush Radius</label><input id="p-meltRadius" type="range" min="0.01" max="0.5" step="0.005" value="0.08"><span class="val">0.08</span></div>
+      <div class="control-row"><label>Melt Speed</label><input id="p-meltSpeed" type="range" min="0.01" max="0.4" step="0.005" value="0.09"><span class="val">0.09</span></div>
+      <div class="control-row"><label>Brush Hardness</label><input id="p-brushHardness" type="range" min="0" max="1" step="0.01" value="0.75"><span class="val">0.75</span></div>
+    </div>
+    <div class="section">
+      <div class="section-title">Liquid</div>
+      <div class="control-row"><label>Surface Tension</label><input id="p-edgeDistort" type="range" min="0" max="4" step="0.05" value="1.55"><span class="val">1.55</span></div>
+      <div class="control-row"><label>Water Gloss</label><input id="p-waterShiny" type="range" min="10" max="500" step="10" value="290"><span class="val">290</span></div>
+      <div class="control-row"><label>Specular</label><input id="p-specular" type="range" min="0" max="10" step="0.1" value="4.7"><span class="val">4.70</span></div>
+      <div class="control-row"><label>Water Turbidity</label><input id="p-waterOpacity" type="range" min="0" max="1" step="0.01" value="0.06"><span class="val">0.06</span></div>
+    </div>
+    <div class="section">
+      <div class="section-title">Color Grading</div>
+      <div class="control-row"><label>Exposure</label><input id="p-exposure" type="range" min="0.1" max="3" step="0.05" value="1"><span class="val">1.00</span></div>
+      <div class="control-row"><label>Contrast</label><input id="p-contrast" type="range" min="0.5" max="1.5" step="0.05" value="1"><span class="val">1.00</span></div>
+      <div class="control-row"><label>Saturation</label><input id="p-saturation" type="range" min="0" max="2" step="0.05" value="1"><span class="val">1.00</span></div>
+      <div class="control-row"><label class="lbl-r">Red</label><input id="p-tintR" type="range" min="0.5" max="1.5" step="0.01" value="1"><span class="val">1.00</span></div>
+      <div class="control-row"><label class="lbl-g">Green</label><input id="p-tintG" type="range" min="0.5" max="1.5" step="0.01" value="1"><span class="val">1.00</span></div>
+      <div class="control-row"><label class="lbl-b">Blue</label><input id="p-tintB" type="range" min="0.5" max="1.5" step="0.01" value="1"><span class="val">1.00</span></div>
+      <div class="control-row"><label>Bg Blur</label><input id="p-blurStr" type="range" min="0" max="1" step="0.01" value="0"><span class="val">0.00</span></div>
+      <div class="control-row"><label>Film Grain</label><input id="p-grain" type="range" min="0" max="0.3" step="0.01" value="0.03"><span class="val">0.03</span></div>
+      <div class="control-row"><label>Vignette</label><input id="p-vignette" type="range" min="0" max="1" step="0.01" value="0"><span class="val">0.00</span></div>
+      <div class="control-row"><label>Ambient Light</label><input id="p-ambient" type="range" min="0" max="1" step="0.01" value="1"><span class="val">1.00</span></div>
+    </div>
+  </div>
+</div>
 
-    <script>
-      $(document).ready(function () {
-        const GOOGLE_URL =
-          "https://script.google.com/macros/s/AKfycbxHTU9Y7wYaseXknoWfo1hpJU3qVzw1MINHnjPvjp45zTQnFkdbUr0Usm9FN7WhvjZYJw/exec";
+<div id="hint">[H] Dev Console</div>
+<canvas id="gl-canvas"></canvas>
 
-        let finalPrize = "";
-        let prizeRequested = false;
-        let prizeLoaded = false;
-        let currentEmail = "";
-        let clearedPercent = 0;
-        const REVEAL_PERCENT = 50;
-        let lastProgressUpdate = 0;
-        let isAutoMelting = false;
+<script>
+(function () {
+  // ── GAME STATE ───────────────────────────────────────────────────────────────
+  const REVEAL_THRESHOLD = 75;
+  const GOOGLE_URL = 'https://script.google.com/macros/s/AKfycbwgsfMC5X95pTEzmER8Y4u8Os_L_-QL1MJk8AiHZnr6ix61e_xa9BKDW1xrZE8qm-xzsQ/exec';
+  const ASSETS_BASE = 'https://raw.githubusercontent.com/Artur-ershov/melt/master/';
 
-        const iceImage = new Image();
-        iceImage.src = "ice.jpg";
+  let gameStarted = false;
+  let prizeShown        = false;
+  let prizeReady        = false;
+  let prizeData         = null;
+  let currentEmail      = '';
+  let currentEmployeeType = '';
+  let panelOpen   = false;
+  let lastMeltPct = 0;
 
-        $("#btn-start-ice").on("click", function () {
-          const email = $("#user-email-field").val().trim().toLowerCase();
+  const screenAuth      = document.getElementById('screen-auth');
+  const gameHud         = document.getElementById('game-hud');
+  const hudFill         = document.getElementById('hud-fill');
+  const hudPct          = document.getElementById('hud-pct');
+  const prizeOverlay    = document.getElementById('prize-overlay');
+  const ppTitle         = document.getElementById('pp-title');
+  const ppSubtitle      = document.getElementById('pp-subtitle');
+  const ppDesc          = document.getElementById('pp-desc');
+  const uiContainer     = document.getElementById('ui-container');
+  const hintEl          = document.getElementById('hint');
+  const emailInput      = document.getElementById('email-field');
+  const emailErrorEl    = document.getElementById('email-error');
+  const btnStart        = document.getElementById('btn-start');
+  const employeeTypeSel = document.getElementById('employee-type');
 
-          if (!email || !email.includes("@")) {
-            alert("Введите корректную почту");
-            return;
-          }
+  const urlParams   = new URLSearchParams(window.location.search);
+  const isTestMode  = urlParams.get('test') === '1';
+  const isSkipMode  = urlParams.get('skip') === '1';
+  const isSimulate  = urlParams.get('simulate') !== '0';
+  const VALID_LOCS  = ['moscow', 'regional', 'remote'];
+  if (isSimulate) console.log('[g4] Режим симуляции включён. Выключить: ?simulate=0');
+  const testModeLoc = VALID_LOCS.includes(urlParams.get('loc') || '') ? urlParams.get('loc') : 'moscow';
 
-          currentEmail = email;
-          finalPrize = "";
-          prizeRequested = false;
-          prizeLoaded = false;
-          clearedPercent = 0;
-          isAutoMelting = false;
+  function validateEmail(showMessage = true) {
+    const value = emailInput.value.trim().toLowerCase();
+    let message = '';
+    let isValid = true;
+    if (!value) {
+      isValid = false;
+    } else {
+      const parts = value.split('@');
+      const local = parts[0] || '';
+      const hasAt = parts.length === 2 && local !== '' && parts[1] !== '';
+      if (!hasAt || /^\d+$/.test(local)) {
+        isValid = false;
+        message = 'Укажи почту в формате login@croc.ru';
+      }
+    }
+    const hasEmployeeType = employeeTypeSel.value !== '';
+    if (showMessage) {
+      emailInput.classList.toggle('invalid', !isValid && value !== '');
+      if (!isValid) emailErrorEl.textContent = message;
+      else if (!hasEmployeeType) emailErrorEl.textContent = 'Выбери, откуда ты';
+      else emailErrorEl.textContent = '';
+    } else {
+      emailInput.classList.remove('invalid');
+      emailErrorEl.textContent = '';
+    }
+    const canStart = isValid && hasEmployeeType;
+    btnStart.style.opacity = canStart ? '' : '0.5';
+    btnStart.style.cursor = canStart ? 'pointer' : 'default';
+    btnStart.setAttribute('aria-disabled', canStart ? 'false' : 'true');
+    return canStart;
+  }
 
-          $("#screen-auth").fadeOut(400, function () {
-            $("#screen-game").fadeIn(200);
-            startIceGame();
-          });
-        });
+  // ── Auth ─────────────────────────────────────────────────────────────────────
+  btnStart.addEventListener('click', () => {
+    const canStart = validateEmail(true);
+    if (!canStart) {
+      if (!employeeTypeSel.value) employeeTypeSel.focus();
+      else emailInput.focus();
+      return;
+    }
+    currentEmail = emailInput.value.trim().toLowerCase();
+    currentEmployeeType = employeeTypeSel.value;
+    screenAuth.classList.add('fade-out');
+    setTimeout(() => { screenAuth.style.display = 'none'; }, 520);
+    gameStarted = true;
+    gameHud.classList.add('visible');
+    hintEl.classList.add('show');
+    requestPrize();
+  });
+  emailInput.addEventListener('keydown', e => {
+    if (e.key === 'Enter') { e.preventDefault(); if (validateEmail(true)) btnStart.click(); }
+  });
+  employeeTypeSel.addEventListener('change', () => validateEmail(false));
 
-        function requestPrizeIfNeeded() {
-          if (prizeRequested || !currentEmail) return;
-          prizeRequested = true;
+  let emailValidateDebounce = null;
+  emailInput.addEventListener('input', () => {
+    validateEmail(false);
+    clearTimeout(emailValidateDebounce);
+    emailValidateDebounce = setTimeout(() => { validateEmail(true); }, 1000);
+  });
 
-          $.ajax({
-            url: GOOGLE_URL,
-            method: "POST",
-            dataType: "json",
-            data: JSON.stringify({ email: currentEmail }),
-            success: function (res) {
-              let prize = null;
+  function autoStartTestIfNeeded() {
+    if (!isTestMode) return;
+    const testEmail = `test${Date.now()}${Math.floor(Math.random() * 1000)}@croc.ru`;
+    emailInput.value = testEmail;
+    currentEmployeeType = testModeLoc;
+    employeeTypeSel.value = testModeLoc;
+    validateEmail(false);
+    currentEmail = testEmail;
+    screenAuth.classList.add('fade-out');
+    setTimeout(() => { screenAuth.style.display = 'none'; }, 520);
+    gameStarted = true;
+    gameHud.classList.add('visible');
+    hintEl.classList.add('show');
+    requestPrize();
+  }
 
-              if (res && res.status === "success") {
-                if (res.prize && typeof res.prize === "object") {
-                  prize = res.prize;
-                } else if (typeof res.prize === "string") {
-                  prize = { title: res.prize };
-                } else if (typeof res === "string") {
-                  prize = { title: res };
-                }
-              }
+  // ── Prize fetch ───────────────────────────────────────────────────────────────
+  function requestPrize() {
+    const applyResult = (res) => {
+      if (res && res.status === 'success' && res.prize) {
+        prizeData = typeof res.prize === 'object' ? res.prize : { title: res.prize };
+      } else {
+        prizeData = { title: 'Подарок', description: res?.message || '' };
+      }
+      prizeReady = true;
+      if (lastMeltPct >= REVEAL_THRESHOLD || isSkipMode) { autoMelting = true; autoMeltStart = 0; showPrize(); }
+    };
+    const applyFallback = () => {
+      prizeData = { title: 'Подарок', description: 'Проверь таблицу!' };
+      prizeReady = true;
+      if (lastMeltPct >= REVEAL_THRESHOLD || isSkipMode) { autoMelting = true; autoMeltStart = 0; showPrize(); }
+    };
+    if (isSimulate) {
+      const mock = { status: 'success', prize: { title: 'Скидка 20% на набор-конструктор свечей «По душе»', subtitle: 'только для вас', description: 'Используйте промокод при оформлении заказа в [Боброшопе.](https://bobromania.croc.ru) Акция действует до конца месяца.' } };
+      Promise.resolve(mock).then(applyResult);
+      return;
+    }
+    fetch(GOOGLE_URL, {
+      method: 'POST',
+      body: JSON.stringify({ email: currentEmail, employeeType: currentEmployeeType, location: currentEmployeeType })
+    })
+    .then(r => r.json())
+    .then(applyResult)
+    .catch(applyFallback);
+  }
 
-              if (prize) {
-                finalPrize = prize.title || prize.description || "";
+  function parseDescriptionLinks(text) {
+    if (!text || typeof text !== 'string') return '';
+    const escaped = text.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+    return escaped.replace(
+      /\[([^\]]*)\]\((https?:\/\/[^)]+)\)/g,
+      (_, label, url) => '<a href="' + url.replace(/"/g, '&quot;').replace(/'/g, '&#39;') + '" target="_blank" rel="noopener noreferrer">' + label + '</a>'
+    );
+  }
 
-                $("#prize-title").text(prize.title || "");
-                $("#prize-rarity").text(prize.rarity || "");
+  // ── Dev panel [H] ─────────────────────────────────────────────────────────────
+  window.addEventListener('keydown', e => {
+    if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA' || e.target.tagName === 'SELECT') return;
+    if (e.code === 'KeyH' || e.code === 'KeyP') {
+      panelOpen = !panelOpen;
+      uiContainer.classList.toggle('open', panelOpen);
+    }
+  });
 
-                if (prize.nominalRub) {
-                  $("#prize-nominal").text(
-                    "Номинал: " + prize.nominalRub + " ₽"
-                  );
-                } else {
-                  $("#prize-nominal").text("");
-                }
+  // ── WebGL2 ───────────────────────────────────────────────────────────────────
+  const canvas = document.getElementById('gl-canvas');
+  const gl = canvas.getContext('webgl2', { alpha: false, depth: false, antialias: true, premultipliedAlpha: false });
+  if (!gl) { alert('WebGL2 не поддерживается'); return; }
 
-                $("#prize-description").text(prize.description || "");
-              } else {
-                finalPrize =
-                  (res && res.message) || "Ошибка при получении приза";
+  // PARAMS — g2 proven values
+  const PARAMS = window.PARAMS = {
+    aces:0, dither:0, camY:0.0,
+    bgY0:-1, bgY1:0.22, rockY0:-0.03, rockY1:0.72, frontY0:0.22, frontY1:0.83,
+    hllX:0.533, hlrX:-0.283,
+    hllY0:-0.88, hllY1:0.82, hlrY0:-0.72, hlrY1:0.73, linesY0:-0.13, linesY1:0.17, linesOpacity:0.35, layerParallax:0.03,
+    textY0:0.97, textY1:0.17,
+    lightMode:0, lightInt:0.2, lightWarmth:1, lightRad:0.4, lightFalloff:0.35, sunX:0.2, sunY:0.5,
+    texScale:1, frostOpacity:0.09, frostTint:0.39, iceNormal:4, refract:0.119, chroma:0.01, specular:4.7, shadowStr:0, sss:0.5,
+    txtMaxW:90, txtBaseY:0.2, txtGap1:2, txtGap2:2, txtGap3:2,
+    txtSzHeader:2, txtSzTitle:4, txtSzSub:1, txtSzDesc:1.25, txtLhDesc:1.2,
+    mobTxtMaxW:90, mobTxtBaseY:0.5, mobTxtGap1:2, mobTxtGap2:2, mobTxtGap3:2,
+    mobTxtSzHeader:2, mobTxtSzTitle:5, mobTxtSzSub:2, mobTxtSzDesc:3, mobTxtLhDesc:1.2,
+    mobBgY0:-0.67, mobBgY1:-0.1, mobRockY0:-0.15, mobRockY1:0.43, mobFrontY0:-0.03, mobFrontY1:0.35,
+    mobHllY0:-0.68, mobHllY1:0.4, mobHlrY0:-0.45, mobHlrY1:0.85, mobLinesY0:-0.3, mobLinesY1:0.17,
+    mobTextY0:0.97, mobTextY1:0.08,
+    minLayerW:640,
+    meltRadius:0.08, meltSpeed:0.09, edgeDistort:1.55, brushHardness:0.75,
+    waterShiny:290, waterOpacity:0.06,
+    blurStr:0, grain:0.03, ambient:1, emissive:0, vignette:0, parallax:0.007,
+    exposure:1, gamma:1, contrast:1, saturation:1, tintR:1, tintG:1, tintB:1,
+    fresnelPower:1.1, fresnelStr:0.06, diffuseIceMix:0.45,
+  };
 
-                $("#prize-title").text(finalPrize);
-                $("#prize-rarity").text("");
-                $("#prize-nominal").text("");
-                $("#prize-description").text("");
-              }
+  // Texture order: 0-9 scene textures, 10 meltMap
+  const TEX_ORDER = ['bgTex','rockTex','frontTex','hllTex','hlrTex','linesTex','bgNorm','bgLight','bgDepth','iceNorm','iceFrost','iceOpacity','iceRough'];
+  const PRESETS   = [{ name:'Meadow', bgTex:'bg.jpg', rockTex:'rock.png', frontTex:'front.png', hllTex:'hl-l.svg', hlrTex:'hl-r.svg', linesTex:'lines.svg', placeholders:['bgNorm','bgLight','bgDepth'] }];
 
-              prizeLoaded = true;
-            },
-            error: function () {
-              finalPrize = "Проверь таблицу!";
-              prizeLoaded = true;
+  function getIceAssets() {
+    return { iceNorm:'prompt1.png', iceFrost:'prompt2.png', iceOpacity:'prompt3.png', iceRough:'prompt4.png' };
+  }
 
-              $("#prize-title").text(finalPrize);
-              $("#prize-rarity").text("");
-              $("#prize-nominal").text("");
-              $("#prize-description").text("");
-            },
-          });
+  function resize() {
+    const dpr = Math.min(window.devicePixelRatio||1, 1.5);
+    const vw = window.innerWidth, vh = window.innerHeight;
+    canvas.width  = vw * dpr;
+    canvas.height = vh * dpr;
+    gl.viewport(0, 0, canvas.width, canvas.height);
+  }
+  window.addEventListener('resize', resize);
+  resize();
+
+  // ── Shaders ──────────────────────────────────────────────────────────────────
+  const VS = `#version 300 es
+in vec2 a_pos; out vec2 v_uv;
+void main(){ v_uv=a_pos*0.5+0.5; gl_Position=vec4(a_pos,0,1); }`;
+
+  const FS = `#version 300 es
+precision highp float;
+in vec2 v_uv; out vec4 fragColor;
+uniform sampler2D u_bgTex,u_rockTex,u_frontTex,u_hllTex,u_hlrTex,u_linesTex,u_textTex;
+uniform sampler2D u_bgNorm,u_bgLight,u_bgDepth;
+uniform sampler2D u_iceNorm,u_iceFrost,u_iceOpacity,u_iceRough,u_meltMap;
+uniform vec2 u_mouse;
+uniform float u_ratio,u_time,u_bgTexAspect,u_iceTexAspect,u_rockTexAspect,u_frontTexAspect,u_hllTexAspect,u_hlrTexAspect,u_linesTexAspect,u_camY;
+uniform float u_aces,u_dither,u_lightMode,u_lightInt,u_lightWarmth,u_lightRad,u_lightFalloff,u_sunX,u_sunY;
+uniform float u_texScale,u_frostOpacity,u_frostTint,u_iceNormal,u_refract,u_chroma,u_specular,u_shadowStr,u_sss;
+uniform float u_edgeDistort,u_waterShiny,u_waterOpacity;
+uniform float u_blurStr,u_grain,u_ambient,u_exposure,u_gamma,u_parallax,u_emissive,u_vignette;
+uniform float u_contrast,u_saturation,u_tintR,u_tintG,u_tintB,u_fresnelPower,u_fresnelStr,u_diffuseIceMix;
+uniform float u_bgY0,u_bgY1,u_rockY0,u_rockY1,u_frontY0,u_frontY1,u_hllY0,u_hllY1,u_hlrY0,u_hlrY1,u_linesY0,u_linesY1,u_textY0,u_textY1;
+uniform float u_hllX,u_hlrX,u_linesOpacity,u_layerParallax;
+float hash(vec2 p){return fract(sin(dot(p,vec2(12.9898,78.233)))*43758.5453);}
+vec3 aces_tm(vec3 x){return clamp((x*(2.51*x+0.03))/(x*(2.43*x+0.59)+0.14),0.,1.);}
+vec2 coverUV(vec2 uv, float viewAspect, float texAspect){
+  float su=min(1.,viewAspect/texAspect), sv=min(1.,texAspect/viewAspect);
+  return vec2(0.5*(1.-su)+uv.x*su, 0.5*(1.-sv)+uv.y*sv);
+}
+vec3 softlight(vec3 base, vec3 blend){
+  vec3 lo = 2.0*base*blend + base*base*(1.0-2.0*blend);
+  vec3 hi = 2.0*base*(1.0-blend) + sqrt(base)*(2.0*blend-1.0);
+  return mix(lo, hi, step(0.5, blend));
+}
+vec4 getBg(vec2 uv){
+  vec2 mBase = (u_mouse - 0.5) * u_layerParallax;
+  float bgRange = max(abs(u_bgY1 - u_bgY0), 0.001);
+  float zoom = 1.0 - u_layerParallax * 2.0;
+  vec2 uvZ = 0.5 + (uv - 0.5) * zoom;
+  vec2 bgUV    = coverUV(uvZ + mBase + vec2(0, mix(u_bgY0,    u_bgY1,    u_camY)), u_ratio, u_bgTexAspect);
+  vec2 rockUV  = coverUV(uvZ + mBase*abs(u_rockY1-u_rockY0)/bgRange + vec2(0, mix(u_rockY0,  u_rockY1,  u_camY)), u_ratio, u_rockTexAspect);
+  vec2 frontUV = coverUV(uvZ + mBase*abs(u_frontY1-u_frontY0)/bgRange + vec2(0, mix(u_frontY0, u_frontY1, u_camY)), u_ratio, u_frontTexAspect);
+  vec2 hllUV   = coverUV(uvZ + mBase*abs(u_hllY1-u_hllY0)/bgRange + vec2(0, mix(u_hllY0,   u_hllY1,   u_camY)), u_ratio, u_hllTexAspect);
+  hllUV.x += u_hllX;
+  vec2 hlrUV   = coverUV(uvZ + mBase*abs(u_hlrY1-u_hlrY0)/bgRange + vec2(0, mix(u_hlrY0,   u_hlrY1,   u_camY)), u_ratio, u_hlrTexAspect);
+  hlrUV.x += u_hlrX;
+  vec2 linesUV = coverUV(uvZ + mBase*abs(u_linesY1-u_linesY0)/bgRange + vec2(0, mix(u_linesY0, u_linesY1, u_camY)), u_ratio, u_linesTexAspect);
+  const float TEXT_ASPECT = 1920.0/1080.0;
+  vec2 textUV  = coverUV(uv + vec2(0, mix(u_textY0,  u_textY1,  u_camY)), u_ratio, TEXT_ASPECT);
+  vec4 cBg    = texture(u_bgTex, bgUV);
+  vec4 cRock  = texture(u_rockTex, rockUV);
+  vec4 cFront = texture(u_frontTex, frontUV);
+  vec4 cHll   = (hllUV.x<0.||hllUV.x>1.||hllUV.y<0.||hllUV.y>1.) ? vec4(0) : texture(u_hllTex, hllUV);
+  vec4 cHlr   = (hlrUV.x<0.||hlrUV.x>1.||hlrUV.y<0.||hlrUV.y>1.) ? vec4(0) : texture(u_hlrTex, hlrUV);
+  vec4 cLines = (linesUV.x<0.||linesUV.x>1.||linesUV.y<0.||linesUV.y>1.) ? vec4(0) : texture(u_linesTex, linesUV);
+  // Deblur text reveal: blurred at camY=0, sharp at camY=1
+  float camYSafe = max(0.0, u_camY);
+  float blurR = pow(1.0 - camYSafe, 2.0) * 0.025;
+  vec4 cText;
+  if (blurR < 0.001) {
+    cText = texture(u_textTex, textUV);
+  } else {
+    cText = texture(u_textTex, textUV) * 4.0;
+    float tw = 4.0;
+    for (int i = 0; i < 6; i++) {
+      float a = float(i) * 6.2832 / 6.0;
+      vec2 off = vec2(cos(a), sin(a));
+      cText += texture(u_textTex, textUV + off * blurR);
+      cText += texture(u_textTex, textUV + off * blurR * 0.5);
+      tw += 2.0;
+    }
+    cText /= tw;
+  }
+  cText *= camYSafe; // fade premultiplied RGBA together
+  // Composite (back→front): bg → lines → hll(softlight) → hlr(softlight) → text → rock → front
+  vec3 col = cBg.rgb;
+  col = col + cLines.rgb * cLines.a * u_linesOpacity; // additive white lines
+  col = mix(col, softlight(col, cHll.rgb), cHll.a);
+  col = mix(col, softlight(col, cHlr.rgb), cHlr.a);
+  col = col * (1.0 - cText.a) + cText.rgb;
+  col = mix(col, cRock.rgb,  cRock.a);
+  col = mix(col, cFront.rgb, cFront.a);
+  return vec4(col, 1.0);
+}
+void main(){
+  float melt=texture(u_meltMap,v_uv).r;
+  float bgDepth=texture(u_bgDepth,v_uv).r;
+  vec2 iceCoverUV=coverUV(v_uv,u_ratio,u_iceTexAspect);
+  vec2 iceUV=iceCoverUV*u_texScale;
+  vec3 rawN=texture(u_iceNorm,iceUV).rgb*2.-1.;
+  vec3 iceN=normalize(vec3(rawN.xy*u_iceNormal,rawN.z));
+  float edge=smoothstep(0.,0.2,melt)*(1.-smoothstep(0.8,1.,melt));
+  vec3 finalN=mix(iceN,vec3(0,0,1),melt);
+  finalN.xy+=iceN.xy*edge*u_edgeDistort; finalN=normalize(finalN);
+  vec2 parallax=(u_mouse-0.5)*(1.-bgDepth)*u_parallax;
+  vec2 baseUV=clamp(v_uv+parallax,0.001,0.999);
+  float refr=u_refract*(1.-melt);
+  vec2 uvR=baseUV+finalN.xy*refr*(1.-u_chroma)+vec2(0.002)*u_shadowStr*(1.-melt);
+  vec2 uvG=baseUV+finalN.xy*refr;
+  vec2 uvB=baseUV+finalN.xy*refr*(1.+u_chroma);
+  vec3 bgCol=vec3(0);
+  if(u_blurStr>0.){
+    float b=u_blurStr*(1.-melt)*0.004;
+    bgCol.r=(getBg(uvR).r+getBg(uvR+vec2(b,b)).r+getBg(uvR-vec2(b,b)).r+getBg(uvR+vec2(b,-b)).r+getBg(uvR+vec2(-b,b)).r)/5.;
+    bgCol.g=(getBg(uvG).g+getBg(uvG+vec2(b,b)).g+getBg(uvG-vec2(b,b)).g+getBg(uvG+vec2(b,-b)).g+getBg(uvG+vec2(-b,b)).g)/5.;
+    bgCol.b=(getBg(uvB).b+getBg(uvB+vec2(b,b)).b+getBg(uvB-vec2(b,b)).b+getBg(uvB+vec2(b,-b)).b+getBg(uvB+vec2(-b,b)).b)/5.;
+  } else { bgCol=vec3(getBg(uvR).r,getBg(uvG).g,getBg(uvB).b); }
+  float iceMask=texture(u_iceOpacity,iceUV).r;
+  float opacity=iceMask*(1.-melt);
+  bgCol*=1.-opacity*u_shadowStr*0.5;
+  vec2 auxUV=coverUV(uvG,u_ratio,u_bgTexAspect);
+  vec3 bgEmissive=texture(u_bgLight,auxUV).rgb;
+  vec3 lightDir; float atten=1.;
+  if(u_lightMode<0.5){
+    vec3 lPos=vec3(u_mouse.x*u_ratio,u_mouse.y,0.3);
+    vec3 pPos=vec3(v_uv.x*u_ratio,v_uv.y,0.);
+    float d=distance(lPos,pPos);
+    atten=1.-smoothstep(u_lightRad*u_lightFalloff,u_lightRad,d);
+    lightDir=normalize(lPos-pPos);
+  } else { lightDir=normalize(vec3(u_sunX,u_sunY,0.5)); }
+  vec3 lightColor=mix(vec3(0.8,0.9,1.),vec3(1.,0.9,0.55),u_lightWarmth);
+  vec3 bgNorm=normalize(texture(u_bgNorm,auxUV).rgb*2.-1.);
+  float diffBg=max(dot(bgNorm,lightDir),0.);
+  float diffIce=max(dot(finalN,lightDir),0.);
+  float bgIllum=mix(diffBg,diffIce,u_diffuseIceMix)*atten*u_lightInt;
+  vec3 scene=bgCol*(u_ambient+bgIllum*lightColor)+bgEmissive*u_emissive;
+  vec3 frostTex=texture(u_iceFrost,iceUV).rgb;
+  frostTex=mix(frostTex,vec3(0.75,0.88,1.),u_frostTint);
+  vec3 frostLit=frostTex*(scene+bgIllum*u_sss*2.*lightColor);
+  vec3 comp=mix(scene,frostLit,opacity*u_frostOpacity);
+  comp=mix(comp,vec3(0.8,0.85,0.9)*0.4,u_waterOpacity*melt*(1.-melt));
+  vec3 viewDir=vec3(0,0,1);
+  float fresnel=pow(1.-max(dot(finalN,viewDir),0.),u_fresnelPower)*u_fresnelStr;
+  comp+=mix(vec3(0.6,0.75,0.95),lightColor,0.4)*fresnel*min(opacity+edge,1.);
+  float rough=texture(u_iceRough,iceUV).r;
+  float shine=mix(mix(15.,5.,rough),u_waterShiny,melt);
+  comp+=pow(max(dot(finalN,normalize(lightDir+viewDir)),0.),shine)*u_specular*bgIllum*lightColor*(1.+edge*5.);
+  if(u_lightMode<0.5){
+    vec2 fa=vec2(v_uv.x*u_ratio,v_uv.y),fb=vec2(u_mouse.x*u_ratio,u_mouse.y);
+    comp+=lightColor*pow(max(0.,1.-distance(fa,fb)*1.5),2.)*0.6*u_lightInt*mix(0.4,1.,melt);
+  }
+  if(u_vignette>0.){
+    float dist=distance(v_uv,vec2(0.5));
+    comp*=smoothstep(0.8,0.8-u_vignette,dist*(1.+u_vignette));
+  }
+  comp*=vec3(u_tintR,u_tintG,u_tintB);
+  float gray=dot(comp,vec3(0.299,0.587,0.114));
+  comp=mix(vec3(gray),comp,u_saturation);
+  comp=(comp-0.5)*u_contrast+0.5;
+  comp*=u_exposure;
+  if(u_aces>0.5) comp=aces_tm(comp);
+  comp=pow(max(comp,vec3(0)),vec3(1./max(u_gamma,0.1)));
+  comp+=(hash(gl_FragCoord.xy+u_time)-0.5)*u_grain;
+  if(u_dither>0.5) comp+=(hash(gl_FragCoord.xy*0.123+u_time)-0.5)/255.;
+  fragColor=vec4(clamp(comp,0.,1.),1.);
+}`;
+
+  const PAINT_FS = `#version 300 es
+precision highp float;
+in vec2 v_uv; out vec4 fragColor;
+uniform sampler2D u_prev;
+uniform vec2 u_mouseA,u_mouseB;
+uniform float u_radius,u_speed,u_hardness;
+float segDist(vec2 p,vec2 a,vec2 b){
+  vec2 ab=b-a,ap=p-a;
+  float t=clamp(dot(ap,ab)/max(dot(ab,ab),0.00001),0.,1.);
+  return length(ap-ab*t);
+}
+void main(){
+  float prev=texture(u_prev,v_uv).r;
+  float d=segDist(v_uv,u_mouseA,u_mouseB);
+  float heat=smoothstep(u_radius,u_radius*(1.-u_hardness*0.8),d)*u_speed;
+  fragColor=vec4(min(prev+heat,1.),0,0,1);
+}`;
+
+  function mkShader(type, src) {
+    const s=gl.createShader(type); gl.shaderSource(s,src); gl.compileShader(s);
+    if(!gl.getShaderParameter(s,gl.COMPILE_STATUS)) console.error(gl.getShaderInfoLog(s));
+    return s;
+  }
+  function mkProg(vs, fs) {
+    const p=gl.createProgram();
+    gl.attachShader(p,mkShader(gl.VERTEX_SHADER,vs));
+    gl.attachShader(p,mkShader(gl.FRAGMENT_SHADER,fs));
+    gl.linkProgram(p);
+    if(!gl.getProgramParameter(p,gl.LINK_STATUS)) console.error(gl.getProgramInfoLog(p));
+    return p;
+  }
+  const prog      = mkProg(VS, FS);
+  const paintProg = mkProg(VS, PAINT_FS);
+
+  const vao = gl.createVertexArray(); gl.bindVertexArray(vao);
+  gl.bindBuffer(gl.ARRAY_BUFFER,gl.createBuffer());
+  gl.bufferData(gl.ARRAY_BUFFER,new Float32Array([-1,-1,1,-1,-1,1,-1,1,1,-1,1,1]),gl.STATIC_DRAW);
+  const aPos=gl.getAttribLocation(prog,'a_pos');
+  gl.enableVertexAttribArray(aPos); gl.vertexAttribPointer(aPos,2,gl.FLOAT,false,0,0);
+
+  // Uniforms: first NSAMP entries are samplers
+  const uNames=[
+    'bgTex','rockTex','frontTex','hllTex','hlrTex','linesTex','bgNorm','bgLight','bgDepth','iceNorm','iceFrost','iceOpacity','iceRough','meltMap',
+    'mouse','ratio','time','bgTexAspect','iceTexAspect','rockTexAspect','frontTexAspect','hllTexAspect','hlrTexAspect','linesTexAspect','camY',
+    'aces','dither',
+    'lightMode','lightInt','lightWarmth','lightRad','lightFalloff','sunX','sunY',
+    'texScale','frostOpacity','frostTint','iceNormal','refract','chroma','specular','shadowStr','sss',
+    'edgeDistort','waterShiny','waterOpacity',
+    'blurStr','grain','ambient','exposure','parallax','emissive','vignette',
+    'gamma','contrast','saturation','tintR','tintG','tintB','fresnelPower','fresnelStr','diffuseIceMix',
+    'bgY0','bgY1','rockY0','rockY1','frontY0','frontY1','hllY0','hllY1','hlrY0','hlrY1','linesY0','linesY1','textY0','textY1',
+    'hllX','hlrX','linesOpacity','layerParallax'
+  ];
+  const NSAMP=14; // units 0-13 (10 original + 3 new layers)
+  const U={};
+  uNames.forEach(n=>{ U[n]=gl.getUniformLocation(prog,'u_'+n); });
+  const textTexLoc = gl.getUniformLocation(prog,'u_textTex');
+
+  const PU={
+    prev:    gl.getUniformLocation(paintProg,'u_prev'),
+    mouseA:  gl.getUniformLocation(paintProg,'u_mouseA'),
+    mouseB:  gl.getUniformLocation(paintProg,'u_mouseB'),
+    radius:  gl.getUniformLocation(paintProg,'u_radius'),
+    speed:   gl.getUniformLocation(paintProg,'u_speed'),
+    hardness:gl.getUniformLocation(paintProg,'u_hardness'),
+  };
+
+  const meltSize=Math.min(2048,Math.max(window.innerWidth,window.innerHeight)*(window.devicePixelRatio||1)|0);
+
+  function makeFBO(){
+    const tex=gl.createTexture(); gl.bindTexture(gl.TEXTURE_2D,tex);
+    gl.texImage2D(gl.TEXTURE_2D,0,gl.RGBA8,meltSize,meltSize,0,gl.RGBA,gl.UNSIGNED_BYTE,null);
+    gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_MIN_FILTER,gl.LINEAR);
+    gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_MAG_FILTER,gl.LINEAR);
+    gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_WRAP_S,gl.CLAMP_TO_EDGE);
+    gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_WRAP_T,gl.CLAMP_TO_EDGE);
+    const fbo=gl.createFramebuffer(); gl.bindFramebuffer(gl.FRAMEBUFFER,fbo);
+    gl.framebufferTexture2D(gl.FRAMEBUFFER,gl.COLOR_ATTACHMENT0,gl.TEXTURE_2D,tex,0);
+    gl.bindFramebuffer(gl.FRAMEBUFFER,null);
+    return {tex,fbo};
+  }
+  let ping=makeFBO(), pong=makeFBO();
+  [ping,pong].forEach(b=>{gl.bindFramebuffer(gl.FRAMEBUFFER,b.fbo);gl.clearColor(0,0,0,1);gl.clear(gl.COLOR_BUFFER_BIT);});
+  gl.bindFramebuffer(gl.FRAMEBUFFER,null);
+
+  const READ_SIZE=32;
+  const readTex=gl.createTexture(); gl.bindTexture(gl.TEXTURE_2D,readTex);
+  gl.texImage2D(gl.TEXTURE_2D,0,gl.RGBA8,READ_SIZE,READ_SIZE,0,gl.RGBA,gl.UNSIGNED_BYTE,null);
+  gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_MIN_FILTER,gl.LINEAR);
+  const readFbo=gl.createFramebuffer(); gl.bindFramebuffer(gl.FRAMEBUFFER,readFbo);
+  gl.framebufferTexture2D(gl.FRAMEBUFFER,gl.COLOR_ATTACHMENT0,gl.TEXTURE_2D,readTex,0);
+  gl.bindFramebuffer(gl.FRAMEBUFFER,null);
+  const readBuf=new Uint8Array(READ_SIZE*READ_SIZE*4);
+
+  let mouse={x:-1,y:-1}, lastMouse={x:-1,y:-1}, mouseOnCanvas=false;
+  let frameCount=0, running=false;
+  const textureObjs={}; let loadedCount=0;
+  let bgTexAspect=1, iceTexAspect=1, rockTexAspect=1, frontTexAspect=1, hllTexAspect=1, hlrTexAspect=1, linesTexAspect=1;
+
+  // ── Camera animation ───────────────────────────────────────────────────────
+  let animStartTime=0, isCameraMoving=false, autoMelting=false, autoMeltStart=0, autoMeltAccum=0, lastFrameTime=0;
+
+  function solveBezier(t, x1, y1, x2, y2) {
+    if (t <= 0) return 0;
+    if (t >= 1) return 1;
+    let cx = 3*x1, bx = 3*(x2-x1)-cx, ax = 1-cx-bx;
+    let cy = 3*y1, by = 3*(y2-y1)-cy, ay = 1-cy-by;
+    let u = t;
+    for (let i=0; i<5; i++) {
+      let x = ((ax*u+bx)*u+cx)*u;
+      let dx = (3*ax*u+2*bx)*u+cx;
+      if (Math.abs(dx) < 1e-6) break;
+      u -= (x-t)/dx;
+    }
+    return ((ay*u+by)*u+cy)*u;
+  }
+
+  // ── Ensure CrocExtended font is loaded for canvas use ──────────────────────
+  // CSS @font-face declares "CrocExtended" — force-load it so canvas can use it
+  document.fonts.load('400 48px "CrocExtended"').then(() => console.log('[g4] CrocExtended font loaded'))
+    .catch(e => console.warn('[g4] CrocExtended font failed:', e));
+
+  // ── Text texture (prize rendered in WebGL scene) ──────────────────────────
+  let textWebGLTexture = null;
+
+  function wrapText(ctx, text, maxWidth) {
+    const words = text.split(' ');
+    const lines = [];
+    let line = '';
+    for (const word of words) {
+      const test = line ? line + ' ' + word : word;
+      if (ctx.measureText(test).width > maxWidth && line) {
+        lines.push(line);
+        line = word;
+      } else {
+        line = test;
+      }
+    }
+    if (line) lines.push(line);
+    return lines;
+  }
+
+  function updateWebGLTextTexture(title, subtitle, descHtml) {
+    try {
+      if (!textWebGLTexture) {
+        textWebGLTexture = gl.createTexture();
+        gl.bindTexture(gl.TEXTURE_2D, textWebGLTexture);
+        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
+        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
+        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+      }
+      const W = 1920;
+      const cvs = document.createElement('canvas');
+      cvs.width = W; cvs.height = 1080;
+      const ctx = cvs.getContext('2d');
+      if (!ctx) return;
+      ctx.fillStyle = '#2D2D2D';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'top';
+      // Compute visible texture width based on viewport aspect ratio (coverUV)
+      const vAspect = window.innerWidth / window.innerHeight;
+      const tAspect = W / 1080;
+      const visW = vAspect < tAspect ? Math.round(1080 * vAspect) : W;
+
+      // Pick desktop or mobile params based on viewport
+      const isMob = window.innerWidth < 768;
+      const p = (k) => PARAMS[isMob ? 'mob' + k.charAt(0).toUpperCase() + k.slice(1) : k];
+      const mw = p('txtMaxW') / 100 * visW;
+      const cx = W / 2;
+
+      // Font sizes from % of visible width (viewport-relative)
+      const hdrPx  = Math.round(p('txtSzHeader') / 100 * visW);
+      const titPx  = Math.round(p('txtSzTitle')  / 100 * visW);
+      const subPx  = Math.round(p('txtSzSub')    / 100 * visW);
+      const descPx = Math.round(p('txtSzDesc')   / 100 * visW);
+
+      let curY = p('txtBaseY') / 100 * visW;
+
+      // Header: "ТВОЙ СЕКРЕТНЫЙ ПРИЗ:"
+      ctx.font = `500 ${hdrPx}px "Croc", sans-serif`;
+      const hdrLines = wrapText(ctx, '\u0422\u0412\u041E\u0419 \u0421\u0415\u041A\u0420\u0415\u0422\u041D\u042B\u0419 \u041F\u0420\u0418\u0417:', mw);
+      for (const ln of hdrLines) {
+        ctx.fillText(ln, cx, curY);
+        curY += hdrPx;
+      }
+
+      // Title (CrocExt, uppercase)
+      const safeTitle = String(title || '');
+      if (safeTitle) {
+        curY += p('txtGap1') / 100 * visW;
+        ctx.font = `400 ${titPx}px "CrocExtended", "Croc", sans-serif`;
+        const titLines = wrapText(ctx, safeTitle.toUpperCase(), mw);
+        for (const ln of titLines) {
+          ctx.fillText(ln, cx, curY);
+          curY += titPx;
         }
+      }
 
-        function startIceGame() {
-          const canvas = document.getElementById("ice-canvas");
-          const ctx = canvas.getContext("2d");
-          const $prizeContent = $("#prize-content");
-          const $prizeLabel = $(".prize-label");
+      // Subtitle
+      const safeSub = String(subtitle || '');
+      if (safeSub) {
+        curY += p('txtGap2') / 100 * visW;
+        ctx.font = `400 ${subPx}px "Croc", sans-serif`;
+        const subLines = wrapText(ctx, safeSub, mw);
+        for (const ln of subLines) {
+          ctx.fillText(ln, cx, curY);
+          curY += subPx;
+        }
+      }
 
-          function drawIceBackground() {
-            canvas.width = window.innerWidth;
-            canvas.height = window.innerHeight;
-
-            if (iceImage.complete && iceImage.naturalWidth) {
-              const scale = Math.max(
-                canvas.width / iceImage.width,
-                canvas.height / iceImage.height
-              );
-              const drawWidth = iceImage.width * scale;
-              const drawHeight = iceImage.height * scale;
-              const offsetX = (canvas.width - drawWidth) / 2;
-              const offsetY = (canvas.height - drawHeight) / 2;
-
-              ctx.drawImage(
-                iceImage,
-                offsetX,
-                offsetY,
-                drawWidth,
-                drawHeight
-              );
-            } else {
-              ctx.fillStyle = "#a5f3fc";
-              ctx.fillRect(0, 0, canvas.width, canvas.height);
-            }
-          }
-
-          if (iceImage.complete) {
-            drawIceBackground();
-          } else {
-            iceImage.onload = drawIceBackground;
-          }
-
-          function updateProgress() {
-            const now = Date.now();
-            if (now - lastProgressUpdate < 150) return;
-            lastProgressUpdate = now;
-
-            const width = canvas.width;
-            const height = canvas.height;
-            if (!width || !height) return;
-
-            try {
-              const imgData = ctx.getImageData(0, 0, width, height);
-              const data = imgData.data;
-              let opaqueCount = 0;
-
-              for (let i = 3; i < data.length; i += 4) {
-                if (data[i] > 0) opaqueCount++;
-              }
-
-              const totalPixels = width * height;
-              const clearedPixels = totalPixels - opaqueCount;
-              clearedPercent = (clearedPixels / totalPixels) * 100;
-              if (clearedPercent < 0) clearedPercent = 0;
-              if (clearedPercent > 100) clearedPercent = 100;
-
-              $("#progress-bar-fill").css("width", clearedPercent + "%");
-              $("#progress-text").text(
-                "Растоплено: " + Math.round(clearedPercent) + "%"
-              );
-            } catch (err) {
-              // Если getImageData недоступен (CORS и т.п.), прогресс не обновляем
-            }
-
-            if (clearedPercent >= REVEAL_PERCENT) {
-              requestPrizeIfNeeded();
-            }
-          }
-
-          function getCoords(e) {
-            const event = e.originalEvent || e;
-
-            if (event.touches && event.touches.length > 0) {
-              return {
-                x: event.touches[0].clientX,
-                y: event.touches[0].clientY,
-              };
-            }
-
-            return { x: e.clientX, y: e.clientY };
-          }
-
-          function startAutoMelt() {
-            if (isAutoMelting) return;
-            isAutoMelting = true;
-
-            const interval = setInterval(function () {
-              // Несколько "мазков" за тик, чтобы таяло плавно, но быстро
-              for (let i = 0; i < 10; i++) {
-                const x = Math.random() * canvas.width;
-                const y = Math.random() * canvas.height;
-
-                ctx.globalCompositeOperation = "destination-out";
-                const radius = 80;
-                const gradient = ctx.createRadialGradient(
-                  x,
-                  y,
-                  0,
-                  x,
-                  y,
-                  radius
-                );
-                gradient.addColorStop(0, "rgba(0,0,0,0.8)");
-                gradient.addColorStop(1, "rgba(0,0,0,0)");
-
-                ctx.fillStyle = gradient;
-                ctx.beginPath();
-                ctx.arc(x, y, radius, 0, Math.PI * 2);
-                ctx.fill();
-              }
-
-              updateProgress();
-
-              if (clearedPercent >= 99) {
-                clearInterval(interval);
-              }
-            }, 40);
-          }
-
-          function scratch(e) {
-            const coords = getCoords(e);
-            if (!coords.x) return;
-
-            ctx.globalCompositeOperation = "destination-out";
-
-            const radius = 80;
-            const gradient = ctx.createRadialGradient(
-              coords.x,
-              coords.y,
-              0,
-              coords.x,
-              coords.y,
-              radius
-            );
-            gradient.addColorStop(0, "rgba(0,0,0,0.8)");
-            gradient.addColorStop(1, "rgba(0,0,0,0)");
-
-            ctx.fillStyle = gradient;
+      // Description (line-height from txtLhDesc)
+      window._linkBounds = null;
+      if (descHtml) {
+        curY += p('txtGap3') / 100 * visW;
+        const plainDesc = String(descHtml).replace(/<[^>]*>?/gm, '');
+        ctx.font = `400 ${descPx}px "Croc", sans-serif`;
+        const descLines = wrapText(ctx, plainDesc, mw);
+        const descLh = descPx * p('txtLhDesc');
+        // Extract link info from HTML
+        const linkMatch = String(descHtml).match(/<a[^>]+href="([^"]*)"[^>]*>([^<]*)<\/a>/);
+        const linkText = linkMatch ? linkMatch[2] : null;
+        const linkHref = linkMatch ? linkMatch[1] : null;
+        for (const ln of descLines) {
+          ctx.fillText(ln, cx, curY);
+          // Track link text position within this line
+          if (linkText && ln.includes(linkText)) {
+            const idx = ln.indexOf(linkText);
+            const before = ln.substring(0, idx);
+            const lineW = ctx.measureText(ln).width;
+            const lineX = cx - lineW / 2; // centered text left edge
+            const beforeW = ctx.measureText(before).width;
+            const linkW = ctx.measureText(linkText).width;
+            const lx = lineX + beforeW;
+            // Draw underline
+            const ulY = curY + descPx * 1.15;
+            ctx.save();
+            ctx.strokeStyle = '#2D2D2D';
+            ctx.lineWidth = Math.max(1, descPx * 0.05);
             ctx.beginPath();
-            ctx.arc(coords.x, coords.y, radius, 0, Math.PI * 2);
-            ctx.fill();
-
-            updateProgress();
-
-            if (
-              prizeLoaded &&
-              clearedPercent >= REVEAL_PERCENT &&
-              !$prizeContent.hasClass("reveal-zoom")
-            ) {
-              $prizeLabel.addClass("reveal-zoom");
-              $prizeContent.addClass("reveal-zoom");
-            }
-
-            if (clearedPercent >= REVEAL_PERCENT) {
-              startAutoMelt();
-            }
+            ctx.moveTo(lx, ulY);
+            ctx.lineTo(lx + linkW, ulY);
+            ctx.stroke();
+            ctx.restore();
+            // Store bounds in texture pixels (top-left origin)
+            window._linkBounds = {
+              x: lx, y: curY, w: linkW, h: descPx,
+              href: linkHref, text: linkText,
+              texW: W, texH: 1080
+            };
           }
-
-          canvas.addEventListener("mousemove", scratch);
-
-          canvas.addEventListener(
-            "touchmove",
-            function (e) {
-              const event = e.originalEvent || e;
-              if (event.touches && event.touches.length > 0) {
-                scratch(e);
-              }
-              e.preventDefault();
-            },
-            { passive: false }
-          );
+          curY += descLh;
         }
-      });
-    </script>
-  </body>
+      }
+
+      // Upload with FLIP_Y so WebGL orientation matches canvas top-down
+      gl.activeTexture(gl.TEXTURE15);
+      gl.bindTexture(gl.TEXTURE_2D, textWebGLTexture);
+      gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, 1);
+      gl.pixelStorei(gl.UNPACK_PREMULTIPLY_ALPHA_WEBGL, 1);
+      gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, cvs);
+      gl.pixelStorei(gl.UNPACK_PREMULTIPLY_ALPHA_WEBGL, 0);
+      gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, 0);
+    } catch (e) {
+      console.warn('[g4] text texture error:', e);
+    }
+  }
+
+  let lastTextArgs = null;
+  function regenTextTexture() {
+    if (lastTextArgs) updateWebGLTextTexture(...lastTextArgs);
+  }
+  window.regenText = regenTextTexture;
+
+  // Position an invisible <a> over the link area rendered on canvas
+  function positionLinkHotspot() {
+    const hotspot = document.getElementById('link-hotspot');
+    if (!hotspot) return;
+    const lb = window._linkBounds;
+    if (!lb) { hotspot.style.pointerEvents = 'none'; return; }
+
+    const vw = window.innerWidth, vh = window.innerHeight;
+    const viewAspect = vw / vh;
+    const texAspect = lb.texW / lb.texH;
+    const su = Math.min(1, viewAspect / texAspect);
+    const sv = Math.min(1, texAspect / viewAspect);
+
+    // Text layer Y offset (pick mobile or desktop)
+    const isMob = vw < 768;
+    const textY0Key = isMob ? 'mobTextY0' : 'textY0';
+    const textY1Key = isMob ? 'mobTextY1' : 'textY1';
+    const textYOff = PARAMS[textY0Key] + (PARAMS[textY1Key] - PARAMS[textY0Key]) * PARAMS.camY;
+
+    // Convert texture pixel coords to UV (0-1, top-left origin)
+    // Canvas was uploaded with FLIP_Y, so texture V=0 is canvas bottom
+    // In shader: textUV = coverUV(uv + vec2(0, textYOff), viewAspect, texAspect)
+    // Invert: uv = (textUV - 0.5*(1-s)) / s  then uv_screen = uv - vec2(0, textYOff)
+
+    // Texture pixel to texture UV (FLIP_Y: canvas top = texture V=1)
+    const txU = lb.x / lb.texW;
+    const txV = 1.0 - lb.y / lb.texH; // flip Y
+    const txU2 = (lb.x + lb.w) / lb.texW;
+    const txV2 = 1.0 - (lb.y + lb.h) / lb.texH;
+
+    // Invert coverUV: uv = (texUV - 0.5*(1-s)) / s
+    const uvX1 = (txU - 0.5 * (1 - su)) / su;
+    const uvX2 = (txU2 - 0.5 * (1 - su)) / su;
+    const uvY1 = (txV - 0.5 * (1 - sv)) / sv - textYOff;
+    const uvY2 = (txV2 - 0.5 * (1 - sv)) / sv - textYOff;
+
+    // UV to screen (uv.y=0 is bottom in GL, screen y=0 is top)
+    const sx1 = uvX1 * vw;
+    const sx2 = uvX2 * vw;
+    const sy1 = (1 - uvY1) * vh; // top of link (higher UV = higher on screen = lower sy)
+    const sy2 = (1 - uvY2) * vh;
+
+    let left = Math.min(sx1, sx2);
+    let top = Math.min(sy1, sy2);
+    let width = Math.abs(sx2 - sx1);
+    let height = Math.abs(sy2 - sy1);
+
+    // Ensure minimum 44px tap target (centered on link)
+    const minTap = 44;
+    if (height < minTap) { top -= (minTap - height) / 2; height = minTap; }
+    if (width < minTap) { left -= (minTap - width) / 2; width = minTap; }
+
+    hotspot.href = lb.href;
+    hotspot.textContent = lb.text;
+    hotspot.style.left = left + 'px';
+    hotspot.style.top = top + 'px';
+    hotspot.style.width = width + 'px';
+    hotspot.style.height = height + 'px';
+    hotspot.style.pointerEvents = 'auto';
+    hotspot.style.opacity = '0';
+    hotspot.style.cursor = 'pointer';
+  }
+  window.positionLinkHotspot = positionLinkHotspot;
+  window.addEventListener('resize', () => { regenTextTexture(); if (PARAMS.camY >= 1) positionLinkHotspot(); });
+
+  // ── Prize ──────────────────────────────────────────────────────────────────
+  function showPrize() {
+    if (prizeShown || !prizeData) return;
+    prizeShown = true;
+    ppTitle.textContent = prizeData.title || '🎁';
+    const sub = String(prizeData.subtitle || '').trim();
+    ppSubtitle.textContent = sub;
+    ppSubtitle.style.display = sub ? '' : 'none';
+    ppDesc.innerHTML = parseDescriptionLinks(prizeData.description || '');
+    // Wait for CrocExtended font, then generate text texture and start camera
+    document.fonts.load('400 48px "CrocExtended"').catch(() => {}).then(() => {
+      lastTextArgs = [prizeData.title, sub, ppDesc.innerHTML];
+      updateWebGLTextTexture(...lastTextArgs);
+      isCameraMoving = true;
+      animStartTime = performance.now();
+    });
+  }
+
+
+  // ── Texture loading ────────────────────────────────────────────────────────
+  function createPlaceholder(key,unit){
+    const t=gl.createTexture(); gl.activeTexture(gl.TEXTURE0+unit); gl.bindTexture(gl.TEXTURE_2D,t);
+    const px=key==='bgNorm'?new Uint8Array([128,128,255,255]):new Uint8Array([0,0,0,255]);
+    gl.texImage2D(gl.TEXTURE_2D,0,gl.RGBA,1,1,0,gl.RGBA,gl.UNSIGNED_BYTE,px);
+    gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_MIN_FILTER,gl.LINEAR);
+    gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_WRAP_S,gl.CLAMP_TO_EDGE);
+    gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_WRAP_T,gl.CLAMP_TO_EDGE);
+    return t;
+  }
+  function uploadTex(img,key,isBg){
+    const wrap=isBg?gl.CLAMP_TO_EDGE:gl.REPEAT;
+    gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL,isBg?1:0);
+    gl.texImage2D(gl.TEXTURE_2D,0,gl.RGBA,gl.RGBA,gl.UNSIGNED_BYTE,img);
+    gl.generateMipmap(gl.TEXTURE_2D);
+    gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_MIN_FILTER,gl.LINEAR_MIPMAP_LINEAR);
+    gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_MAG_FILTER,gl.LINEAR);
+    gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_WRAP_S,wrap);
+    gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_WRAP_T,wrap);
+    gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL,0);
+  }
+  function replaceBgTex(img){
+    if(!textureObjs['bgTex']) return;
+    gl.activeTexture(gl.TEXTURE0); gl.bindTexture(gl.TEXTURE_2D,textureObjs['bgTex']);
+    uploadTex(img,'bgTex',true);
+  }
+  const LOADER_TOTAL = 13;
+  function setLoaderProgress(pct){
+    const fill=document.getElementById('loader-bar-fill'), txt=document.getElementById('loader-pct');
+    if(fill) fill.style.width=pct+'%';
+    if(txt) txt.textContent=Math.round(pct)+'%';
+  }
+  function loadPreset(idx){
+    const preset=PRESETS[idx]||PRESETS[0], ice=getIceAssets();
+    Object.keys(textureObjs).forEach(k=>{gl.deleteTexture(textureObjs[k]);delete textureObjs[k];});
+    loadedCount=0;
+    const loader=document.getElementById('loader'); loader.style.opacity=1; loader.style.display='flex';
+    setLoaderProgress(0);
+    if(preset.placeholders) preset.placeholders.forEach(k=>{ textureObjs[k]=createPlaceholder(k,TEX_ORDER.indexOf(k)); loadedCount++; });
+    setLoaderProgress((loadedCount/LOADER_TOTAL)*100);
+    const queue={};
+    if(preset.bgTex) queue.bgTex=preset.bgTex;
+    if(preset.rockTex) queue.rockTex=preset.rockTex;
+    if(preset.frontTex) queue.frontTex=preset.frontTex;
+    if(preset.hllTex) queue.hllTex=preset.hllTex;
+    if(preset.hlrTex) queue.hlrTex=preset.hlrTex;
+    if(preset.linesTex) queue.linesTex=preset.linesTex;
+    TEX_ORDER.forEach(k=>{if(!textureObjs[k]&&ice[k]) queue[k]=ice[k];});
+    Object.keys(queue).forEach(key=>{
+      const unit=TEX_ORDER.indexOf(key), img=new Image(); img.crossOrigin='anonymous';
+      const path=queue[key];
+      img.onload=()=>finalizeTex(img,key,unit,true);
+      img.onerror=()=>{
+        if(path&&!path.startsWith('http')&&!path.startsWith('data:')){
+          img.onerror=()=>finalizeTex(null,key,unit,false);
+          img.src=ASSETS_BASE+path;
+        } else finalizeTex(null,key,unit,false);
+      };
+      img.src=path;
+    });
+  }
+  function finalizeTex(img,key,unit,ok){
+    const t=gl.createTexture(); gl.activeTexture(gl.TEXTURE0+unit); gl.bindTexture(gl.TEXTURE_2D,t);
+    if(ok&&img){
+      const w=img.naturalWidth, h=Math.max(1,img.naturalHeight), aspect=w/h;
+      if(key==='bgTex') bgTexAspect=aspect;
+      if(key==='rockTex') rockTexAspect=aspect;
+      if(key==='frontTex') frontTexAspect=aspect;
+      if(key==='hllTex') hllTexAspect=aspect;
+      if(key==='hlrTex') hlrTexAspect=aspect;
+      if(key==='linesTex') linesTexAspect=aspect;
+      if(['iceNorm','iceFrost','iceOpacity','iceRough'].includes(key)) iceTexAspect=aspect;
+      const isBg = key==='bgTex'||key==='rockTex'||key==='frontTex'||key==='hllTex'||key==='hlrTex'||key==='linesTex';
+      uploadTex(img,key,isBg);
+    } else {
+      // Transparent fallback for layers, black for ice
+      const px = (key==='rockTex'||key==='frontTex'||key==='hllTex'||key==='hlrTex'||key==='linesTex') ? new Uint8Array([0,0,0,0])
+               : key==='bgNorm' ? new Uint8Array([128,128,255,255])
+               : new Uint8Array([0,0,0,255]);
+      gl.texImage2D(gl.TEXTURE_2D,0,gl.RGBA,1,1,0,gl.RGBA,gl.UNSIGNED_BYTE,px);
+      gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_MIN_FILTER,gl.LINEAR);
+      gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_WRAP_S,gl.CLAMP_TO_EDGE);
+      gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_WRAP_T,gl.CLAMP_TO_EDGE);
+    }
+    textureObjs[key]=t; loadedCount++;
+    setLoaderProgress((loadedCount/LOADER_TOTAL)*100);
+    if(loadedCount>=LOADER_TOTAL){
+      const l=document.getElementById('loader'); l.style.opacity=0; setTimeout(()=>{l.style.display='none';},600);
+      if(!running) startLoop();
+    }
+  }
+
+  // ── UI sync ──────────────────────────────────────────────────────────────────
+  function fmtVal(id,v){ return ['refract','parallax','chroma'].includes(id)?v.toFixed(3):id==='fresnelPower'?v.toFixed(1):v.toFixed(2); }
+
+  function syncUI(){
+    document.querySelectorAll('#ui-container input').forEach(inp=>{
+      const id=inp.id.replace('p-','').replace('c-','');
+      if(PARAMS[id]===undefined) return;
+      if(inp.type==='checkbox') inp.checked=PARAMS[id]>0.5;
+      else{ inp.value=PARAMS[id]; const sp=inp.nextElementSibling; if(sp&&sp.classList.contains('val')) sp.innerText=fmtVal(id,PARAMS[id]); }
+    });
+    document.querySelectorAll('.tb').forEach(b=>b.classList.toggle('active',parseFloat(b.dataset.val)===PARAMS.lightMode));
+    document.querySelector('.mode-0').style.display=PARAMS.lightMode===0?'':'none';
+    document.querySelector('.mode-1').style.display=PARAMS.lightMode===1?'':'none';
+  }
+
+  document.querySelectorAll('#ui-container input').forEach(inp=>{
+    inp.addEventListener('input',e=>{
+      const id=e.target.id.replace('p-','').replace('c-','');
+      if(PARAMS[id]===undefined) return;
+      if(e.target.type==='checkbox') PARAMS[id]=e.target.checked?1:0;
+      else{ PARAMS[id]=parseFloat(e.target.value); const sp=e.target.nextElementSibling; if(sp&&sp.classList.contains('val')) sp.innerText=fmtVal(id,PARAMS[id]); }
+      if(id.startsWith('txt') || id.startsWith('mobTxt')) regenTextTexture();
+      if(running) renderScene();
+    });
+  });
+  document.querySelectorAll('.tb').forEach(btn=>{
+    btn.addEventListener('click',()=>{
+      document.querySelectorAll('.tb').forEach(b=>b.classList.remove('active'));
+      btn.classList.add('active'); PARAMS.lightMode=parseFloat(btn.dataset.val);
+      document.querySelector('.mode-0').style.display=PARAMS.lightMode===0?'':'none';
+      document.querySelector('.mode-1').style.display=PARAMS.lightMode===1?'':'none';
+    });
+  });
+  document.getElementById('preset-selector').addEventListener('change',e=>loadPreset(parseInt(e.target.value,10)));
+  document.getElementById('btn-bg-upload').addEventListener('click',()=>document.getElementById('bg-file-input').click());
+  document.getElementById('bg-file-input').addEventListener('change',e=>{
+    const f=e.target.files&&e.target.files[0]; if(!f) return;
+    const url=URL.createObjectURL(f), img=new Image();
+    img.onload=()=>{replaceBgTex(img);URL.revokeObjectURL(url);e.target.value='';};
+    img.onerror=()=>{URL.revokeObjectURL(url);e.target.value='';};
+    img.src=url;
+  });
+  document.getElementById('btn-export').addEventListener('click',e=>{
+    navigator.clipboard.writeText(JSON.stringify({l1:PARAMS},null,2)).then(()=>{
+      const btn=e.target,orig=btn.innerText; btn.innerText='COPIED!'; setTimeout(()=>btn.innerText=orig,1500);
+    });
+  });
+  document.getElementById('btn-import').addEventListener('click',()=>{
+    const s=prompt('Paste JSON:'); if(!s) return;
+    try{Object.assign(PARAMS,(JSON.parse(s).l1||JSON.parse(s)));syncUI();}catch(e){alert('Invalid JSON');}
+  });
+
+  // ── Mouse / Touch ─────────────────────────────────────────────────────────────
+  canvas.addEventListener('mousemove',e=>{
+    if(!gameStarted) return;
+    mouseOnCanvas=true;
+    mouse.x=e.clientX/window.innerWidth; mouse.y=1-(e.clientY/window.innerHeight);
+  });
+  canvas.addEventListener('touchstart',e=>{
+    if(!gameStarted) return;
+    mouseOnCanvas=true;
+    e.preventDefault();
+    const t=e.touches[0]; mouse.x=t.clientX/window.innerWidth; mouse.y=1-(t.clientY/window.innerHeight);
+  },{passive:false});
+  canvas.addEventListener('touchmove',e=>{
+    if(!gameStarted) return;
+    mouseOnCanvas=true;
+    e.preventDefault();
+    const t=e.touches[0]; mouse.x=t.clientX/window.innerWidth; mouse.y=1-(t.clientY/window.innerHeight);
+  },{passive:false});
+  canvas.addEventListener('touchend',()=>{mouseOnCanvas=false;lastMouse.x=-1;lastMouse.y=-1;});
+  canvas.addEventListener('touchcancel',()=>{mouseOnCanvas=false;lastMouse.x=-1;lastMouse.y=-1;});
+  canvas.addEventListener('mouseleave',()=>{mouseOnCanvas=false;lastMouse.x=-1;lastMouse.y=-1;});
+
+  // ── Render loop ───────────────────────────────────────────────────────────────
+  let renderT0 = 0;
+  function renderScene() {
+    gl.viewport(0,0,canvas.width,canvas.height);
+    gl.useProgram(prog); gl.bindVertexArray(vao);
+    for (let i = 0; i < TEX_ORDER.length; i++) {
+      const tex = textureObjs[TEX_ORDER[i]];
+      if (tex) { gl.activeTexture(gl.TEXTURE0+i); gl.bindTexture(gl.TEXTURE_2D, tex); }
+    }
+    gl.activeTexture(gl.TEXTURE13); gl.bindTexture(gl.TEXTURE_2D, ping.tex);
+    gl.clear(gl.COLOR_BUFFER_BIT);
+    for(let i=0;i<NSAMP;i++) gl.uniform1i(U[uNames[i]],i);
+    gl.uniform2f(U.mouse,mouse.x<0?0.5:mouse.x,mouse.y<0?0.5:mouse.y);
+    gl.uniform1f(U.ratio,canvas.width/canvas.height);
+    gl.uniform1f(U.bgTexAspect,bgTexAspect);
+    gl.uniform1f(U.iceTexAspect,iceTexAspect);
+    gl.uniform1f(U.rockTexAspect,rockTexAspect);
+    gl.uniform1f(U.frontTexAspect,frontTexAspect);
+    gl.uniform1f(U.hllTexAspect,hllTexAspect);
+    gl.uniform1f(U.hlrTexAspect,hlrTexAspect);
+    gl.uniform1f(U.linesTexAspect,linesTexAspect);
+    gl.uniform1f(U.time,(performance.now()-renderT0)*0.001);
+    uNames.forEach(n=>{if(U[n]&&PARAMS[n]!==undefined) gl.uniform1f(U[n],PARAMS[n]);});
+    // Override layer positions on mobile
+    if (window.innerWidth < 768) {
+      const ml = ['bgY0','bgY1','rockY0','rockY1','frontY0','frontY1','hllY0','hllY1','hlrY0','hlrY1','linesY0','linesY1','textY0','textY1'];
+      ml.forEach(n=>{ const mv = PARAMS['mob'+n.charAt(0).toUpperCase()+n.slice(1)]; if(U[n]&&mv!==undefined) gl.uniform1f(U[n],mv); });
+    }
+    if (textWebGLTexture) {
+      gl.activeTexture(gl.TEXTURE15);
+      gl.bindTexture(gl.TEXTURE_2D, textWebGLTexture);
+      if (textTexLoc) gl.uniform1i(textTexLoc, 15);
+    }
+    gl.drawArrays(gl.TRIANGLES,0,6);
+  }
+  window.render = renderScene;
+
+  function startLoop(){
+    running=true; renderT0=performance.now();
+    function frame(){
+      // PASS 1: paint melt map
+      if(gameStarted && mouseOnCanvas){
+        if(lastMouse.x<0){lastMouse.x=mouse.x;lastMouse.y=mouse.y;}
+        gl.bindFramebuffer(gl.FRAMEBUFFER,pong.fbo);
+        gl.viewport(0,0,meltSize,meltSize);
+        gl.useProgram(paintProg); gl.bindVertexArray(vao);
+        gl.activeTexture(gl.TEXTURE11); gl.bindTexture(gl.TEXTURE_2D,ping.tex);
+        gl.uniform1i(PU.prev,11);
+        gl.uniform2f(PU.mouseA,lastMouse.x,lastMouse.y);
+        gl.uniform2f(PU.mouseB,mouse.x,mouse.y);
+        gl.uniform1f(PU.radius,  PARAMS.meltRadius);
+        gl.uniform1f(PU.speed,   PARAMS.meltSpeed*1.8);
+        gl.uniform1f(PU.hardness,PARAMS.brushHardness);
+        gl.drawArrays(gl.TRIANGLES,0,6);
+        gl.bindFramebuffer(gl.FRAMEBUFFER,null);
+        [ping,pong]=[pong,ping];
+        lastMouse.x=mouse.x; lastMouse.y=mouse.y;
+      }
+
+      // Auto-melt: frame-rate independent, ~10s to fully melt
+      if (autoMelting) {
+        if (!autoMeltStart) { autoMeltStart = performance.now(); lastFrameTime = autoMeltStart; }
+        const now = performance.now();
+        const dt = (now - lastFrameTime) / 1000;
+        lastFrameTime = now;
+        autoMeltAccum += dt;
+        const MELT_RATE = 0.1; // 1.0 over 10 seconds
+        const STEP = 1/255;
+        const needed = STEP / MELT_RATE; // ~0.039s per step
+        if (autoMeltAccum >= needed) {
+          const steps = Math.min(Math.floor(autoMeltAccum / needed), 20);
+          autoMeltAccum -= steps * needed;
+          gl.bindFramebuffer(gl.FRAMEBUFFER,pong.fbo);
+          gl.viewport(0,0,meltSize,meltSize);
+          gl.useProgram(paintProg); gl.bindVertexArray(vao);
+          gl.activeTexture(gl.TEXTURE11); gl.bindTexture(gl.TEXTURE_2D,ping.tex);
+          gl.uniform1i(PU.prev,11);
+          gl.uniform2f(PU.mouseA,0.5,0.5);
+          gl.uniform2f(PU.mouseB,0.5,0.5);
+          gl.uniform1f(PU.radius,  3.0);
+          gl.uniform1f(PU.speed,   steps * STEP);
+          gl.uniform1f(PU.hardness,1.0);
+          gl.drawArrays(gl.TRIANGLES,0,6);
+          gl.bindFramebuffer(gl.FRAMEBUFFER,null);
+          [ping,pong]=[pong,ping];
+        }
+      }
+
+      // Camera animation
+      if (isCameraMoving) {
+        let t = (performance.now() - animStartTime) / 2000;
+        if (t >= 1) { t = 1; isCameraMoving = false; positionLinkHotspot(); }
+        PARAMS.camY = solveBezier(t, 0.95, 0.03, 0.34, 0.98);
+      }
+
+      renderScene();
+
+      // Readback every 30 frames
+      frameCount++;
+      if(frameCount%30===0){
+        gl.bindFramebuffer(gl.READ_FRAMEBUFFER,ping.fbo);
+        gl.bindFramebuffer(gl.DRAW_FRAMEBUFFER,readFbo);
+        gl.blitFramebuffer(0,0,meltSize,meltSize,0,0,READ_SIZE,READ_SIZE,gl.COLOR_BUFFER_BIT,gl.LINEAR);
+        gl.bindFramebuffer(gl.READ_FRAMEBUFFER,readFbo);
+        gl.readPixels(0,0,READ_SIZE,READ_SIZE,gl.RGBA,gl.UNSIGNED_BYTE,readBuf);
+        gl.bindFramebuffer(gl.FRAMEBUFFER,null);
+        let melted=0;
+        for(let i=0;i<readBuf.length;i+=4) if(readBuf[i]>128) melted++;
+        lastMeltPct=Math.round(melted/(READ_SIZE*READ_SIZE)*100);
+        if(autoMelting && (performance.now() - autoMeltStart) > 13000) autoMelting = false;
+        if(gameStarted){
+          hudFill.style.width=lastMeltPct+'%';
+          hudPct.textContent=lastMeltPct+'%';
+          if(lastMeltPct>=REVEAL_THRESHOLD && prizeReady && !prizeShown) { autoMelting = true; autoMeltStart = 0; showPrize(); }
+        }
+      }
+      requestAnimationFrame(frame);
+    }
+    frame();
+  }
+
+  syncUI();
+  loadPreset(0);
+  validateEmail(false);
+  autoStartTestIfNeeded();
+
+  // ── Fake prize data for local testing ────────────────────────────────────
+  window.__g4Test = function(title, sub, desc) {
+    prizeData = {
+      title: title || 'Скидка 20% на набор-конструктор свечей «По душе»',
+      subtitle: sub !== undefined ? sub : 'Промокод: CROC2026',
+      description: desc || 'Перейди на [сайт партнёра](https://example.com) и используй промокод при оформлении заказа. Акция действует до 31 марта 2026 года.'
+    };
+    prizeShown = false;
+    showPrize();
+  };
+})();
+</script>
+</body>
 </html>

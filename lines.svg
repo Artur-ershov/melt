@@ -1,16 +1,15 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="1440" height="200" viewBox="0 0 1440 200">
-  <defs>
-    <linearGradient id="lg" x1="0%" y1="0%" x2="100%" y2="0%">
-      <stop offset="0%" stop-color="#FFFFFF" stop-opacity="0.0"/>
-      <stop offset="35%" stop-color="#FFFFFF" stop-opacity="0.38"/>
-      <stop offset="65%" stop-color="#FFFFFF" stop-opacity="0.38"/>
-      <stop offset="100%" stop-color="#FFFFFF" stop-opacity="0.0"/>
-    </linearGradient>
-  </defs>
-  <g stroke="url(#lg)" stroke-width="1.4" fill="none">
-    <path d="M-40 40 Q 360 10 720 40 T 1520 40" />
-    <path d="M-40 80 Q 360 50 720 80 T 1520 80" />
-    <path d="M-40 120 Q 360 90 720 120 T 1520 120" />
-  </g>
+<svg width="1719" height="2120" viewBox="0 0 1719 2120" fill="none" xmlns="http://www.w3.org/2000/svg">
+<path d="M18 0V2120" stroke="white" stroke-width="2"/>
+<path d="M324 0V2120" stroke="white" stroke-width="2"/>
+<path d="M477 0V2120" stroke="white" stroke-width="2"/>
+<path d="M1395 0V2120" stroke="white" stroke-width="2"/>
+<path d="M1701 0V2120" stroke="white" stroke-width="2"/>
+<path d="M1254 0V2120" stroke="white" stroke-width="2"/>
+<path d="M18 1066C18 1075.94 26.0589 1084 36 1084C26.0589 1084 18 1092.06 18 1102C18 1092.06 9.94112 1084 0 1084C9.94112 1084 18 1075.94 18 1066Z" fill="white"/>
+<path d="M324 731C324 740.941 332.059 749 342 749C332.059 749 324 757.059 324 767C324 757.059 315.941 749 306 749C315.941 749 324 740.941 324 731Z" fill="white"/>
+<path d="M1254 720C1254 729.941 1262.06 738 1272 738C1262.06 738 1254 746.059 1254 756C1254 746.059 1245.94 738 1236 738C1245.94 738 1254 729.941 1254 720Z" fill="white"/>
+<path d="M1701 1205C1701 1214.94 1709.06 1223 1719 1223C1709.06 1223 1701 1231.06 1701 1241C1701 1231.06 1692.94 1223 1683 1223C1692.94 1223 1701 1214.94 1701 1205Z" fill="white"/>
+<path d="M1395 1045C1395 1054.94 1403.06 1063 1413 1063C1403.06 1063 1395 1071.06 1395 1081C1395 1071.06 1386.94 1063 1377 1063C1386.94 1063 1395 1054.94 1395 1045Z" fill="white"/>
+<path d="M1395 1205C1395 1214.94 1403.06 1223 1413 1223C1403.06 1223 1395 1231.06 1395 1241C1395 1231.06 1386.94 1223 1377 1223C1386.94 1223 1395 1214.94 1395 1205Z" fill="white"/>
+<path d="M18 836C18 845.941 26.0589 854 36 854C26.0589 854 18 862.059 18 872C18 862.059 9.94112 854 0 854C9.94112 854 18 845.941 18 836Z" fill="white"/>
 </svg>
-

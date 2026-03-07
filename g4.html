@@ -6,15 +6,22 @@
   <title>Растопи лед (g4 — parallax)</title>
   <style>
     @font-face {
-      font-family: "Crocnew";
+      font-family: "Croc";
       src: url("https://raw.githubusercontent.com/Artur-ershov/melt/master/CoFoWeather20240219-VF.ttf") format("truetype");
       font-weight: 100 900;
       font-stretch: 75% 125%;
       font-style: normal;
     }
+    @font-face {
+      font-family: "CrocExtended";
+      src: url("CoFoWeather-ExtendedRegular.ttf") format("truetype");
+      font-weight: 400;
+      font-style: normal;
+      font-display: swap;
+    }
 
     *, *::before, *::after { box-sizing: border-box; }
-    body { margin: 0; overflow: hidden; background: #000; font-family: "Crocnew", system-ui, sans-serif; }
+    body { margin: 0; overflow: hidden; background: #000; font-family: "Croc", system-ui, sans-serif; }
     canvas { width: 100vw; height: 100vh; display: block; cursor: none; }
 
     .glass {
@@ -32,6 +39,7 @@
       transition: opacity 0.5s ease;
     }
     #screen-auth.fade-out { opacity: 0; pointer-events: none; }
+    .auth-footnote { font-size: 11px; color: #888; margin: 20px 0 0; line-height: 1.4; }
 
     .auth-box { text-align: center; padding: 52px 44px 44px; border-radius: 24px; width: 360px; }
     .auth-box.glass {
@@ -109,7 +117,7 @@
       pointer-events: none;
     }
     #prize-overlay.visible { pointer-events: auto; }
-    #prize-inner, .prize-eyebrow { opacity: 0.01; }
+    #prize-inner { opacity: 0.01; }
     .prize-box {
       text-align: center; padding: 30px 20px; border-radius: 28px; max-width: 580px; width: 92%;
       background: transparent;
@@ -128,6 +136,10 @@
     #pp-desc {
       font-size: 20px; color: #555758; margin: 0 0 10px; font-weight: 400; line-height: 1.4;
     }
+    #pp-desc a {
+      color: #2D2D2D; text-decoration: underline; text-underline-offset: 3px;
+    }
+    #pp-desc a:hover { opacity: 0.7; }
     .prize-close {
       display: inline-block; padding: 14px 38px; border-radius: 50px;
       border: 1.5px solid rgba(0,0,0,0.18); background: transparent; color: #555758;
@@ -184,7 +196,7 @@
       position: fixed; inset: 0; z-index: 500;
       background: rgba(235,239,243,0.97); backdrop-filter: blur(20px);
       display: flex; flex-direction: column; align-items: center; justify-content: center;
-      color: #555758; font-family: "Crocnew", system-ui, sans-serif; letter-spacing: 3px; transition: opacity 0.6s;
+      color: #555758; font-family: "Croc", system-ui, sans-serif; letter-spacing: 3px; transition: opacity 0.6s;
     }
     #loader-title { font-size: 14px; font-weight: 400; letter-spacing: 4px; text-transform: uppercase; margin-bottom: 20px; }
     #loader-bar { width: 200px; height: 6px; border-radius: 999px; background: rgba(85,87,88,0.2); overflow: hidden; margin-bottom: 12px; }
@@ -209,7 +221,7 @@
 <div id="screen-auth">
   <div class="auth-box glass">
     <h2 class="ice-title">РАСТОПИ ЛЕД</h2>
-    <p class="ice-subtitle">Растопи лед и узнай свой подарок</p>
+    <p class="ice-subtitle">Растопи лед и узнай свой подарок*</p>
     <input type="email" id="email-field" placeholder="login@croc.ru" autocomplete="email" />
     <div id="email-error" class="field-error"></div>
     <select id="employee-type" class="employee-select" required>
@@ -219,6 +231,7 @@
       <option value="remote">Удаленный сотрудник</option>
     </select>
     <button id="btn-start">НАЧАТЬ</button>
+    <p class="auth-footnote">Учитывается только первый выигранный подарок</p>
   </div>
 </div>
 
@@ -231,18 +244,15 @@
   <div id="hud-bar"><div id="hud-fill"></div></div>
 </div>
 
-<!-- Приз (HTML невидим, WebGL рисует текст; HTML нужен для кликабельных ссылок) -->
-<div id="prize-overlay">
-  <div class="prize-box">
-    <p class="prize-eyebrow">Твой подарок</p>
-    <div id="prize-inner">
-      <h1 id="pp-title">🎁</h1>
-      <p id="pp-subtitle"></p>
-      <p id="pp-desc"></p>
-    </div>
-    <button class="prize-close" id="btn-prize-close">Закрыть</button>
+<!-- Prize data holders (invisible, used by JS) -->
+<div id="prize-overlay" style="display:none">
+  <div id="prize-inner">
+    <h1 id="pp-title"></h1>
+    <p id="pp-subtitle"></p>
+    <p id="pp-desc"></p>
   </div>
 </div>
+<a id="link-hotspot" style="position:fixed;z-index:50;pointer-events:none;opacity:0;display:block;" target="_blank" rel="noopener noreferrer"></a>
 
 <!-- Dev panel -->
 <div id="ui-container">
@@ -267,6 +277,80 @@
       </div>
       <div class="control-row"><label>Parallax Power</label><input id="p-parallax" type="range" min="0" max="0.1" step="0.001" value="0.007"><span class="val">0.007</span></div>
       <div class="control-row"><label>Window Glow</label><input id="p-emissive" type="range" min="0" max="5" step="0.1" value="0"><span class="val">0.00</span></div>
+    </div>
+    <div class="section">
+      <div class="section-title">Layers</div>
+      <div class="control-row"><label>Camera Y</label><input id="p-camY" type="range" min="0" max="1" step="0.01" value="0"><span class="val">0.00</span></div>
+      <div class="control-row"><label>Min Width</label><input id="p-minLayerW" type="range" min="320" max="1920" step="10" value="640"><span class="val">640</span></div>
+      <div style="font-size:9px;color:#4facfe;font-weight:800;text-transform:uppercase;letter-spacing:1px;margin:10px 0 6px">BG</div>
+      <div class="control-row"><label>Start Y</label><input id="p-bgY0" type="range" min="-1" max="1" step="0.01" value="-1"><span class="val">-1.00</span></div>
+      <div class="control-row"><label>End Y</label><input id="p-bgY1" type="range" min="-1" max="1" step="0.01" value="0.22"><span class="val">0.22</span></div>
+      <div style="font-size:9px;color:#4facfe;font-weight:800;text-transform:uppercase;letter-spacing:1px;margin:10px 0 6px">Rock</div>
+      <div class="control-row"><label>Start Y</label><input id="p-rockY0" type="range" min="-1" max="1" step="0.01" value="-0.03"><span class="val">-0.03</span></div>
+      <div class="control-row"><label>End Y</label><input id="p-rockY1" type="range" min="-1" max="1" step="0.01" value="0.72"><span class="val">0.72</span></div>
+      <div style="font-size:9px;color:#4facfe;font-weight:800;text-transform:uppercase;letter-spacing:1px;margin:10px 0 6px">Front</div>
+      <div class="control-row"><label>Start Y</label><input id="p-frontY0" type="range" min="-1" max="1" step="0.01" value="0.22"><span class="val">0.22</span></div>
+      <div class="control-row"><label>End Y</label><input id="p-frontY1" type="range" min="-1" max="1" step="0.01" value="0.83"><span class="val">0.83</span></div>
+      <div style="font-size:9px;color:#4facfe;font-weight:800;text-transform:uppercase;letter-spacing:1px;margin:10px 0 6px">Highlight Left (softlight)</div>
+      <div class="control-row"><label>Offset X</label><input id="p-hllX" type="range" min="-1" max="1" step="0.001" value="-0.521"><span class="val">-0.521</span></div>
+      <div class="control-row"><label>Start Y</label><input id="p-hllY0" type="range" min="-1" max="1" step="0.01" value="0"><span class="val">0.00</span></div>
+      <div class="control-row"><label>End Y</label><input id="p-hllY1" type="range" min="-1" max="1" step="0.01" value="0.5"><span class="val">0.50</span></div>
+      <div style="font-size:9px;color:#4facfe;font-weight:800;text-transform:uppercase;letter-spacing:1px;margin:10px 0 6px">Highlight Right (softlight)</div>
+      <div class="control-row"><label>Offset X</label><input id="p-hlrX" type="range" min="-1" max="1" step="0.001" value="0.521"><span class="val">0.521</span></div>
+      <div class="control-row"><label>Start Y</label><input id="p-hlrY0" type="range" min="-1" max="1" step="0.01" value="0"><span class="val">0.00</span></div>
+      <div class="control-row"><label>End Y</label><input id="p-hlrY1" type="range" min="-1" max="1" step="0.01" value="0.5"><span class="val">0.50</span></div>
+      <div style="font-size:9px;color:#4facfe;font-weight:800;text-transform:uppercase;letter-spacing:1px;margin:10px 0 6px">Lines</div>
+      <div class="control-row"><label>Opacity</label><input id="p-linesOpacity" type="range" min="0" max="1" step="0.01" value="0.35"><span class="val">0.35</span></div>
+      <div class="control-row"><label>Start Y</label><input id="p-linesY0" type="range" min="-1" max="1" step="0.01" value="-0.13"><span class="val">-0.13</span></div>
+      <div class="control-row"><label>End Y</label><input id="p-linesY1" type="range" min="-1" max="1" step="0.01" value="0.17"><span class="val">0.17</span></div>
+      <div style="font-size:9px;color:#4facfe;font-weight:800;text-transform:uppercase;letter-spacing:1px;margin:10px 0 6px">Text</div>
+      <div class="control-row"><label>Start Y</label><input id="p-textY0" type="range" min="-1" max="1" step="0.01" value="0.97"><span class="val">0.97</span></div>
+      <div class="control-row"><label>End Y</label><input id="p-textY1" type="range" min="-1" max="1" step="0.01" value="0.17"><span class="val">0.17</span></div>
+      <div style="font-size:9px;color:#ff6b6b;font-weight:800;text-transform:uppercase;letter-spacing:1px;margin:10px 0 6px">Text Layout</div>
+      <div class="control-row"><label>Max W %</label><input id="p-txtMaxW" type="range" min="30" max="100" step="1" value="90"><span class="val">90</span></div>
+      <div class="control-row"><label>Header Y %</label><input id="p-txtBaseY" type="range" min="0" max="30" step="0.1" value="0.2"><span class="val">0.2</span></div>
+      <div class="control-row"><label>→ Title %</label><input id="p-txtGap1" type="range" min="0" max="20" step="0.1" value="2"><span class="val">2.0</span></div>
+      <div class="control-row"><label>→ Subtitle %</label><input id="p-txtGap2" type="range" min="0" max="20" step="0.1" value="2"><span class="val">2.0</span></div>
+      <div class="control-row"><label>→ Desc %</label><input id="p-txtGap3" type="range" min="0" max="20" step="0.1" value="2"><span class="val">2.0</span></div>
+      <div style="font-size:9px;color:#ff6b6b;font-weight:800;text-transform:uppercase;letter-spacing:1px;margin:10px 0 6px">Font Sizes (%W)</div>
+      <div class="control-row"><label>Header %</label><input id="p-txtSzHeader" type="range" min="0.5" max="5" step="0.1" value="2"><span class="val">2.0</span></div>
+      <div class="control-row"><label>Title %</label><input id="p-txtSzTitle" type="range" min="1" max="10" step="0.1" value="4"><span class="val">4.0</span></div>
+      <div class="control-row"><label>Subtitle %</label><input id="p-txtSzSub" type="range" min="0.5" max="3" step="0.1" value="1"><span class="val">1.0</span></div>
+      <div class="control-row"><label>Desc %</label><input id="p-txtSzDesc" type="range" min="0.5" max="3" step="0.1" value="1.25"><span class="val">1.25</span></div>
+      <div class="control-row"><label>Desc LH</label><input id="p-txtLhDesc" type="range" min="1" max="2" step="0.05" value="1.2"><span class="val">1.20</span></div>
+      <div style="font-size:9px;color:#f0a;font-weight:800;text-transform:uppercase;letter-spacing:1px;margin:10px 0 6px">Mobile (&lt;768px)</div>
+      <div class="control-row"><label>Max W %</label><input id="p-mobTxtMaxW" type="range" min="30" max="100" step="1" value="90"><span class="val">90</span></div>
+      <div class="control-row"><label>Header Y %</label><input id="p-mobTxtBaseY" type="range" min="0" max="30" step="0.1" value="0.5"><span class="val">0.5</span></div>
+      <div class="control-row"><label>→ Title %</label><input id="p-mobTxtGap1" type="range" min="0" max="20" step="0.1" value="3"><span class="val">3.0</span></div>
+      <div class="control-row"><label>→ Subtitle %</label><input id="p-mobTxtGap2" type="range" min="0" max="20" step="0.1" value="2.5"><span class="val">2.5</span></div>
+      <div class="control-row"><label>→ Desc %</label><input id="p-mobTxtGap3" type="range" min="0" max="20" step="0.1" value="2.5"><span class="val">2.5</span></div>
+      <div class="control-row"><label>Header %</label><input id="p-mobTxtSzHeader" type="range" min="0.5" max="8" step="0.1" value="4"><span class="val">4.0</span></div>
+      <div class="control-row"><label>Title %</label><input id="p-mobTxtSzTitle" type="range" min="1" max="15" step="0.1" value="5"><span class="val">5.0</span></div>
+      <div class="control-row"><label>Subtitle %</label><input id="p-mobTxtSzSub" type="range" min="0.5" max="5" step="0.1" value="3"><span class="val">3.0</span></div>
+      <div class="control-row"><label>Desc %</label><input id="p-mobTxtSzDesc" type="range" min="0.5" max="5" step="0.1" value="2.5"><span class="val">2.5</span></div>
+      <div class="control-row"><label>Desc LH</label><input id="p-mobTxtLhDesc" type="range" min="1" max="2" step="0.05" value="1.2"><span class="val">1.20</span></div>
+      <div style="font-size:9px;color:#f0a;font-weight:800;text-transform:uppercase;letter-spacing:1px;margin:10px 0 6px">Mobile Layers</div>
+      <div style="font-size:9px;color:#4facfe;font-weight:800;text-transform:uppercase;letter-spacing:1px;margin:6px 0 4px">BG</div>
+      <div class="control-row"><label>Start Y</label><input id="p-mobBgY0" type="range" min="-1" max="1" step="0.01" value="-0.67"><span class="val">-0.67</span></div>
+      <div class="control-row"><label>End Y</label><input id="p-mobBgY1" type="range" min="-1" max="1" step="0.01" value="-0.1"><span class="val">-0.10</span></div>
+      <div style="font-size:9px;color:#4facfe;font-weight:800;text-transform:uppercase;letter-spacing:1px;margin:6px 0 4px">Rock</div>
+      <div class="control-row"><label>Start Y</label><input id="p-mobRockY0" type="range" min="-1" max="1" step="0.01" value="-0.15"><span class="val">-0.15</span></div>
+      <div class="control-row"><label>End Y</label><input id="p-mobRockY1" type="range" min="-1" max="1" step="0.01" value="0.43"><span class="val">0.43</span></div>
+      <div style="font-size:9px;color:#4facfe;font-weight:800;text-transform:uppercase;letter-spacing:1px;margin:6px 0 4px">Front</div>
+      <div class="control-row"><label>Start Y</label><input id="p-mobFrontY0" type="range" min="-1" max="1" step="0.01" value="-0.03"><span class="val">-0.03</span></div>
+      <div class="control-row"><label>End Y</label><input id="p-mobFrontY1" type="range" min="-1" max="1" step="0.01" value="0.35"><span class="val">0.35</span></div>
+      <div style="font-size:9px;color:#4facfe;font-weight:800;text-transform:uppercase;letter-spacing:1px;margin:6px 0 4px">Highlight Left</div>
+      <div class="control-row"><label>Start Y</label><input id="p-mobHllY0" type="range" min="-1" max="1" step="0.01" value="0"><span class="val">0.00</span></div>
+      <div class="control-row"><label>End Y</label><input id="p-mobHllY1" type="range" min="-1" max="1" step="0.01" value="0.5"><span class="val">0.50</span></div>
+      <div style="font-size:9px;color:#4facfe;font-weight:800;text-transform:uppercase;letter-spacing:1px;margin:6px 0 4px">Highlight Right</div>
+      <div class="control-row"><label>Start Y</label><input id="p-mobHlrY0" type="range" min="-1" max="1" step="0.01" value="0"><span class="val">0.00</span></div>
+      <div class="control-row"><label>End Y</label><input id="p-mobHlrY1" type="range" min="-1" max="1" step="0.01" value="0.5"><span class="val">0.50</span></div>
+      <div style="font-size:9px;color:#4facfe;font-weight:800;text-transform:uppercase;letter-spacing:1px;margin:6px 0 4px">Lines</div>
+      <div class="control-row"><label>Start Y</label><input id="p-mobLinesY0" type="range" min="-1" max="1" step="0.01" value="0"><span class="val">0.00</span></div>
+      <div class="control-row"><label>End Y</label><input id="p-mobLinesY1" type="range" min="-1" max="1" step="0.01" value="0.5"><span class="val">0.50</span></div>
+      <div style="font-size:9px;color:#4facfe;font-weight:800;text-transform:uppercase;letter-spacing:1px;margin:6px 0 4px">Text</div>
+      <div class="control-row"><label>Start Y</label><input id="p-mobTextY0" type="range" min="-1" max="1" step="0.01" value="0.97"><span class="val">0.97</span></div>
+      <div class="control-row"><label>End Y</label><input id="p-mobTextY1" type="range" min="-1" max="1" step="0.01" value="0.08"><span class="val">0.08</span></div>
     </div>
     <div class="section">
       <div class="section-title">Engine</div>
@@ -326,7 +410,7 @@
       <div class="control-row"><label class="lbl-r">Red</label><input id="p-tintR" type="range" min="0.5" max="1.5" step="0.01" value="1"><span class="val">1.00</span></div>
       <div class="control-row"><label class="lbl-g">Green</label><input id="p-tintG" type="range" min="0.5" max="1.5" step="0.01" value="1"><span class="val">1.00</span></div>
       <div class="control-row"><label class="lbl-b">Blue</label><input id="p-tintB" type="range" min="0.5" max="1.5" step="0.01" value="1"><span class="val">1.00</span></div>
-      <div class="control-row"><label>Bg Blur</label><input id="p-blurStr" type="range" min="0" max="1" step="0.01" value="0.25"><span class="val">0.25</span></div>
+      <div class="control-row"><label>Bg Blur</label><input id="p-blurStr" type="range" min="0" max="1" step="0.01" value="0"><span class="val">0.00</span></div>
       <div class="control-row"><label>Film Grain</label><input id="p-grain" type="range" min="0" max="0.3" step="0.01" value="0.03"><span class="val">0.03</span></div>
       <div class="control-row"><label>Vignette</label><input id="p-vignette" type="range" min="0" max="1" step="0.01" value="0"><span class="val">0.00</span></div>
       <div class="control-row"><label>Ambient Light</label><input id="p-ambient" type="range" min="0" max="1" step="0.01" value="1"><span class="val">1.00</span></div>
@@ -341,7 +425,7 @@
 (function () {
   // ── GAME STATE ───────────────────────────────────────────────────────────────
   const REVEAL_THRESHOLD = 75;
-  const GOOGLE_URL = 'https://script.google.com/macros/s/AKfycbxglNCMWE7mmWx4SXeJXUCttWKR54829vyzdEPjfdGIefJ8Pcje1WmIUOXphcJ56XpsMw/exec';
+  const GOOGLE_URL = 'https://script.google.com/macros/s/AKfycbwgsfMC5X95pTEzmER8Y4u8Os_L_-QL1MJk8AiHZnr6ix61e_xa9BKDW1xrZE8qm-xzsQ/exec';
   const ASSETS_BASE = 'https://raw.githubusercontent.com/Artur-ershov/melt/master/';
 
   let gameStarted = false;
@@ -462,15 +546,15 @@
         prizeData = { title: 'Подарок', description: res?.message || '' };
       }
       prizeReady = true;
-      if (lastMeltPct >= REVEAL_THRESHOLD || isSkipMode) showPrize();
+      if (lastMeltPct >= REVEAL_THRESHOLD || isSkipMode) { autoMelting = true; autoMeltStart = 0; showPrize(); }
     };
     const applyFallback = () => {
       prizeData = { title: 'Подарок', description: 'Проверь таблицу!' };
       prizeReady = true;
-      if (lastMeltPct >= REVEAL_THRESHOLD || isSkipMode) showPrize();
+      if (lastMeltPct >= REVEAL_THRESHOLD || isSkipMode) { autoMelting = true; autoMeltStart = 0; showPrize(); }
     };
     if (isSimulate) {
-      const mock = { status: 'success', prize: { title: 'Симуляция приза', subtitle: 'simulate', description: 'Реальные запросы отключены.' } };
+      const mock = { status: 'success', prize: { title: 'Скидка 20% на набор-конструктор свечей «По душе»', subtitle: 'только для вас', description: 'Используйте промокод при оформлении заказа в [Боброшопе.](https://bobromania.croc.ru) Акция действует до конца месяца.' } };
       Promise.resolve(mock).then(applyResult);
       return;
     }
@@ -507,29 +591,42 @@
   if (!gl) { alert('WebGL2 не поддерживается'); return; }
 
   // PARAMS — g2 proven values
-  const PARAMS = {
+  const PARAMS = window.PARAMS = {
     aces:0, dither:0, camY:0.0,
+    bgY0:-1, bgY1:0.22, rockY0:-0.03, rockY1:0.72, frontY0:0.22, frontY1:0.83,
+    hllX:0.533, hlrX:-0.283,
+    hllY0:-0.88, hllY1:0.82, hlrY0:-0.72, hlrY1:0.73, linesY0:-0.13, linesY1:0.17, linesOpacity:0.35, layerParallax:0.03,
+    textY0:0.97, textY1:0.17,
     lightMode:0, lightInt:0.2, lightWarmth:1, lightRad:0.4, lightFalloff:0.35, sunX:0.2, sunY:0.5,
     texScale:1, frostOpacity:0.09, frostTint:0.39, iceNormal:4, refract:0.119, chroma:0.01, specular:4.7, shadowStr:0, sss:0.5,
+    txtMaxW:90, txtBaseY:0.2, txtGap1:2, txtGap2:2, txtGap3:2,
+    txtSzHeader:2, txtSzTitle:4, txtSzSub:1, txtSzDesc:1.25, txtLhDesc:1.2,
+    mobTxtMaxW:90, mobTxtBaseY:0.5, mobTxtGap1:2, mobTxtGap2:2, mobTxtGap3:2,
+    mobTxtSzHeader:2, mobTxtSzTitle:5, mobTxtSzSub:2, mobTxtSzDesc:3, mobTxtLhDesc:1.2,
+    mobBgY0:-0.67, mobBgY1:-0.1, mobRockY0:-0.15, mobRockY1:0.43, mobFrontY0:-0.03, mobFrontY1:0.35,
+    mobHllY0:-0.68, mobHllY1:0.4, mobHlrY0:-0.45, mobHlrY1:0.85, mobLinesY0:-0.3, mobLinesY1:0.17,
+    mobTextY0:0.97, mobTextY1:0.08,
+    minLayerW:640,
     meltRadius:0.08, meltSpeed:0.09, edgeDistort:1.55, brushHardness:0.75,
     waterShiny:290, waterOpacity:0.06,
-    blurStr:0.25, grain:0.03, ambient:1, emissive:0, vignette:0, parallax:0.007,
+    blurStr:0, grain:0.03, ambient:1, emissive:0, vignette:0, parallax:0.007,
     exposure:1, gamma:1, contrast:1, saturation:1, tintR:1, tintG:1, tintB:1,
     fresnelPower:1.1, fresnelStr:0.06, diffuseIceMix:0.45,
   };
 
   // Texture order: 0-9 scene textures, 10 meltMap
-  const TEX_ORDER = ['bgTex','rockTex','frontTex','bgNorm','bgLight','bgDepth','iceNorm','iceFrost','iceOpacity','iceRough'];
-  const PRESETS   = [{ name:'Meadow', bgTex:'bg.jpg', rockTex:'rock.png', frontTex:'front.png', placeholders:['bgNorm','bgLight','bgDepth'] }];
+  const TEX_ORDER = ['bgTex','rockTex','frontTex','hllTex','hlrTex','linesTex','bgNorm','bgLight','bgDepth','iceNorm','iceFrost','iceOpacity','iceRough'];
+  const PRESETS   = [{ name:'Meadow', bgTex:'bg.jpg', rockTex:'rock.png', frontTex:'front.png', hllTex:'hl-l.svg', hlrTex:'hl-r.svg', linesTex:'lines.svg', placeholders:['bgNorm','bgLight','bgDepth'] }];
 
   function getIceAssets() {
     return { iceNorm:'prompt1.png', iceFrost:'prompt2.png', iceOpacity:'prompt3.png', iceRough:'prompt4.png' };
   }
 
   function resize() {
-    const dpr = Math.min(window.devicePixelRatio||1, 2);
-    canvas.width  = window.innerWidth  * dpr;
-    canvas.height = window.innerHeight * dpr;
+    const dpr = Math.min(window.devicePixelRatio||1, 1.5);
+    const vw = window.innerWidth, vh = window.innerHeight;
+    canvas.width  = vw * dpr;
+    canvas.height = vh * dpr;
     gl.viewport(0, 0, canvas.width, canvas.height);
   }
   window.addEventListener('resize', resize);
@@ -543,39 +640,76 @@ void main(){ v_uv=a_pos*0.5+0.5; gl_Position=vec4(a_pos,0,1); }`;
   const FS = `#version 300 es
 precision highp float;
 in vec2 v_uv; out vec4 fragColor;
-uniform sampler2D u_bgTex,u_rockTex,u_frontTex,u_textTex;
+uniform sampler2D u_bgTex,u_rockTex,u_frontTex,u_hllTex,u_hlrTex,u_linesTex,u_textTex;
 uniform sampler2D u_bgNorm,u_bgLight,u_bgDepth;
 uniform sampler2D u_iceNorm,u_iceFrost,u_iceOpacity,u_iceRough,u_meltMap;
 uniform vec2 u_mouse;
-uniform float u_ratio,u_time,u_bgTexAspect,u_iceTexAspect,u_rockTexAspect,u_frontTexAspect,u_camY;
+uniform float u_ratio,u_time,u_bgTexAspect,u_iceTexAspect,u_rockTexAspect,u_frontTexAspect,u_hllTexAspect,u_hlrTexAspect,u_linesTexAspect,u_camY;
 uniform float u_aces,u_dither,u_lightMode,u_lightInt,u_lightWarmth,u_lightRad,u_lightFalloff,u_sunX,u_sunY;
 uniform float u_texScale,u_frostOpacity,u_frostTint,u_iceNormal,u_refract,u_chroma,u_specular,u_shadowStr,u_sss;
 uniform float u_edgeDistort,u_waterShiny,u_waterOpacity;
 uniform float u_blurStr,u_grain,u_ambient,u_exposure,u_gamma,u_parallax,u_emissive,u_vignette;
 uniform float u_contrast,u_saturation,u_tintR,u_tintG,u_tintB,u_fresnelPower,u_fresnelStr,u_diffuseIceMix;
+uniform float u_bgY0,u_bgY1,u_rockY0,u_rockY1,u_frontY0,u_frontY1,u_hllY0,u_hllY1,u_hlrY0,u_hlrY1,u_linesY0,u_linesY1,u_textY0,u_textY1;
+uniform float u_hllX,u_hlrX,u_linesOpacity,u_layerParallax;
 float hash(vec2 p){return fract(sin(dot(p,vec2(12.9898,78.233)))*43758.5453);}
 vec3 aces_tm(vec3 x){return clamp((x*(2.51*x+0.03))/(x*(2.43*x+0.59)+0.14),0.,1.);}
 vec2 coverUV(vec2 uv, float viewAspect, float texAspect){
   float su=min(1.,viewAspect/texAspect), sv=min(1.,texAspect/viewAspect);
   return vec2(0.5*(1.-su)+uv.x*su, 0.5*(1.-sv)+uv.y*sv);
 }
+vec3 softlight(vec3 base, vec3 blend){
+  vec3 lo = 2.0*base*blend + base*base*(1.0-2.0*blend);
+  vec3 hi = 2.0*base*(1.0-blend) + sqrt(base)*(2.0*blend-1.0);
+  return mix(lo, hi, step(0.5, blend));
+}
 vec4 getBg(vec2 uv){
-  // Each layer: coverUV with its own aspect + parallax Y shift scaled by camY
-  vec2 bgUV    = coverUV(uv + vec2(0, u_camY*0.08),  u_ratio, u_bgTexAspect);
-  vec2 rockUV  = coverUV(uv + vec2(0, u_camY*0.18),  u_ratio, u_rockTexAspect);
-  vec2 frontUV = coverUV(uv + vec2(0, u_camY*0.30),  u_ratio, u_frontTexAspect);
-  // Text layer: coverUV with 16:9 aspect, slides up as camY grows
+  vec2 mBase = (u_mouse - 0.5) * u_layerParallax;
+  float bgRange = max(abs(u_bgY1 - u_bgY0), 0.001);
+  float zoom = 1.0 - u_layerParallax * 2.0;
+  vec2 uvZ = 0.5 + (uv - 0.5) * zoom;
+  vec2 bgUV    = coverUV(uvZ + mBase + vec2(0, mix(u_bgY0,    u_bgY1,    u_camY)), u_ratio, u_bgTexAspect);
+  vec2 rockUV  = coverUV(uvZ + mBase*abs(u_rockY1-u_rockY0)/bgRange + vec2(0, mix(u_rockY0,  u_rockY1,  u_camY)), u_ratio, u_rockTexAspect);
+  vec2 frontUV = coverUV(uvZ + mBase*abs(u_frontY1-u_frontY0)/bgRange + vec2(0, mix(u_frontY0, u_frontY1, u_camY)), u_ratio, u_frontTexAspect);
+  vec2 hllUV   = coverUV(uvZ + mBase*abs(u_hllY1-u_hllY0)/bgRange + vec2(0, mix(u_hllY0,   u_hllY1,   u_camY)), u_ratio, u_hllTexAspect);
+  hllUV.x += u_hllX;
+  vec2 hlrUV   = coverUV(uvZ + mBase*abs(u_hlrY1-u_hlrY0)/bgRange + vec2(0, mix(u_hlrY0,   u_hlrY1,   u_camY)), u_ratio, u_hlrTexAspect);
+  hlrUV.x += u_hlrX;
+  vec2 linesUV = coverUV(uvZ + mBase*abs(u_linesY1-u_linesY0)/bgRange + vec2(0, mix(u_linesY0, u_linesY1, u_camY)), u_ratio, u_linesTexAspect);
   const float TEXT_ASPECT = 1920.0/1080.0;
-  vec2 textUV  = coverUV(uv + vec2(0, (1.0-u_camY)*0.15), u_ratio, TEXT_ASPECT);
+  vec2 textUV  = coverUV(uv + vec2(0, mix(u_textY0,  u_textY1,  u_camY)), u_ratio, TEXT_ASPECT);
   vec4 cBg    = texture(u_bgTex, bgUV);
   vec4 cRock  = texture(u_rockTex, rockUV);
   vec4 cFront = texture(u_frontTex, frontUV);
-  vec4 cText  = texture(u_textTex, textUV);
-  cText.a *= u_camY; // fade in with camera
-  // Composite: bg -> rock -> text -> front
+  vec4 cHll   = (hllUV.x<0.||hllUV.x>1.||hllUV.y<0.||hllUV.y>1.) ? vec4(0) : texture(u_hllTex, hllUV);
+  vec4 cHlr   = (hlrUV.x<0.||hlrUV.x>1.||hlrUV.y<0.||hlrUV.y>1.) ? vec4(0) : texture(u_hlrTex, hlrUV);
+  vec4 cLines = (linesUV.x<0.||linesUV.x>1.||linesUV.y<0.||linesUV.y>1.) ? vec4(0) : texture(u_linesTex, linesUV);
+  // Deblur text reveal: blurred at camY=0, sharp at camY=1
+  float camYSafe = max(0.0, u_camY);
+  float blurR = pow(1.0 - camYSafe, 2.0) * 0.025;
+  vec4 cText;
+  if (blurR < 0.001) {
+    cText = texture(u_textTex, textUV);
+  } else {
+    cText = texture(u_textTex, textUV) * 4.0;
+    float tw = 4.0;
+    for (int i = 0; i < 6; i++) {
+      float a = float(i) * 6.2832 / 6.0;
+      vec2 off = vec2(cos(a), sin(a));
+      cText += texture(u_textTex, textUV + off * blurR);
+      cText += texture(u_textTex, textUV + off * blurR * 0.5);
+      tw += 2.0;
+    }
+    cText /= tw;
+  }
+  cText *= camYSafe; // fade premultiplied RGBA together
+  // Composite (back→front): bg → lines → hll(softlight) → hlr(softlight) → text → rock → front
   vec3 col = cBg.rgb;
+  col = col + cLines.rgb * cLines.a * u_linesOpacity; // additive white lines
+  col = mix(col, softlight(col, cHll.rgb), cHll.a);
+  col = mix(col, softlight(col, cHlr.rgb), cHlr.a);
+  col = col * (1.0 - cText.a) + cText.rgb;
   col = mix(col, cRock.rgb,  cRock.a);
-  col = mix(col, cText.rgb,  cText.a);
   col = mix(col, cFront.rgb, cFront.a);
   return vec4(col, 1.0);
 }
@@ -694,16 +828,18 @@ void main(){
 
   // Uniforms: first NSAMP entries are samplers
   const uNames=[
-    'bgTex','rockTex','frontTex','bgNorm','bgLight','bgDepth','iceNorm','iceFrost','iceOpacity','iceRough','meltMap',
-    'mouse','ratio','time','bgTexAspect','iceTexAspect','rockTexAspect','frontTexAspect','camY',
+    'bgTex','rockTex','frontTex','hllTex','hlrTex','linesTex','bgNorm','bgLight','bgDepth','iceNorm','iceFrost','iceOpacity','iceRough','meltMap',
+    'mouse','ratio','time','bgTexAspect','iceTexAspect','rockTexAspect','frontTexAspect','hllTexAspect','hlrTexAspect','linesTexAspect','camY',
     'aces','dither',
     'lightMode','lightInt','lightWarmth','lightRad','lightFalloff','sunX','sunY',
     'texScale','frostOpacity','frostTint','iceNormal','refract','chroma','specular','shadowStr','sss',
     'edgeDistort','waterShiny','waterOpacity',
     'blurStr','grain','ambient','exposure','parallax','emissive','vignette',
-    'gamma','contrast','saturation','tintR','tintG','tintB','fresnelPower','fresnelStr','diffuseIceMix'
+    'gamma','contrast','saturation','tintR','tintG','tintB','fresnelPower','fresnelStr','diffuseIceMix',
+    'bgY0','bgY1','rockY0','rockY1','frontY0','frontY1','hllY0','hllY1','hlrY0','hlrY1','linesY0','linesY1','textY0','textY1',
+    'hllX','hlrX','linesOpacity','layerParallax'
   ];
-  const NSAMP=11; // units 0-10
+  const NSAMP=14; // units 0-13 (10 original + 3 new layers)
   const U={};
   uNames.forEach(n=>{ U[n]=gl.getUniformLocation(prog,'u_'+n); });
   const textTexLoc = gl.getUniformLocation(prog,'u_textTex');
@@ -735,7 +871,7 @@ void main(){
   [ping,pong].forEach(b=>{gl.bindFramebuffer(gl.FRAMEBUFFER,b.fbo);gl.clearColor(0,0,0,1);gl.clear(gl.COLOR_BUFFER_BIT);});
   gl.bindFramebuffer(gl.FRAMEBUFFER,null);
 
-  const READ_SIZE=64;
+  const READ_SIZE=32;
   const readTex=gl.createTexture(); gl.bindTexture(gl.TEXTURE_2D,readTex);
   gl.texImage2D(gl.TEXTURE_2D,0,gl.RGBA8,READ_SIZE,READ_SIZE,0,gl.RGBA,gl.UNSIGNED_BYTE,null);
   gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_MIN_FILTER,gl.LINEAR);
@@ -744,13 +880,13 @@ void main(){
   gl.bindFramebuffer(gl.FRAMEBUFFER,null);
   const readBuf=new Uint8Array(READ_SIZE*READ_SIZE*4);
 
-  let mouse={x:-1,y:-1}, lastMouse={x:-1,y:-1};
+  let mouse={x:-1,y:-1}, lastMouse={x:-1,y:-1}, mouseOnCanvas=false;
   let frameCount=0, running=false;
   const textureObjs={}; let loadedCount=0;
-  let bgTexAspect=1, iceTexAspect=1, rockTexAspect=1, frontTexAspect=1;
+  let bgTexAspect=1, iceTexAspect=1, rockTexAspect=1, frontTexAspect=1, hllTexAspect=1, hlrTexAspect=1, linesTexAspect=1;
 
   // ── Camera animation ───────────────────────────────────────────────────────
-  let animStartTime=0, isCameraMoving=false;
+  let animStartTime=0, isCameraMoving=false, autoMelting=false, autoMeltStart=0, autoMeltAccum=0, lastFrameTime=0;
 
   function solveBezier(t, x1, y1, x2, y2) {
     if (t <= 0) return 0;
@@ -767,8 +903,30 @@ void main(){
     return ((ay*u+by)*u+cy)*u;
   }
 
+  // ── Ensure CrocExtended font is loaded for canvas use ──────────────────────
+  // CSS @font-face declares "CrocExtended" — force-load it so canvas can use it
+  document.fonts.load('400 48px "CrocExtended"').then(() => console.log('[g4] CrocExtended font loaded'))
+    .catch(e => console.warn('[g4] CrocExtended font failed:', e));
+
   // ── Text texture (prize rendered in WebGL scene) ──────────────────────────
   let textWebGLTexture = null;
+
+  function wrapText(ctx, text, maxWidth) {
+    const words = text.split(' ');
+    const lines = [];
+    let line = '';
+    for (const word of words) {
+      const test = line ? line + ' ' + word : word;
+      if (ctx.measureText(test).width > maxWidth && line) {
+        lines.push(line);
+        line = word;
+      } else {
+        line = test;
+      }
+    }
+    if (line) lines.push(line);
+    return lines;
+  }
 
   function updateWebGLTextTexture(title, subtitle, descHtml) {
     try {
@@ -780,48 +938,192 @@ void main(){
         gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
         gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
       }
+      const W = 1920;
       const cvs = document.createElement('canvas');
-      cvs.width = 1920; cvs.height = 1080;
+      cvs.width = W; cvs.height = 1080;
       const ctx = cvs.getContext('2d');
       if (!ctx) return;
-      // Transparent background (default), only text has alpha
-      ctx.shadowColor = 'rgba(255, 255, 255, 1)';
-      ctx.shadowBlur = 48;
-      ctx.shadowOffsetY = 4;
       ctx.fillStyle = '#2D2D2D';
       ctx.textAlign = 'center';
-      ctx.textBaseline = 'middle';
-      // "ТВОЙ ПОДАРОК"
-      ctx.font = '500 48px "Crocnew", sans-serif';
-      ctx.fillText('ТВОЙ ПОДАРОК', 960, 109);
-      // Title
+      ctx.textBaseline = 'top';
+      // Compute visible texture width based on viewport aspect ratio (coverUV)
+      const vAspect = window.innerWidth / window.innerHeight;
+      const tAspect = W / 1080;
+      const visW = vAspect < tAspect ? Math.round(1080 * vAspect) : W;
+
+      // Pick desktop or mobile params based on viewport
+      const isMob = window.innerWidth < 768;
+      const p = (k) => PARAMS[isMob ? 'mob' + k.charAt(0).toUpperCase() + k.slice(1) : k];
+      const mw = p('txtMaxW') / 100 * visW;
+      const cx = W / 2;
+
+      // Font sizes from % of visible width (viewport-relative)
+      const hdrPx  = Math.round(p('txtSzHeader') / 100 * visW);
+      const titPx  = Math.round(p('txtSzTitle')  / 100 * visW);
+      const subPx  = Math.round(p('txtSzSub')    / 100 * visW);
+      const descPx = Math.round(p('txtSzDesc')   / 100 * visW);
+
+      let curY = p('txtBaseY') / 100 * visW;
+
+      // Header: "ТВОЙ СЕКРЕТНЫЙ ПРИЗ:"
+      ctx.font = `500 ${hdrPx}px "Croc", sans-serif`;
+      const hdrLines = wrapText(ctx, '\u0422\u0412\u041E\u0419 \u0421\u0415\u041A\u0420\u0415\u0422\u041D\u042B\u0419 \u041F\u0420\u0418\u0417:', mw);
+      for (const ln of hdrLines) {
+        ctx.fillText(ln, cx, curY);
+        curY += hdrPx;
+      }
+
+      // Title (CrocExt, uppercase)
       const safeTitle = String(title || '');
       if (safeTitle) {
-        ctx.font = '400 112px "Crocnew", sans-serif';
-        ctx.fillText(safeTitle.toUpperCase(), 960, 439);
+        curY += p('txtGap1') / 100 * visW;
+        ctx.font = `400 ${titPx}px "CrocExtended", "Croc", sans-serif`;
+        const titLines = wrapText(ctx, safeTitle.toUpperCase(), mw);
+        for (const ln of titLines) {
+          ctx.fillText(ln, cx, curY);
+          curY += titPx;
+        }
       }
+
       // Subtitle
       const safeSub = String(subtitle || '');
       if (safeSub) {
-        ctx.font = '400 32px "Crocnew", sans-serif';
-        ctx.fillText(safeSub, 960, 560);
+        curY += p('txtGap2') / 100 * visW;
+        ctx.font = `400 ${subPx}px "Croc", sans-serif`;
+        const subLines = wrapText(ctx, safeSub, mw);
+        for (const ln of subLines) {
+          ctx.fillText(ln, cx, curY);
+          curY += subPx;
+        }
       }
-      // Description (strip HTML)
+
+      // Description (line-height from txtLhDesc)
+      window._linkBounds = null;
       if (descHtml) {
+        curY += p('txtGap3') / 100 * visW;
         const plainDesc = String(descHtml).replace(/<[^>]*>?/gm, '');
-        ctx.font = '400 32px "Crocnew", sans-serif';
-        ctx.fillText(plainDesc, 960, 620);
+        ctx.font = `400 ${descPx}px "Croc", sans-serif`;
+        const descLines = wrapText(ctx, plainDesc, mw);
+        const descLh = descPx * p('txtLhDesc');
+        // Extract link info from HTML
+        const linkMatch = String(descHtml).match(/<a[^>]+href="([^"]*)"[^>]*>([^<]*)<\/a>/);
+        const linkText = linkMatch ? linkMatch[2] : null;
+        const linkHref = linkMatch ? linkMatch[1] : null;
+        for (const ln of descLines) {
+          ctx.fillText(ln, cx, curY);
+          // Track link text position within this line
+          if (linkText && ln.includes(linkText)) {
+            const idx = ln.indexOf(linkText);
+            const before = ln.substring(0, idx);
+            const lineW = ctx.measureText(ln).width;
+            const lineX = cx - lineW / 2; // centered text left edge
+            const beforeW = ctx.measureText(before).width;
+            const linkW = ctx.measureText(linkText).width;
+            const lx = lineX + beforeW;
+            // Draw underline
+            const ulY = curY + descPx * 1.15;
+            ctx.save();
+            ctx.strokeStyle = '#2D2D2D';
+            ctx.lineWidth = Math.max(1, descPx * 0.05);
+            ctx.beginPath();
+            ctx.moveTo(lx, ulY);
+            ctx.lineTo(lx + linkW, ulY);
+            ctx.stroke();
+            ctx.restore();
+            // Store bounds in texture pixels (top-left origin)
+            window._linkBounds = {
+              x: lx, y: curY, w: linkW, h: descPx,
+              href: linkHref, text: linkText,
+              texW: W, texH: 1080
+            };
+          }
+          curY += descLh;
+        }
       }
+
       // Upload with FLIP_Y so WebGL orientation matches canvas top-down
-      gl.activeTexture(gl.TEXTURE12);
+      gl.activeTexture(gl.TEXTURE15);
       gl.bindTexture(gl.TEXTURE_2D, textWebGLTexture);
       gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, 1);
+      gl.pixelStorei(gl.UNPACK_PREMULTIPLY_ALPHA_WEBGL, 1);
       gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, cvs);
+      gl.pixelStorei(gl.UNPACK_PREMULTIPLY_ALPHA_WEBGL, 0);
       gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, 0);
     } catch (e) {
       console.warn('[g4] text texture error:', e);
     }
   }
+
+  let lastTextArgs = null;
+  function regenTextTexture() {
+    if (lastTextArgs) updateWebGLTextTexture(...lastTextArgs);
+  }
+  window.regenText = regenTextTexture;
+
+  // Position an invisible <a> over the link area rendered on canvas
+  function positionLinkHotspot() {
+    const hotspot = document.getElementById('link-hotspot');
+    if (!hotspot) return;
+    const lb = window._linkBounds;
+    if (!lb) { hotspot.style.pointerEvents = 'none'; return; }
+
+    const vw = window.innerWidth, vh = window.innerHeight;
+    const viewAspect = vw / vh;
+    const texAspect = lb.texW / lb.texH;
+    const su = Math.min(1, viewAspect / texAspect);
+    const sv = Math.min(1, texAspect / viewAspect);
+
+    // Text layer Y offset (pick mobile or desktop)
+    const isMob = vw < 768;
+    const textY0Key = isMob ? 'mobTextY0' : 'textY0';
+    const textY1Key = isMob ? 'mobTextY1' : 'textY1';
+    const textYOff = PARAMS[textY0Key] + (PARAMS[textY1Key] - PARAMS[textY0Key]) * PARAMS.camY;
+
+    // Convert texture pixel coords to UV (0-1, top-left origin)
+    // Canvas was uploaded with FLIP_Y, so texture V=0 is canvas bottom
+    // In shader: textUV = coverUV(uv + vec2(0, textYOff), viewAspect, texAspect)
+    // Invert: uv = (textUV - 0.5*(1-s)) / s  then uv_screen = uv - vec2(0, textYOff)
+
+    // Texture pixel to texture UV (FLIP_Y: canvas top = texture V=1)
+    const txU = lb.x / lb.texW;
+    const txV = 1.0 - lb.y / lb.texH; // flip Y
+    const txU2 = (lb.x + lb.w) / lb.texW;
+    const txV2 = 1.0 - (lb.y + lb.h) / lb.texH;
+
+    // Invert coverUV: uv = (texUV - 0.5*(1-s)) / s
+    const uvX1 = (txU - 0.5 * (1 - su)) / su;
+    const uvX2 = (txU2 - 0.5 * (1 - su)) / su;
+    const uvY1 = (txV - 0.5 * (1 - sv)) / sv - textYOff;
+    const uvY2 = (txV2 - 0.5 * (1 - sv)) / sv - textYOff;
+
+    // UV to screen (uv.y=0 is bottom in GL, screen y=0 is top)
+    const sx1 = uvX1 * vw;
+    const sx2 = uvX2 * vw;
+    const sy1 = (1 - uvY1) * vh; // top of link (higher UV = higher on screen = lower sy)
+    const sy2 = (1 - uvY2) * vh;
+
+    let left = Math.min(sx1, sx2);
+    let top = Math.min(sy1, sy2);
+    let width = Math.abs(sx2 - sx1);
+    let height = Math.abs(sy2 - sy1);
+
+    // Ensure minimum 44px tap target (centered on link)
+    const minTap = 44;
+    if (height < minTap) { top -= (minTap - height) / 2; height = minTap; }
+    if (width < minTap) { left -= (minTap - width) / 2; width = minTap; }
+
+    hotspot.href = lb.href;
+    hotspot.textContent = lb.text;
+    hotspot.style.left = left + 'px';
+    hotspot.style.top = top + 'px';
+    hotspot.style.width = width + 'px';
+    hotspot.style.height = height + 'px';
+    hotspot.style.pointerEvents = 'auto';
+    hotspot.style.opacity = '0';
+    hotspot.style.cursor = 'pointer';
+  }
+  window.positionLinkHotspot = positionLinkHotspot;
+  window.addEventListener('resize', () => { regenTextTexture(); if (PARAMS.camY >= 1) positionLinkHotspot(); });
 
   // ── Prize ──────────────────────────────────────────────────────────────────
   function showPrize() {
@@ -832,23 +1134,15 @@ void main(){
     ppSubtitle.textContent = sub;
     ppSubtitle.style.display = sub ? '' : 'none';
     ppDesc.innerHTML = parseDescriptionLinks(prizeData.description || '');
-    // Generate text texture for WebGL scene
-    updateWebGLTextTexture(prizeData.title, sub, ppDesc.innerHTML);
-    // Start camera animation
-    isCameraMoving = true;
-    animStartTime = performance.now();
+    // Wait for CrocExtended font, then generate text texture and start camera
+    document.fonts.load('400 48px "CrocExtended"').catch(() => {}).then(() => {
+      lastTextArgs = [prizeData.title, sub, ppDesc.innerHTML];
+      updateWebGLTextTexture(...lastTextArgs);
+      isCameraMoving = true;
+      animStartTime = performance.now();
+    });
   }
 
-  document.getElementById('btn-prize-close').addEventListener('click', () => {
-    prizeOverlay.classList.remove('visible');
-    isCameraMoving = false;
-    PARAMS.camY = 0.0;
-    // Clear text texture
-    if (textWebGLTexture && gl) {
-      gl.bindTexture(gl.TEXTURE_2D, textWebGLTexture);
-      gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, 1, 1, 0, gl.RGBA, gl.UNSIGNED_BYTE, new Uint8Array([0,0,0,0]));
-    }
-  });
 
   // ── Texture loading ────────────────────────────────────────────────────────
   function createPlaceholder(key,unit){
@@ -876,7 +1170,7 @@ void main(){
     gl.activeTexture(gl.TEXTURE0); gl.bindTexture(gl.TEXTURE_2D,textureObjs['bgTex']);
     uploadTex(img,'bgTex',true);
   }
-  const LOADER_TOTAL = 10;
+  const LOADER_TOTAL = 13;
   function setLoaderProgress(pct){
     const fill=document.getElementById('loader-bar-fill'), txt=document.getElementById('loader-pct');
     if(fill) fill.style.width=pct+'%';
@@ -894,6 +1188,9 @@ void main(){
     if(preset.bgTex) queue.bgTex=preset.bgTex;
     if(preset.rockTex) queue.rockTex=preset.rockTex;
     if(preset.frontTex) queue.frontTex=preset.frontTex;
+    if(preset.hllTex) queue.hllTex=preset.hllTex;
+    if(preset.hlrTex) queue.hlrTex=preset.hlrTex;
+    if(preset.linesTex) queue.linesTex=preset.linesTex;
     TEX_ORDER.forEach(k=>{if(!textureObjs[k]&&ice[k]) queue[k]=ice[k];});
     Object.keys(queue).forEach(key=>{
       const unit=TEX_ORDER.indexOf(key), img=new Image(); img.crossOrigin='anonymous';
@@ -915,12 +1212,15 @@ void main(){
       if(key==='bgTex') bgTexAspect=aspect;
       if(key==='rockTex') rockTexAspect=aspect;
       if(key==='frontTex') frontTexAspect=aspect;
+      if(key==='hllTex') hllTexAspect=aspect;
+      if(key==='hlrTex') hlrTexAspect=aspect;
+      if(key==='linesTex') linesTexAspect=aspect;
       if(['iceNorm','iceFrost','iceOpacity','iceRough'].includes(key)) iceTexAspect=aspect;
-      const isBg = key==='bgTex'||key==='rockTex'||key==='frontTex';
+      const isBg = key==='bgTex'||key==='rockTex'||key==='frontTex'||key==='hllTex'||key==='hlrTex'||key==='linesTex';
       uploadTex(img,key,isBg);
     } else {
       // Transparent fallback for layers, black for ice
-      const px = (key==='rockTex'||key==='frontTex') ? new Uint8Array([0,0,0,0])
+      const px = (key==='rockTex'||key==='frontTex'||key==='hllTex'||key==='hlrTex'||key==='linesTex') ? new Uint8Array([0,0,0,0])
                : key==='bgNorm' ? new Uint8Array([128,128,255,255])
                : new Uint8Array([0,0,0,255]);
       gl.texImage2D(gl.TEXTURE_2D,0,gl.RGBA,1,1,0,gl.RGBA,gl.UNSIGNED_BYTE,px);
@@ -957,6 +1257,8 @@ void main(){
       if(PARAMS[id]===undefined) return;
       if(e.target.type==='checkbox') PARAMS[id]=e.target.checked?1:0;
       else{ PARAMS[id]=parseFloat(e.target.value); const sp=e.target.nextElementSibling; if(sp&&sp.classList.contains('val')) sp.innerText=fmtVal(id,PARAMS[id]); }
+      if(id.startsWith('txt') || id.startsWith('mobTxt')) regenTextTexture();
+      if(running) renderScene();
     });
   });
   document.querySelectorAll('.tb').forEach(btn=>{
@@ -989,21 +1291,67 @@ void main(){
   // ── Mouse / Touch ─────────────────────────────────────────────────────────────
   canvas.addEventListener('mousemove',e=>{
     if(!gameStarted) return;
+    mouseOnCanvas=true;
     mouse.x=e.clientX/window.innerWidth; mouse.y=1-(e.clientY/window.innerHeight);
   });
-  canvas.addEventListener('touchmove',e=>{
+  canvas.addEventListener('touchstart',e=>{
     if(!gameStarted) return;
+    mouseOnCanvas=true;
     e.preventDefault();
     const t=e.touches[0]; mouse.x=t.clientX/window.innerWidth; mouse.y=1-(t.clientY/window.innerHeight);
   },{passive:false});
-  canvas.addEventListener('mouseleave',()=>{mouse.x=-1;mouse.y=-1;lastMouse.x=-1;lastMouse.y=-1;});
+  canvas.addEventListener('touchmove',e=>{
+    if(!gameStarted) return;
+    mouseOnCanvas=true;
+    e.preventDefault();
+    const t=e.touches[0]; mouse.x=t.clientX/window.innerWidth; mouse.y=1-(t.clientY/window.innerHeight);
+  },{passive:false});
+  canvas.addEventListener('touchend',()=>{mouseOnCanvas=false;lastMouse.x=-1;lastMouse.y=-1;});
+  canvas.addEventListener('touchcancel',()=>{mouseOnCanvas=false;lastMouse.x=-1;lastMouse.y=-1;});
+  canvas.addEventListener('mouseleave',()=>{mouseOnCanvas=false;lastMouse.x=-1;lastMouse.y=-1;});
 
   // ── Render loop ───────────────────────────────────────────────────────────────
+  let renderT0 = 0;
+  function renderScene() {
+    gl.viewport(0,0,canvas.width,canvas.height);
+    gl.useProgram(prog); gl.bindVertexArray(vao);
+    for (let i = 0; i < TEX_ORDER.length; i++) {
+      const tex = textureObjs[TEX_ORDER[i]];
+      if (tex) { gl.activeTexture(gl.TEXTURE0+i); gl.bindTexture(gl.TEXTURE_2D, tex); }
+    }
+    gl.activeTexture(gl.TEXTURE13); gl.bindTexture(gl.TEXTURE_2D, ping.tex);
+    gl.clear(gl.COLOR_BUFFER_BIT);
+    for(let i=0;i<NSAMP;i++) gl.uniform1i(U[uNames[i]],i);
+    gl.uniform2f(U.mouse,mouse.x<0?0.5:mouse.x,mouse.y<0?0.5:mouse.y);
+    gl.uniform1f(U.ratio,canvas.width/canvas.height);
+    gl.uniform1f(U.bgTexAspect,bgTexAspect);
+    gl.uniform1f(U.iceTexAspect,iceTexAspect);
+    gl.uniform1f(U.rockTexAspect,rockTexAspect);
+    gl.uniform1f(U.frontTexAspect,frontTexAspect);
+    gl.uniform1f(U.hllTexAspect,hllTexAspect);
+    gl.uniform1f(U.hlrTexAspect,hlrTexAspect);
+    gl.uniform1f(U.linesTexAspect,linesTexAspect);
+    gl.uniform1f(U.time,(performance.now()-renderT0)*0.001);
+    uNames.forEach(n=>{if(U[n]&&PARAMS[n]!==undefined) gl.uniform1f(U[n],PARAMS[n]);});
+    // Override layer positions on mobile
+    if (window.innerWidth < 768) {
+      const ml = ['bgY0','bgY1','rockY0','rockY1','frontY0','frontY1','hllY0','hllY1','hlrY0','hlrY1','linesY0','linesY1','textY0','textY1'];
+      ml.forEach(n=>{ const mv = PARAMS['mob'+n.charAt(0).toUpperCase()+n.slice(1)]; if(U[n]&&mv!==undefined) gl.uniform1f(U[n],mv); });
+    }
+    if (textWebGLTexture) {
+      gl.activeTexture(gl.TEXTURE15);
+      gl.bindTexture(gl.TEXTURE_2D, textWebGLTexture);
+      if (textTexLoc) gl.uniform1i(textTexLoc, 15);
+    }
+    gl.drawArrays(gl.TRIANGLES,0,6);
+  }
+  window.render = renderScene;
+
   function startLoop(){
-    running=true; const t0=performance.now();
+    running=true; renderT0=performance.now();
     function frame(){
       // PASS 1: paint melt map
-      if(gameStarted && mouse.x>=0){
+      if(gameStarted && mouseOnCanvas){
         if(lastMouse.x<0){lastMouse.x=mouse.x;lastMouse.y=mouse.y;}
         gl.bindFramebuffer(gl.FRAMEBUFFER,pong.fbo);
         gl.viewport(0,0,meltSize,meltSize);
@@ -1021,46 +1369,43 @@ void main(){
         lastMouse.x=mouse.x; lastMouse.y=mouse.y;
       }
 
-      // Camera animation
-      if (isCameraMoving) {
-        let t = (performance.now() - animStartTime) / 5000;
-        if (t >= 1) { t = 1; isCameraMoving = false; }
-        PARAMS.camY = solveBezier(t, 0.42, 0.0, 0.58, 1.0);
-        // Show clickable overlay when camera arrives
-        if (PARAMS.camY >= 0.99 && !prizeOverlay.classList.contains('visible')) {
-          prizeOverlay.classList.add('visible');
+      // Auto-melt: frame-rate independent, ~10s to fully melt
+      if (autoMelting) {
+        if (!autoMeltStart) { autoMeltStart = performance.now(); lastFrameTime = autoMeltStart; }
+        const now = performance.now();
+        const dt = (now - lastFrameTime) / 1000;
+        lastFrameTime = now;
+        autoMeltAccum += dt;
+        const MELT_RATE = 0.1; // 1.0 over 10 seconds
+        const STEP = 1/255;
+        const needed = STEP / MELT_RATE; // ~0.039s per step
+        if (autoMeltAccum >= needed) {
+          const steps = Math.min(Math.floor(autoMeltAccum / needed), 20);
+          autoMeltAccum -= steps * needed;
+          gl.bindFramebuffer(gl.FRAMEBUFFER,pong.fbo);
+          gl.viewport(0,0,meltSize,meltSize);
+          gl.useProgram(paintProg); gl.bindVertexArray(vao);
+          gl.activeTexture(gl.TEXTURE11); gl.bindTexture(gl.TEXTURE_2D,ping.tex);
+          gl.uniform1i(PU.prev,11);
+          gl.uniform2f(PU.mouseA,0.5,0.5);
+          gl.uniform2f(PU.mouseB,0.5,0.5);
+          gl.uniform1f(PU.radius,  3.0);
+          gl.uniform1f(PU.speed,   steps * STEP);
+          gl.uniform1f(PU.hardness,1.0);
+          gl.drawArrays(gl.TRIANGLES,0,6);
+          gl.bindFramebuffer(gl.FRAMEBUFFER,null);
+          [ping,pong]=[pong,ping];
         }
       }
 
-      // PASS 2: main render
-      gl.viewport(0,0,canvas.width,canvas.height);
-      gl.useProgram(prog); gl.bindVertexArray(vao);
-      // Bind scene textures
-      for (let i = 0; i < TEX_ORDER.length; i++) {
-        const tex = textureObjs[TEX_ORDER[i]];
-        if (tex) { gl.activeTexture(gl.TEXTURE0+i); gl.bindTexture(gl.TEXTURE_2D, tex); }
+      // Camera animation
+      if (isCameraMoving) {
+        let t = (performance.now() - animStartTime) / 2000;
+        if (t >= 1) { t = 1; isCameraMoving = false; positionLinkHotspot(); }
+        PARAMS.camY = solveBezier(t, 0.95, 0.03, 0.34, 0.98);
       }
-      // Bind melt map at unit 10
-      gl.activeTexture(gl.TEXTURE10); gl.bindTexture(gl.TEXTURE_2D, ping.tex);
-      gl.clear(gl.COLOR_BUFFER_BIT);
-      // Set sampler uniforms
-      for(let i=0;i<NSAMP;i++) gl.uniform1i(U[uNames[i]],i);
-      // Set other uniforms
-      gl.uniform2f(U.mouse,mouse.x<0?0.5:mouse.x,mouse.y<0?0.5:mouse.y);
-      gl.uniform1f(U.ratio,canvas.width/canvas.height);
-      gl.uniform1f(U.bgTexAspect,bgTexAspect);
-      gl.uniform1f(U.iceTexAspect,iceTexAspect);
-      gl.uniform1f(U.rockTexAspect,rockTexAspect);
-      gl.uniform1f(U.frontTexAspect,frontTexAspect);
-      gl.uniform1f(U.time,(performance.now()-t0)*0.001);
-      uNames.forEach(n=>{if(U[n]&&PARAMS[n]!==undefined) gl.uniform1f(U[n],PARAMS[n]);});
-      // Bind text texture at unit 12
-      if (textWebGLTexture) {
-        gl.activeTexture(gl.TEXTURE12);
-        gl.bindTexture(gl.TEXTURE_2D, textWebGLTexture);
-        if (textTexLoc) gl.uniform1i(textTexLoc, 12);
-      }
-      gl.drawArrays(gl.TRIANGLES,0,6);
+
+      renderScene();
 
       // Readback every 30 frames
       frameCount++;
@@ -1070,14 +1415,15 @@ void main(){
         gl.blitFramebuffer(0,0,meltSize,meltSize,0,0,READ_SIZE,READ_SIZE,gl.COLOR_BUFFER_BIT,gl.LINEAR);
         gl.bindFramebuffer(gl.READ_FRAMEBUFFER,readFbo);
         gl.readPixels(0,0,READ_SIZE,READ_SIZE,gl.RGBA,gl.UNSIGNED_BYTE,readBuf);
-        gl.bindFramebuffer(gl.READ_FRAMEBUFFER,null);
+        gl.bindFramebuffer(gl.FRAMEBUFFER,null);
         let melted=0;
         for(let i=0;i<readBuf.length;i+=4) if(readBuf[i]>128) melted++;
         lastMeltPct=Math.round(melted/(READ_SIZE*READ_SIZE)*100);
+        if(autoMelting && (performance.now() - autoMeltStart) > 13000) autoMelting = false;
         if(gameStarted){
           hudFill.style.width=lastMeltPct+'%';
           hudPct.textContent=lastMeltPct+'%';
-          if(lastMeltPct>=REVEAL_THRESHOLD && prizeReady && !prizeShown) showPrize();
+          if(lastMeltPct>=REVEAL_THRESHOLD && prizeReady && !prizeShown) { autoMelting = true; autoMeltStart = 0; showPrize(); }
         }
       }
       requestAnimationFrame(frame);
@@ -1089,6 +1435,17 @@ void main(){
   loadPreset(0);
   validateEmail(false);
   autoStartTestIfNeeded();
+
+  // ── Fake prize data for local testing ────────────────────────────────────
+  window.__g4Test = function(title, sub, desc) {
+    prizeData = {
+      title: title || 'Скидка 20% на набор-конструктор свечей «По душе»',
+      subtitle: sub !== undefined ? sub : 'Промокод: CROC2026',
+      description: desc || 'Перейди на [сайт партнёра](https://example.com) и используй промокод при оформлении заказа. Акция действует до 31 марта 2026 года.'
+    };
+    prizeShown = false;
+    showPrize();
+  };
 })();
 </script>
 </body>
