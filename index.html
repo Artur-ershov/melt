@@ -364,11 +364,11 @@
         <div class="tb active" data-val="0">Flashlight</div>
         <div class="tb" data-val="1">Static Sun</div>
       </div>
-      <div class="control-row"><label>Intensity</label><input id="p-lightInt" type="range" min="0" max="5" step="0.1" value="0.2"><span class="val">0.20</span></div>
+      <div class="control-row"><label>Intensity</label><input id="p-lightInt" type="range" min="0" max="5" step="0.1" value="2.1"><span class="val">2.10</span></div>
       <div class="control-row"><label>Color Temp</label><input id="p-lightWarmth" type="range" min="0" max="1" step="0.05" value="1"><span class="val">1.00</span></div>
       <div class="mode-0">
-        <div class="control-row"><label>Spot Radius</label><input id="p-lightRad" type="range" min="0.1" max="1.5" step="0.01" value="0.4"><span class="val">0.40</span></div>
-        <div class="control-row"><label>Falloff</label><input id="p-lightFalloff" type="range" min="0.01" max="1.0" step="0.01" value="0.35"><span class="val">0.35</span></div>
+        <div class="control-row"><label>Spot Radius</label><input id="p-lightRad" type="range" min="0.01" max="1.5" step="0.01" value="0.11"><span class="val">0.11</span></div>
+        <div class="control-row"><label>Falloff</label><input id="p-lightFalloff" type="range" min="0.01" max="1.0" step="0.01" value="0.01"><span class="val">0.01</span></div>
       </div>
       <div class="mode-1">
         <div class="control-row"><label>Sun X</label><input id="p-sunX" type="range" min="-1" max="1" step="0.01" value="0.2"><span class="val">0.20</span></div>
@@ -384,7 +384,7 @@
       <div class="control-row"><label>Refraction</label><input id="p-refract" type="range" min="0" max="0.15" step="0.001" value="0.119"><span class="val">0.119</span></div>
       <div class="control-row"><label>Chromatic Ab.</label><input id="p-chroma" type="range" min="0" max="0.1" step="0.001" value="0.01"><span class="val">0.010</span></div>
       <div class="control-row"><label>Ambient Shadow</label><input id="p-shadowStr" type="range" min="0" max="1" step="0.01" value="0"><span class="val">0.00</span></div>
-      <div class="control-row"><label>SSS</label><input id="p-sss" type="range" min="0" max="0.5" step="0.01" value="0.5"><span class="val">0.50</span></div>
+      <div class="control-row"><label>SSS</label><input id="p-sss" type="range" min="0" max="3" step="0.05" value="0.9"><span class="val">0.90</span></div>
       <div class="control-row"><label>Diffuse Mix</label><input id="p-diffuseIceMix" type="range" min="0" max="1" step="0.05" value="0.45"><span class="val">0.45</span></div>
       <div class="control-row"><label>Fresnel Power</label><input id="p-fresnelPower" type="range" min="1" max="8" step="0.1" value="1.1"><span class="val">1.1</span></div>
       <div class="control-row"><label>Fresnel Str</label><input id="p-fresnelStr" type="range" min="0" max="0.5" step="0.01" value="0.06"><span class="val">0.06</span></div>
@@ -392,15 +392,16 @@
     <div class="section">
       <div class="section-title">Thermodynamics</div>
       <div class="control-row"><label>Brush Radius</label><input id="p-meltRadius" type="range" min="0.01" max="0.5" step="0.005" value="0.08"><span class="val">0.08</span></div>
-      <div class="control-row"><label>Melt Speed</label><input id="p-meltSpeed" type="range" min="0.01" max="0.4" step="0.005" value="0.09"><span class="val">0.09</span></div>
+      <div class="control-row"><label>Melt Speed</label><input id="p-meltSpeed" type="range" min="0" max="0.4" step="0.005" value="0.045"><span class="val">0.045</span></div>
       <div class="control-row"><label>Brush Hardness</label><input id="p-brushHardness" type="range" min="0" max="1" step="0.01" value="0.75"><span class="val">0.75</span></div>
+      <button id="btn-reset-melt" style="margin:8px 0;padding:6px 16px;background:#ff6b6b;color:#fff;border:none;border-radius:6px;cursor:pointer;font-size:11px;font-weight:700;letter-spacing:0.5px;width:100%">RESET MELT</button>
     </div>
     <div class="section">
       <div class="section-title">Liquid</div>
-      <div class="control-row"><label>Surface Tension</label><input id="p-edgeDistort" type="range" min="0" max="4" step="0.05" value="1.55"><span class="val">1.55</span></div>
-      <div class="control-row"><label>Water Gloss</label><input id="p-waterShiny" type="range" min="10" max="500" step="10" value="290"><span class="val">290</span></div>
-      <div class="control-row"><label>Specular</label><input id="p-specular" type="range" min="0" max="10" step="0.1" value="4.7"><span class="val">4.70</span></div>
-      <div class="control-row"><label>Water Turbidity</label><input id="p-waterOpacity" type="range" min="0" max="1" step="0.01" value="0.06"><span class="val">0.06</span></div>
+      <div class="control-row"><label>Surface Tension</label><input id="p-edgeDistort" type="range" min="0" max="4" step="0.05" value="0"><span class="val">0.00</span></div>
+      <div class="control-row"><label>Water Gloss</label><input id="p-waterShiny" type="range" min="10" max="500" step="10" value="80"><span class="val">80</span></div>
+      <div class="control-row"><label>Specular</label><input id="p-specular" type="range" min="0" max="10" step="0.1" value="2.3"><span class="val">2.30</span></div>
+      <div class="control-row"><label>Water Turbidity</label><input id="p-waterOpacity" type="range" min="0" max="1" step="0.01" value="0"><span class="val">0.00</span></div>
     </div>
     <div class="section">
       <div class="section-title">Color Grading</div>
@@ -456,6 +457,7 @@
   const isTestMode  = urlParams.get('test') === '1';
   const isSkipMode  = urlParams.get('skip') === '1';
   const isSimulate  = urlParams.get('simulate') !== '0';
+  const isMeltZero  = urlParams.get('melt') === '0';
   const VALID_LOCS  = ['moscow', 'regional', 'remote'];
   if (isSimulate) console.log('[g4] Режим симуляции включён. Выключить: ?simulate=0');
   const testModeLoc = VALID_LOCS.includes(urlParams.get('loc') || '') ? urlParams.get('loc') : 'moscow';
@@ -597,8 +599,8 @@
     hllX:0.533, hlrX:-0.283,
     hllY0:-0.88, hllY1:0.82, hlrY0:-0.72, hlrY1:0.73, linesY0:-0.13, linesY1:0.17, linesOpacity:0.35, layerParallax:0.03,
     textY0:0.97, textY1:0.17,
-    lightMode:0, lightInt:0.2, lightWarmth:1, lightRad:0.4, lightFalloff:0.35, sunX:0.2, sunY:0.5,
-    texScale:1, frostOpacity:0.09, frostTint:0.39, iceNormal:4, refract:0.119, chroma:0.01, specular:4.7, shadowStr:0, sss:0.5,
+    lightMode:0, lightInt:2.1, lightWarmth:1, lightRad:0.11, lightFalloff:0.01, sunX:0.2, sunY:0.5,
+    texScale:1, frostOpacity:0.09, frostTint:0.39, iceNormal:4, refract:0.119, chroma:0.01, specular:2.3, shadowStr:0, sss:0.9,
     txtMaxW:90, txtBaseY:0.2, txtGap1:2, txtGap2:2, txtGap3:2,
     txtSzHeader:2, txtSzTitle:4, txtSzSub:1, txtSzDesc:1.25, txtLhDesc:1.2,
     mobTxtMaxW:90, mobTxtBaseY:0.5, mobTxtGap1:2, mobTxtGap2:2, mobTxtGap3:2,
@@ -607,12 +609,13 @@
     mobHllY0:-0.68, mobHllY1:0.4, mobHlrY0:-0.45, mobHlrY1:0.85, mobLinesY0:-0.3, mobLinesY1:0.17,
     mobTextY0:0.97, mobTextY1:0.08,
     minLayerW:640,
-    meltRadius:0.08, meltSpeed:0.09, edgeDistort:1.55, brushHardness:0.75,
-    waterShiny:290, waterOpacity:0.06,
+    meltRadius:0.08, meltSpeed:0.045, edgeDistort:0, brushHardness:0.75,
+    waterShiny:80, waterOpacity:0,
     blurStr:0, grain:0.03, ambient:1, emissive:0, vignette:0, parallax:0.007,
     exposure:1, gamma:1, contrast:1, saturation:1, tintR:1, tintG:1, tintB:1,
     fresnelPower:1.1, fresnelStr:0.06, diffuseIceMix:0.45,
   };
+  if (isMeltZero) PARAMS.meltSpeed = 0;
 
   // Texture order: 0-9 scene textures, 10 meltMap
   const TEX_ORDER = ['bgTex','rockTex','frontTex','hllTex','hlrTex','linesTex','bgNorm','bgLight','bgDepth','iceNorm','iceFrost','iceOpacity','iceRough'];
@@ -671,6 +674,13 @@ vec4 getBg(vec2 uv){
   vec2 bgUV    = coverUV(uvZ + mBase + vec2(0, mix(u_bgY0,    u_bgY1,    u_camY)), u_ratio, u_bgTexAspect);
   vec2 rockUV  = coverUV(uvZ + mBase*abs(u_rockY1-u_rockY0)/bgRange + vec2(0, mix(u_rockY0,  u_rockY1,  u_camY)), u_ratio, u_rockTexAspect);
   vec2 frontUV = coverUV(uvZ + mBase*abs(u_frontY1-u_frontY0)/bgRange + vec2(0, mix(u_frontY0, u_frontY1, u_camY)), u_ratio, u_frontTexAspect);
+  // Intra-layer parallax: brightness as depth (cheap mip4 probe)
+  vec4 rockProbe  = textureLod(u_rockTex,  rockUV,  4.0);
+  vec4 frontProbe = textureLod(u_frontTex, frontUV, 4.0);
+  float rockH  = dot(rockProbe.rgb,  vec3(0.299,0.587,0.114)) * rockProbe.a;
+  float frontH = dot(frontProbe.rgb, vec3(0.299,0.587,0.114)) * frontProbe.a;
+  rockUV  += mBase * rockH  * 3.0;
+  frontUV += mBase * frontH * 3.0;
   vec2 hllUV   = coverUV(uvZ + mBase*abs(u_hllY1-u_hllY0)/bgRange + vec2(0, mix(u_hllY0,   u_hllY1,   u_camY)), u_ratio, u_hllTexAspect);
   hllUV.x += u_hllX;
   vec2 hlrUV   = coverUV(uvZ + mBase*abs(u_hlrY1-u_hlrY0)/bgRange + vec2(0, mix(u_hlrY0,   u_hlrY1,   u_camY)), u_ratio, u_hlrTexAspect);
@@ -723,6 +733,8 @@ void main(){
   float edge=smoothstep(0.,0.2,melt)*(1.-smoothstep(0.8,1.,melt));
   vec3 finalN=mix(iceN,vec3(0,0,1),melt);
   finalN.xy+=iceN.xy*edge*u_edgeDistort; finalN=normalize(finalN);
+  // Melt morphing: ice form deforms along normals as it melts
+  vec2 iceUVmelted = iceUV + iceN.xy * melt * melt * 0.04;
   vec2 parallax=(u_mouse-0.5)*(1.-bgDepth)*u_parallax;
   vec2 baseUV=clamp(v_uv+parallax,0.001,0.999);
   float refr=u_refract*(1.-melt);
@@ -736,39 +748,78 @@ void main(){
     bgCol.g=(getBg(uvG).g+getBg(uvG+vec2(b,b)).g+getBg(uvG-vec2(b,b)).g+getBg(uvG+vec2(b,-b)).g+getBg(uvG+vec2(-b,b)).g)/5.;
     bgCol.b=(getBg(uvB).b+getBg(uvB+vec2(b,b)).b+getBg(uvB-vec2(b,b)).b+getBg(uvB+vec2(b,-b)).b+getBg(uvB+vec2(-b,b)).b)/5.;
   } else { bgCol=vec3(getBg(uvR).r,getBg(uvG).g,getBg(uvB).b); }
-  float iceMask=texture(u_iceOpacity,iceUV).r;
-  float opacity=iceMask*(1.-melt);
+  float iceMask=texture(u_iceOpacity,iceUVmelted).r;
+  // Dissolve edges first: thin ice melts before thick
+  float dissolveThr=melt*1.2;
+  float dissolveMask=smoothstep(dissolveThr, dissolveThr+0.15, iceMask);
+  float opacity=dissolveMask*(1.-melt);
   bgCol*=1.-opacity*u_shadowStr*0.5;
   vec2 auxUV=coverUV(uvG,u_ratio,u_bgTexAspect);
-  vec3 bgEmissive=texture(u_bgLight,auxUV).rgb;
-  vec3 lightDir; float atten=1.;
-  if(u_lightMode<0.5){
-    vec3 lPos=vec3(u_mouse.x*u_ratio,u_mouse.y,0.3);
-    vec3 pPos=vec3(v_uv.x*u_ratio,v_uv.y,0.);
-    float d=distance(lPos,pPos);
-    atten=1.-smoothstep(u_lightRad*u_lightFalloff,u_lightRad,d);
-    lightDir=normalize(lPos-pPos);
-  } else { lightDir=normalize(vec3(u_sunX,u_sunY,0.5)); }
+  // --- Backlight model: light source BEHIND the ice ---
   vec3 lightColor=mix(vec3(0.8,0.9,1.),vec3(1.,0.9,0.55),u_lightWarmth);
+  float atten=1.; float dist2light=0.;
+  vec3 lightDir;
+  if(u_lightMode<0.5){
+    vec2 lp=vec2(u_mouse.x*u_ratio,u_mouse.y);
+    vec2 pp=vec2(v_uv.x*u_ratio,v_uv.y);
+    dist2light=distance(lp,pp);
+    atten=1.-smoothstep(u_lightRad*u_lightFalloff,u_lightRad,dist2light);
+    lightDir=normalize(vec3(lp-pp,0.3));
+  } else { lightDir=normalize(vec3(u_sunX,u_sunY,0.5)); }
+
+  // Spherical backlight: primarily distance-based, subtle normal relief
   vec3 bgNorm=normalize(texture(u_bgNorm,auxUV).rgb*2.-1.);
-  float diffBg=max(dot(bgNorm,lightDir),0.);
-  float diffIce=max(dot(finalN,lightDir),0.);
+  float diffBg = 0.7 + 0.3*max(dot(bgNorm,lightDir),0.);
+  float diffIce = 0.7 + 0.3*max(dot(finalN,lightDir),0.);
   float bgIllum=mix(diffBg,diffIce,u_diffuseIceMix)*atten*u_lightInt;
-  vec3 scene=bgCol*(u_ambient+bgIllum*lightColor)+bgEmissive*u_emissive;
-  vec3 frostTex=texture(u_iceFrost,iceUV).rgb;
+  vec3 bgEmissiveCol=texture(u_bgLight,auxUV).rgb;
+  vec3 scene=bgCol*(u_ambient+bgIllum*0.3*lightColor)+bgEmissiveCol*u_emissive;
+
+  // SSS: light scatters WIDE through ice — centered on cursor, normals modulate intensity
+  float sssAtten = 1.;
+  if(u_lightMode<0.5){
+    sssAtten = 1.-smoothstep(u_lightRad*0.5, u_lightRad*5.0, dist2light);
+  }
+  float transmission = sssAtten * u_lightInt;
+  float iceThickness = opacity;
+  // Normals scatter intensity (not position): light transmits more through aligned surfaces
+  float normalScatter = 1.0 + dot(finalN, lightDir) * 0.3;
+  vec3 sssColor = mix(lightColor, vec3(0.7,0.85,1.0), iceThickness*0.6);
+  float sssFactor = transmission * u_sss * (0.8 + edge*0.4 + iceThickness*0.4) * normalScatter;
+  // Direct backlight on melted areas — strong center glow
+  float directGlow = atten * u_lightInt * melt;
+
+  // Frost layer
+  vec3 frostTex=texture(u_iceFrost,iceUVmelted).rgb;
   frostTex=mix(frostTex,vec3(0.75,0.88,1.),u_frostTint);
-  vec3 frostLit=frostTex*(scene+bgIllum*u_sss*2.*lightColor);
+  vec3 frostLit=frostTex*(scene + sssColor*sssFactor*3.0);
   vec3 comp=mix(scene,frostLit,opacity*u_frostOpacity);
+
+  // SSS additive glow through ice (independent of frost opacity)
+  comp += sssColor * sssFactor * opacity;
+
+  // Direct backlight on melted areas — strong to ensure center is brightest
+  comp += lightColor * directGlow * 1.0;
+
+  // Water turbidity at melt edge
   comp=mix(comp,vec3(0.8,0.85,0.9)*0.4,u_waterOpacity*melt*(1.-melt));
+
+  // Fresnel: subtle rim light on ice surface
   vec3 viewDir=vec3(0,0,1);
   float fresnel=pow(1.-max(dot(finalN,viewDir),0.),u_fresnelPower)*u_fresnelStr;
   comp+=mix(vec3(0.6,0.75,0.95),lightColor,0.4)*fresnel*min(opacity+edge,1.);
-  float rough=texture(u_iceRough,iceUV).r;
+
+  // Specular: from the backlight ball (follows cursor), moderate strength
+  float rough=texture(u_iceRough,iceUVmelted).r;
   float shine=mix(mix(15.,5.,rough),u_waterShiny,melt);
-  comp+=pow(max(dot(finalN,normalize(lightDir+viewDir)),0.),shine)*u_specular*bgIllum*lightColor*(1.+edge*5.);
+  float specNdH=pow(max(dot(finalN,normalize(lightDir+viewDir)),0.),shine);
+  // Uses atten (tight) so specular only appears near cursor, not everywhere
+  comp+=specNdH*u_specular*atten*u_lightInt*0.15*lightColor*(1.+edge*1.5);
+
+  // Cursor glow: wider, brighter to ensure center dominance
   if(u_lightMode<0.5){
-    vec2 fa=vec2(v_uv.x*u_ratio,v_uv.y),fb=vec2(u_mouse.x*u_ratio,u_mouse.y);
-    comp+=lightColor*pow(max(0.,1.-distance(fa,fb)*1.5),2.)*0.6*u_lightInt*mix(0.4,1.,melt);
+    float glowR=smoothstep(u_lightRad*0.3,0.0,dist2light);
+    comp+=lightColor*glowR*0.3*u_lightInt;
   }
   if(u_vignette>0.){
     float dist=distance(v_uv,vec2(0.5));
@@ -789,9 +840,14 @@ void main(){
   const PAINT_FS = `#version 300 es
 precision highp float;
 in vec2 v_uv; out vec4 fragColor;
-uniform sampler2D u_prev;
+uniform sampler2D u_prev, u_iceOpacityPaint, u_iceNormPaint;
 uniform vec2 u_mouseA,u_mouseB;
 uniform float u_radius,u_speed,u_hardness;
+uniform float u_pRatio,u_pIceTexAspect,u_pTexScale;
+vec2 coverUV_p(vec2 uv, float vA, float tA){
+  float su=min(1.,vA/tA), sv=min(1.,tA/vA);
+  return vec2(0.5*(1.-su)+uv.x*su, 0.5*(1.-sv)+uv.y*sv);
+}
 float segDist(vec2 p,vec2 a,vec2 b){
   vec2 ab=b-a,ap=p-a;
   float t=clamp(dot(ap,ab)/max(dot(ab,ab),0.00001),0.,1.);
@@ -801,7 +857,28 @@ void main(){
   float prev=texture(u_prev,v_uv).r;
   float d=segDist(v_uv,u_mouseA,u_mouseB);
   float heat=smoothstep(u_radius,u_radius*(1.-u_hardness*0.8),d)*u_speed;
-  fragColor=vec4(min(prev+heat,1.),0,0,1);
+  // Early exit: skip expensive reads for pixels with no melt and no brush
+  if(prev < 0.001 && heat < 0.001){
+    fragColor=vec4(prev,0,0,1); return;
+  }
+  // Non-uniform melting: thicker ice melts slower
+  vec2 iceUV_p=coverUV_p(v_uv, u_pRatio, u_pIceTexAspect)*u_pTexScale;
+  float thickness=texture(u_iceOpacityPaint, iceUV_p).r;
+  heat *= mix(1.0, 0.3, thickness);
+  // Heat diffusion along ice relief (only where there IS melt)
+  if(prev > 0.001){
+    float step_s = 1.0 / float(textureSize(u_prev, 0).x);
+    float mL=texture(u_prev, v_uv+vec2(-step_s,0)).r;
+    float mR=texture(u_prev, v_uv+vec2( step_s,0)).r;
+    float mU=texture(u_prev, v_uv+vec2(0, step_s)).r;
+    float mD=texture(u_prev, v_uv+vec2(0,-step_s)).r;
+    float laplacian=(mL+mR+mU+mD)*0.25-prev;
+    vec3 iceN=texture(u_iceNormPaint, iceUV_p).rgb*2.0-1.0;
+    float normBias=(mR-mL)*iceN.x+(mU-mD)*iceN.y;
+    float diffRate=0.03*mix(1.0,0.3,thickness);
+    heat+=(laplacian+normBias*0.3)*diffRate;
+  }
+  fragColor=vec4(clamp(prev+heat,0.,1.),0,0,1);
 }`;
 
   function mkShader(type, src) {
@@ -851,6 +928,11 @@ void main(){
     radius:  gl.getUniformLocation(paintProg,'u_radius'),
     speed:   gl.getUniformLocation(paintProg,'u_speed'),
     hardness:gl.getUniformLocation(paintProg,'u_hardness'),
+    iceOpacity: gl.getUniformLocation(paintProg,'u_iceOpacityPaint'),
+    iceNorm:    gl.getUniformLocation(paintProg,'u_iceNormPaint'),
+    pRatio:     gl.getUniformLocation(paintProg,'u_pRatio'),
+    pIceAspect: gl.getUniformLocation(paintProg,'u_pIceTexAspect'),
+    pTexScale:  gl.getUniformLocation(paintProg,'u_pTexScale'),
   };
 
   const meltSize=Math.min(2048,Math.max(window.innerWidth,window.innerHeight)*(window.devicePixelRatio||1)|0);
@@ -887,6 +969,20 @@ void main(){
 
   // ── Camera animation ───────────────────────────────────────────────────────
   let animStartTime=0, isCameraMoving=false, autoMelting=false, autoMeltStart=0, autoMeltAccum=0, lastFrameTime=0;
+
+  // ── Reset melt to base state ──
+  function resetMelt() {
+    [ping,pong].forEach(b=>{gl.bindFramebuffer(gl.FRAMEBUFFER,b.fbo);gl.clearColor(0,0,0,1);gl.clear(gl.COLOR_BUFFER_BIT);});
+    gl.bindFramebuffer(gl.FRAMEBUFFER,null);
+    lastMeltPct = 0;
+    autoMelting = false; autoMeltStart = 0; autoMeltAccum = 0;
+    prizeShown = false;
+    isCameraMoving = false;
+    PARAMS.camY = 0;
+    if (hudFill) hudFill.style.width = '0%';
+    if (hudPct) hudPct.textContent = '0%';
+  }
+  document.getElementById('btn-reset-melt')?.addEventListener('click', resetMelt);
 
   function solveBezier(t, x1, y1, x2, y2) {
     if (t <= 0) return 0;
@@ -1358,6 +1454,16 @@ void main(){
         gl.useProgram(paintProg); gl.bindVertexArray(vao);
         gl.activeTexture(gl.TEXTURE11); gl.bindTexture(gl.TEXTURE_2D,ping.tex);
         gl.uniform1i(PU.prev,11);
+        // Bind iceOpacity at unit 14, iceNorm at unit 15 for non-uniform melting + diffusion
+        gl.activeTexture(gl.TEXTURE14);
+        gl.bindTexture(gl.TEXTURE_2D, textureObjs['iceOpacity'] || null);
+        gl.uniform1i(PU.iceOpacity, 14);
+        gl.activeTexture(gl.TEXTURE15);
+        gl.bindTexture(gl.TEXTURE_2D, textureObjs['iceNorm'] || null);
+        gl.uniform1i(PU.iceNorm, 15);
+        gl.uniform1f(PU.pRatio, canvas.width/canvas.height);
+        gl.uniform1f(PU.pIceAspect, iceTexAspect);
+        gl.uniform1f(PU.pTexScale, PARAMS.texScale);
         gl.uniform2f(PU.mouseA,lastMouse.x,lastMouse.y);
         gl.uniform2f(PU.mouseB,mouse.x,mouse.y);
         gl.uniform1f(PU.radius,  PARAMS.meltRadius);
@@ -1387,6 +1493,16 @@ void main(){
           gl.useProgram(paintProg); gl.bindVertexArray(vao);
           gl.activeTexture(gl.TEXTURE11); gl.bindTexture(gl.TEXTURE_2D,ping.tex);
           gl.uniform1i(PU.prev,11);
+          // Bind iceOpacity at unit 14, iceNorm at unit 15
+          gl.activeTexture(gl.TEXTURE14);
+          gl.bindTexture(gl.TEXTURE_2D, textureObjs['iceOpacity'] || null);
+          gl.uniform1i(PU.iceOpacity, 14);
+          gl.activeTexture(gl.TEXTURE15);
+          gl.bindTexture(gl.TEXTURE_2D, textureObjs['iceNorm'] || null);
+          gl.uniform1i(PU.iceNorm, 15);
+          gl.uniform1f(PU.pRatio, canvas.width/canvas.height);
+          gl.uniform1f(PU.pIceAspect, iceTexAspect);
+          gl.uniform1f(PU.pTexScale, PARAMS.texScale);
           gl.uniform2f(PU.mouseA,0.5,0.5);
           gl.uniform2f(PU.mouseB,0.5,0.5);
           gl.uniform1f(PU.radius,  3.0);
